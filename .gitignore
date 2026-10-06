@@ -1,0 +1,15 @@
+plans/
+
+# Backend (Maven)
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend
+frontend/frontend-web/node_modules/
+frontend/frontend-web/dist/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store

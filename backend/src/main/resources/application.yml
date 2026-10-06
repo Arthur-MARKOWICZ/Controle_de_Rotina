@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: controle-rotina
+  datasource:
+    url: jdbc:postgresql://localhost:5432/controle_rotina
+    username: controle
+    password: controle
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+app:
+  security:
+    jwt:
+      secret: "controle-rotina-dev-secret-key-min-32-chars!!"
+      access-token-ttl: 15m
+      refresh-token-ttl: 5d
+    refresh-cookie:
+      name: refresh_token
+      path: /
+      http-only: true
+      secure: false
+      same-site: Lax
