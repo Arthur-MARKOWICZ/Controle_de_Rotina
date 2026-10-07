@@ -10,13 +10,14 @@ export function HomePage() {
       <header className="home-header">
         <h1>Controle de Rotina</h1>
         <div className="home-actions">
+          <Link to="/tarefas">Tarefas</Link>
           <Link to="/perfil">Meu perfil</Link>
           <button type="button" onClick={() => void logout()}>
             Sair
           </button>
         </div>
       </header>
-      <p>Você está autenticado. O planejamento virá nas próximas features.</p>
+      <p>Você está autenticado. Cadastre tarefas para o planejamento.</p>
     </main>
   )
 }

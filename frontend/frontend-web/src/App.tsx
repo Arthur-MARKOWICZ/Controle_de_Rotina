@@ -6,6 +6,8 @@ import { LoginPage } from './auth/pages/LoginPage'
 import { PerfilPage } from './auth/pages/PerfilPage'
 import { AuthProvider } from './auth/session/AuthContext'
 import { HomePage } from './pages/HomePage'
+import { TarefaFormPage } from './tarefa/pages/TarefaFormPage'
+import { TarefasPage } from './tarefa/pages/TarefasPage'
 
 export default function App() {
   return (
@@ -27,6 +29,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PerfilPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tarefas"
+            element={
+              <ProtectedRoute>
+                <TarefasPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tarefas/nova"
+            element={
+              <ProtectedRoute>
+                <TarefaFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tarefas/:id"
+            element={
+              <ProtectedRoute>
+                <TarefaFormPage />
               </ProtectedRoute>
             }
           />

@@ -167,3 +167,296 @@ a:hover {
 .home-header button {
   margin-top: 0;
 }
+
+.tarefas-page {
+  width: min(100%, 64rem);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  min-height: 100vh;
+}
+
+.tarefas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tarefas-header h1 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 600;
+}
+
+.tarefas-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.tarefas-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.button-link,
+.filtros-actions button,
+.tarefas-paginacao button {
+  border: 0;
+  border-radius: 0.45rem;
+  padding: 0.65rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button-link:hover,
+.filtros-actions button:hover,
+.tarefas-paginacao button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+.button-secondary {
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.tarefas-filtros {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.tarefas-filtros fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.tarefas-filtros legend {
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+
+.filtros-grid label,
+.auth-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.filtros-grid input,
+.filtros-grid select,
+.auth-form select,
+.auth-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+.auth-form textarea {
+  resize: vertical;
+  margin-bottom: 0.55rem;
+}
+
+.auth-form select {
+  margin-bottom: 0.55rem;
+}
+
+.filtros-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.filtros-avancados {
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.tarefas-meta {
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.tarefas-table-wrap {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+.tarefas-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tarefas-table th,
+.tarefas-table td {
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.tarefas-table th {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.tarefas-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.status-badge {
+  display: inline-block;
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #ece7dc;
+  color: var(--ink);
+}
+
+.status-atrasada {
+  background: #f3d4d4;
+  color: var(--danger);
+}
+
+.status-em_progresso {
+  background: #d7ebe6;
+  color: var(--accent-hover);
+}
+
+.status-finalizada {
+  background: #dde8d8;
+  color: #2f5d2c;
+}
+
+.status-cancelada {
+  background: #e7e3db;
+  color: var(--muted);
+}
+
+.tarefas-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.tarefas-paginacao button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tarefa-form-panel {
+  width: min(100%, 32rem);
+}
+
+.tarefa-deletada-aviso {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.45rem;
+  background: #f3d4d4;
+  color: var(--danger);
+  font-size: 0.95rem;
+}
+
+.tarefa-acoes-secundarias {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.button-danger {
+  border: 0;
+  border-radius: 0.45rem;
+  padding: 0.65rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--danger);
+  cursor: pointer;
+}
+
+.button-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.button-danger:disabled,
+.button-table:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.status-deletada {
+  margin-left: 0.5rem;
+  background: #e7e3db;
+  color: var(--muted);
+}
+
+.tarefa-linha-deletada td {
+  opacity: 0.85;
+}
+
+.button-table {
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.button-table-danger {
+  color: var(--danger);
+  border-color: #e0b4b4;
+}
