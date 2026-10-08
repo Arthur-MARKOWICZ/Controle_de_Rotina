@@ -11,6 +11,7 @@ export function HomePage() {
         <h1>Controle de Rotina</h1>
         <div className="home-actions">
           <Link to="/tarefas">Tarefas</Link>
+          <Link to="/capacidade">Capacidade</Link>
           <Link to="/perfil">Meu perfil</Link>
           <button type="button" onClick={() => void logout()}>
             Sair

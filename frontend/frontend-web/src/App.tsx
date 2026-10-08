@@ -5,6 +5,7 @@ import { CadastroPage } from './auth/pages/CadastroPage'
 import { LoginPage } from './auth/pages/LoginPage'
 import { PerfilPage } from './auth/pages/PerfilPage'
 import { AuthProvider } from './auth/session/AuthContext'
+import { CapacidadePage } from './capacidade/pages/CapacidadePage'
 import { HomePage } from './pages/HomePage'
 import { TarefaFormPage } from './tarefa/pages/TarefaFormPage'
 import { TarefasPage } from './tarefa/pages/TarefasPage'
@@ -53,6 +54,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <TarefaFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/capacidade"
+            element={
+              <ProtectedRoute>
+                <CapacidadePage />
               </ProtectedRoute>
             }
           />

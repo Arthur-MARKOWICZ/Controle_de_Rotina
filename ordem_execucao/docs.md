@@ -37,7 +37,7 @@ Se o escopo passar de ~3 atividades de back + ~3 de front, **quebrar** em outro 
 | Ordem | Plano (arquivo) | Status | Dependências | Por que nesta posição |
 |------:|-----------------|--------|--------------|------------------------|
 | 1 | [`usuario.md`](usuario.md) | feito | — | Auth mínima; base para qualquer dado por usuário |
-| 2 | `tarefa.md` | **próximo a criar** | usuário | Entrada do produto (título, prazo, duração, prioridade, status) |
+| 2 | `tarefa.md` | feita | usuário | Entrada do produto (título, prazo, duração, prioridade, status) |
 | 3 | `capacidade.md` | pendente | usuário | Disponibilidade por dia; entrada obrigatória do planner |
 | 4 | `planner.md` | pendente | tarefa, capacidade | Motor determinístico: blocos + distribuição + conflitos |
 | 5 | `aprovacao-plano.md` | pendente | planner | Usuário aprova / ajusta; sem reorganização silenciosa |
