@@ -19,6 +19,7 @@ import com.controlerotina.planner.motor.MotorAlocacao;
 import com.controlerotina.planner.motor.ResultadoAlocacao;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
+import com.controlerotina.shared.exception.PlanoJaAprovadoException;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -54,6 +55,10 @@ public class PlannerGeracaoService {
 
     @Transactional
     public Plano gerar(UUID usuarioId, LocalDate data) {
+        if (planoRepository.existsByUsuarioIdAndDataAndStatus(usuarioId, data, StatusPlano.APROVADO)) {
+            throw new PlanoJaAprovadoException(data);
+        }
+
         CapacidadeResolvidaResponse capacidade = capacidadeResolvidaService
                 .resolver(usuarioId, data, data)
                 .getFirst();

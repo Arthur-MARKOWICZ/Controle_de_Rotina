@@ -119,4 +119,10 @@ public class Plano {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void atualizarConflito(boolean temConflito, String mensagem, Instant updatedAt) {
+        this.temConflito = temConflito;
+        this.mensagem = mensagem;
+        this.updatedAt = updatedAt;
+    }
 }
