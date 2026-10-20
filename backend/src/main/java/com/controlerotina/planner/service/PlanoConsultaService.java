@@ -47,6 +47,12 @@ public class PlanoConsultaService {
         return plano.map(this::montarResposta);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<PlanoResponse> buscarPorId(UUID usuarioId, UUID id) {
+        return planoRepository.findByIdAndUsuarioId(id, usuarioId)
+                .map(this::montarResposta);
+    }
+
     private PlanoResponse montarResposta(Plano plano) {
         List<BlocoPlano> blocos = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(plano.getId());
         Map<UUID, Tarefa> tarefas = tarefaRepository.findAllById(

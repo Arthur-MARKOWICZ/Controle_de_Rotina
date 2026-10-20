@@ -231,6 +231,80 @@ class PlanoConsultaIT {
         assertThat(outroUsuario.getStatusCode()).isEqualTo(NOT_FOUND);
     }
 
+    @Test
+    void deveRetornar401AoBuscarPorIdSemToken() {
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "/planos/" + UUID.randomUUID(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
+    @Test
+    void deveRetornarPlanoPorIdComBlocosParaODono() {
+        salvarOverride(2);
+        Tarefa tarefa = salvarTarefa("Por id", Prioridade.MEDIA, 1, AGORA);
+        Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/" + plano.getId(),
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("id")).isEqualTo(plano.getId().toString());
+        assertThat(response.getBody().get("data")).isEqualTo(DIA_D.toString());
+        assertThat(response.getBody().get("versao")).isEqualTo(1);
+        assertThat(response.getBody().get("status")).isEqualTo("RASCUNHO");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocos = (List<Map<String, Object>>) response.getBody().get("blocos");
+        assertThat(blocos).hasSize(1);
+        assertThat(blocos.get(0).get("ordem")).isEqualTo(1);
+        assertThat(blocos.get(0).get("duracaoMinutos")).isEqualTo(60);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> tarefaResumo = (Map<String, Object>) blocos.get(0).get("tarefa");
+        assertThat(tarefaResumo.get("id")).isEqualTo(tarefa.getId().toString());
+        assertThat(tarefaResumo.get("titulo")).isEqualTo("Por id");
+    }
+
+    @Test
+    void deveRetornar404AoBuscarPorIdInexistenteOuDeOutroUsuario() {
+        salvarOverride(2);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
+
+        ResponseEntity<Map> inexistente = restTemplate.exchange(
+                "/planos/" + UUID.randomUUID(),
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(inexistente.getStatusCode()).isEqualTo(NOT_FOUND);
+
+        String outroEmail = "outro-id-" + UUID.randomUUID() + "@email.com";
+        assertThat(restTemplate.postForEntity(
+                "/usuarios",
+                json(Map.of("nome", "Outro", "email", outroEmail, "senha", SENHA)),
+                Map.class).getStatusCode()).isEqualTo(CREATED);
+        ResponseEntity<Map> outroLogin = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", outroEmail, "senha", SENHA)),
+                Map.class);
+        String outroToken = outroLogin.getBody().get("accessToken").toString();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(outroToken);
+        ResponseEntity<Map> outroUsuario = restTemplate.exchange(
+                "/planos/" + plano.getId(),
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Map.class);
+        assertThat(outroUsuario.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
     private void salvarOverride(int horas) {
         capacidadeOverrideRepository.save(new CapacidadeOverride(
                 UUID.randomUUID(),
