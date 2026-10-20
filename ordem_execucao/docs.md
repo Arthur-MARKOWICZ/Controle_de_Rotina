@@ -10,11 +10,11 @@ Referência de **tamanho e formato** de um plano: [`usuario.md`](usuario.md).
 1. Siga a coluna **Ordem** (dependências já estão embutidas).
 2. Só avance para o próximo item quando o plano anterior estiver **feito** (ou conscientemente adiado).
 3. Cada item da tabela = **um arquivo de plano** em `plans/` (um slice, no estilo de `usuario.md`).
-4. Ao criar um plano novo, espelhe a estrutura de `usuario.md`: escopo / fora de escopo → entity → back → front → decisões → atividades B*/F* com ordem.
+4. Ao criar um plano novo, siga a skill [`.agents/criar_plano/SKILL.md`](../.agents/criar_plano/SKILL.md) (estrutura + granularidade de B*/F*). Referência viva: `plans/planner.md`.
 
 ---
 
-## Tamanho esperado de um plano (espelho de `usuario.md`)
+## Tamanho esperado de um plano
 
 Um plano deve caber em **um domínio / um slice vertical**, não no produto inteiro.
 
@@ -25,10 +25,11 @@ Um plano deve caber em **um domínio / um slice vertical**, não no produto inte
 | Back-end | Endpoints + regras de negócio fechadas |
 | Front-end | Telas / fluxos mínimos do slice |
 | Decisões | Lista curta do que já foi decidido na revisão |
-| Atividades | Poucas fases (**B1…Bn**, **F1…Fn**), cada uma implementável numa sessão |
+| Testes | Mínimo obrigatório (unitário / API / job) — o que **não pode faltar** |
+| Atividades | **B1…Bn** / **F1…Fn** finas: B1 = entities+Flyway; motor separado; **no máx. 1 endpoint novo por B*** |
 
 **Não** misturar no mesmo plano, por exemplo, cadastro de tarefa + motor do planner + XP.  
-Se o escopo passar de ~3 atividades de back + ~3 de front, **quebrar** em outro plano.
+Muitas atividades finas são ok; o que manda partir o arquivo é **escopo de produto** largo, não a contagem de B*.
 
 ---
 
@@ -38,32 +39,25 @@ Se o escopo passar de ~3 atividades de back + ~3 de front, **quebrar** em outro 
 |------:|-----------------|--------|--------------|------------------------|
 | 1 | [`usuario.md`](usuario.md) | feito | — | Auth mínima; base para qualquer dado por usuário |
 | 2 | `tarefa.md` | feita | usuário | Entrada do produto (título, prazo, duração, prioridade, status) |
-| 3 | `capacidade.md` | pendente | usuário | Disponibilidade por dia; entrada obrigatória do planner |
-| 4 | `planner.md` | pendente | tarefa, capacidade | Motor determinístico: blocos + distribuição + conflitos |
-| 5 | `aprovacao-plano.md` | pendente | planner | Usuário aprova / ajusta; sem reorganização silenciosa |
-| 6 | `execucao.md` | pendente | aprovação | Iniciar / acompanhar / concluir blocos do plano aprovado |
-| 7 | `xp.md` | pendente | execução | Gamificação leve ao concluir (fórmula ainda aberta) |
-| 8 | `historico.md` | pendente | execução, xp | Progresso do dia / semana (tarefas, tempo, XP) |
+| 3 | `capacidade.md` | feito | usuário | Disponibilidade por dia; entrada obrigatória do planner |
+| 4 | [`planner.md`](../plans/planner.md) | pendente (revisado) | tarefa, capacidade | Motor dia D + blocos + score + versões + ajuste/aprovação |
+| 5 | `execucao.md` | pendente | planner (aprovado) | Iniciar / acompanhar / concluir blocos do plano aprovado |
+| 6 | `xp.md` | pendente | execução | Gamificação leve ao concluir (fórmula ainda aberta) |
+| 7 | `historico.md` | pendente | execução, xp | Progresso do dia / semana (tarefas, tempo, XP) |
 
 Fluxo resumido:
 
 ```text
-usuario → tarefa → capacidade → planner → aprovacao-plano → execucao → xp → historico
+usuario → tarefa → capacidade → planner (+ aprovação) → execucao → xp → historico
 ```
+
+`aprovacao-plano.md` **não** é slice separado no MVP: ajuste e aprovação ficam em `planner.md`.
 
 ---
 
 ## Próximo passo agora
 
-**Criar `plans/tarefa.md`**, no mesmo espírito de `usuario.md`.
-
-Sugestão de escopo mínimo (ajustar na revisão do plano):
-
-- CRUD de tarefas do usuário autenticado (`/me` implícito).
-- Campos do MVP: título, descrição, prazo, duração estimada, prioridade, status.
-- Fora deste slice: quebra em blocos, planner, recorrência, XP.
-
-Capacidade vem em seguida porque o planner precisa das duas entradas (tarefas + horas disponíveis).
+**Implementar / seguir** [`plans/planner.md`](../plans/planner.md) (quarto slice), após tarefa e capacidade feitos.
 
 ---
 

@@ -1,6 +1,8 @@
 package com.controlerotina.tarefa.repository;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +18,11 @@ import com.controlerotina.tarefa.entity.Tarefa;
 public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecificationExecutor<Tarefa> {
 
     Optional<Tarefa> findByIdAndUsuarioId(UUID id, UUID usuarioId);
+
+    List<Tarefa> findByUsuarioIdAndDeletedAtIsNullAndStatusIn(
+            UUID usuarioId,
+            Collection<StatusTarefa> status
+    );
 
     @Modifying(clearAutomatically = true)
     @Query("""

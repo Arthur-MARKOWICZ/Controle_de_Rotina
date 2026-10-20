@@ -8,4 +8,6 @@ O usuário informa o que precisa fazer, quanto tempo estima e até quando precis
 
 Documento de visão: `assistente_planejamento_rotina_gamificado.md`  
 Decisões de arquitetura: `Decisoes_arqutetura.md`  
-Planos de features: `plans/`
+Planos de features: `plans/`  
+Ordem dos slices: `ordem_execucao/docs.md`  
+Skills de plano: `.agents/criar_plano` (escrever/reescrever), `.agents/revisao_plano` (criticar antes de fechar)
