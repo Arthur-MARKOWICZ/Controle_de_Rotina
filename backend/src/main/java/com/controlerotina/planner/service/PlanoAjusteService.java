@@ -18,6 +18,7 @@ import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.motor.MotorAlocacao;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
+import com.controlerotina.shared.exception.BlocoPlanoNaoEncontradoException;
 import com.controlerotina.shared.exception.PlanoNaoAjustavelException;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
 import com.controlerotina.shared.exception.TarefaJaNoPlanoException;
@@ -106,6 +107,30 @@ public class PlanoAjusteService {
 
         return planoConsultaService.buscarPorId(usuarioId, plano.getId())
                 .orElseThrow(PlanoNaoEncontradoException::new);
+    }
+
+    @Transactional
+    public void removerBloco(UUID usuarioId, UUID planoId, UUID blocoId) {
+        Plano plano = planoRepository.findByIdAndUsuarioId(planoId, usuarioId)
+                .orElseThrow(PlanoNaoEncontradoException::new);
+        garantirRascunhoCorrente(plano);
+
+        BlocoPlano bloco = blocoPlanoRepository.findByIdAndPlanoId(blocoId, plano.getId())
+                .orElseThrow(BlocoPlanoNaoEncontradoException::new);
+
+        blocoPlanoRepository.delete(bloco);
+
+        Instant agora = clock.instant();
+        List<BlocoPlano> restantes = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(plano.getId());
+        int somaMinutos = restantes.stream().mapToInt(BlocoPlano::getDuracaoMinutos).sum();
+        int capacidadeMinutos = resolverCapacidadeMinutos(usuarioId, plano);
+        boolean temConflito = somaMinutos > capacidadeMinutos;
+        plano.atualizarConflito(
+                temConflito,
+                temConflito ? MENSAGEM_ESTOURO : null,
+                agora
+        );
+        planoRepository.save(plano);
     }
 
     private void garantirRascunhoCorrente(Plano plano) {
