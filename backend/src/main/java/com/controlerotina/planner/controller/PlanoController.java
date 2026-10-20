@@ -21,6 +21,7 @@ import com.controlerotina.planner.dto.PlanoResponse;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.service.PlannerGeracaoService;
 import com.controlerotina.planner.service.PlanoAjusteService;
+import com.controlerotina.planner.service.PlanoAprovacaoService;
 import com.controlerotina.planner.service.PlanoConsultaService;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
 
@@ -33,15 +34,18 @@ public class PlanoController {
     private final PlanoConsultaService planoConsultaService;
     private final PlannerGeracaoService plannerGeracaoService;
     private final PlanoAjusteService planoAjusteService;
+    private final PlanoAprovacaoService planoAprovacaoService;
 
     public PlanoController(
             PlanoConsultaService planoConsultaService,
             PlannerGeracaoService plannerGeracaoService,
-            PlanoAjusteService planoAjusteService
+            PlanoAjusteService planoAjusteService,
+            PlanoAprovacaoService planoAprovacaoService
     ) {
         this.planoConsultaService = planoConsultaService;
         this.plannerGeracaoService = plannerGeracaoService;
         this.planoAjusteService = planoAjusteService;
+        this.planoAprovacaoService = planoAprovacaoService;
     }
 
     @GetMapping
@@ -94,5 +98,13 @@ public class PlanoController {
             @PathVariable UUID blocoId
     ) {
         planoAjusteService.removerBloco(usuarioId, id, blocoId);
+    }
+
+    @PostMapping("/{id}/aprovar")
+    public PlanoResponse aprovar(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id
+    ) {
+        return planoAprovacaoService.aprovar(usuarioId, id);
     }
 }

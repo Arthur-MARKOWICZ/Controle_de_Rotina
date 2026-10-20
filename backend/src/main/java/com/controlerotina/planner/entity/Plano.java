@@ -125,4 +125,9 @@ public class Plano {
         this.mensagem = mensagem;
         this.updatedAt = updatedAt;
     }
+
+    public void aprovar(Instant updatedAt) {
+        this.status = StatusPlano.APROVADO;
+        this.updatedAt = updatedAt;
+    }
 }
