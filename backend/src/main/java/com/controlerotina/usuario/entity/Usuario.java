@@ -24,6 +24,12 @@ public class Usuario {
     @Column(nullable = false, length = 100)
     private String nome;
 
+    @Column(name = "xp_total", nullable = false)
+    private int xpTotal;
+
+    @Column(nullable = false)
+    private int nivel;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -38,6 +44,8 @@ public class Usuario {
         this.email = email;
         this.senhaHash = senhaHash;
         this.nome = nome;
+        this.xpTotal = 0;
+        this.nivel = 1;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -55,6 +63,12 @@ public class Usuario {
         this.updatedAt = updatedAt;
     }
 
+    public void atualizarProgressoXp(int xpTotal, int nivel, Instant updatedAt) {
+        this.xpTotal = xpTotal;
+        this.nivel = nivel;
+        this.updatedAt = updatedAt;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -69,6 +83,14 @@ public class Usuario {
 
     public String getNome() {
         return nome;
+    }
+
+    public int getXpTotal() {
+        return xpTotal;
+    }
+
+    public int getNivel() {
+        return nivel;
     }
 
     public Instant getCreatedAt() {

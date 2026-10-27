@@ -8,6 +8,15 @@ import {
   type CapacidadeResolvidaResponse,
 } from '../capacidade/api/capacidadeResolvidaApi'
 import {
+  abortarExecucao,
+  concluirExecucao,
+  iniciarExecucao,
+  listarExecucoes,
+  type ItemExecucaoResponse,
+  type StatusExecucao,
+} from '../execucao/api/execucaoApi'
+import { formatarTempoRestante, minutosRestantes } from '../execucao/data'
+import {
   adicionarBloco,
   aprovarPlano,
   buscarPlano,
@@ -31,6 +40,13 @@ const STATUS_PLANO_LABEL: Record<StatusPlano, string> = {
   APROVADO: 'Aprovado',
 }
 
+const STATUS_EXECUCAO_LABEL: Record<StatusExecucao, string> = {
+  NAO_INICIADO: 'Não iniciado',
+  EM_ANDAMENTO: 'Em andamento',
+  CONCLUIDO: 'Concluído',
+  ABORTADO: 'Abortado',
+}
+
 function capacidadeDoDia(
   resolvidas: CapacidadeResolvidaResponse[],
   data: string,
@@ -49,18 +65,22 @@ export function HomePage() {
   const { logout } = useAuth()
   const [plano, setPlano] = useState<PlanoResponse | null>(null)
   const [capacidade, setCapacidade] = useState<CapacidadeResolvidaResponse | undefined>()
+  const [itensExecucao, setItensExecucao] = useState<ItemExecucaoResponse[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [acaoErro, setAcaoErro] = useState<string | null>(null)
   const [aprovando, setAprovando] = useState(false)
   const [removendoBlocoId, setRemovendoBlocoId] = useState<string | null>(null)
+  const [acaoBlocoId, setAcaoBlocoId] = useState<string | null>(null)
   const [elegiveis, setElegiveis] = useState<TarefaResponse[]>([])
   const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState('')
   const [adicionando, setAdicionando] = useState(false)
   const [carregandoElegiveis, setCarregandoElegiveis] = useState(false)
   const [gerando, setGerando] = useState(false)
+  const [agora, setAgora] = useState(() => new Date())
 
   const ehRascunho = plano?.status === 'RASCUNHO'
+  const ehAprovado = plano?.status === 'APROVADO'
   const podeGerar = !plano || ehRascunho
 
   useEffect(() => {
@@ -80,12 +100,22 @@ export function HomePage() {
         }
         setPlano(planoDia)
         setCapacidade(capacidadeDoDia(resolvidas, data))
+
+        if (planoDia?.status === 'APROVADO') {
+          const execucoes = await listarExecucoes(data)
+          if (!cancelado) {
+            setItensExecucao(execucoes.itens)
+          }
+        } else if (!cancelado) {
+          setItensExecucao([])
+        }
       } catch (error) {
         if (cancelado) {
           return
         }
         setErro(mensagemErro(error, 'Não foi possível carregar o plano.'))
         setPlano(null)
+        setItensExecucao([])
       } finally {
         if (!cancelado) {
           setCarregando(false)
@@ -144,6 +174,20 @@ export function HomePage() {
     }
   }, [ehRascunho, plano])
 
+  useEffect(() => {
+    const temAndamento = itensExecucao.some((item) => item.execucao.status === 'EM_ANDAMENTO')
+    if (!temAndamento) {
+      return
+    }
+    const id = window.setInterval(() => setAgora(new Date()), 1000)
+    return () => window.clearInterval(id)
+  }, [itensExecucao])
+
+  async function recarregarExecucoes(data: string) {
+    const execucoes = await listarExecucoes(data)
+    setItensExecucao(execucoes.itens)
+  }
+
   async function handleGerar() {
     if (!podeGerar) {
       return
@@ -154,6 +198,7 @@ export function HomePage() {
     try {
       const gerado = await gerarPlano(dataHojeIso())
       setPlano(gerado)
+      setItensExecucao([])
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível gerar o plano.'))
     } finally {
@@ -170,6 +215,7 @@ export function HomePage() {
     try {
       const atualizado = await aprovarPlano(plano.id)
       setPlano(atualizado)
+      await recarregarExecucoes(atualizado.data)
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível aprovar o plano.'))
     } finally {
@@ -212,6 +258,45 @@ export function HomePage() {
     }
   }
 
+  async function handleIniciar(blocoId: string) {
+    setAcaoBlocoId(blocoId)
+    setAcaoErro(null)
+    try {
+      await iniciarExecucao(blocoId)
+      await recarregarExecucoes(dataHojeIso())
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível iniciar a execução.'))
+    } finally {
+      setAcaoBlocoId(null)
+    }
+  }
+
+  async function handleConcluir(execucaoId: string, blocoId: string) {
+    setAcaoBlocoId(blocoId)
+    setAcaoErro(null)
+    try {
+      await concluirExecucao(execucaoId)
+      await recarregarExecucoes(dataHojeIso())
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível concluir a execução.'))
+    } finally {
+      setAcaoBlocoId(null)
+    }
+  }
+
+  async function handleAbortar(execucaoId: string, blocoId: string) {
+    setAcaoBlocoId(blocoId)
+    setAcaoErro(null)
+    try {
+      await abortarExecucao(execucaoId)
+      await recarregarExecucoes(dataHojeIso())
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível abortar a execução.'))
+    } finally {
+      setAcaoBlocoId(null)
+    }
+  }
+
   const usados = plano ? minutosUsados(plano.blocos) : 0
   const disponiveis = minutosDisponiveis(capacidade?.horas, capacidade?.origem)
   const resumoCapacidade = `${formatarCapacidadeMinutos(usados)} / ${formatarCapacidadeMinutos(disponiveis)}`
@@ -223,6 +308,7 @@ export function HomePage() {
         <div className="home-actions">
           <Link to="/tarefas">Tarefas</Link>
           <Link to="/capacidade">Capacidade</Link>
+          <Link to="/historico">Histórico</Link>
           <Link to="/perfil">Meu perfil</Link>
           <button type="button" onClick={() => void logout()}>
             Sair
@@ -324,7 +410,99 @@ export function HomePage() {
               </div>
             ) : null}
 
-            {plano.blocos.length === 0 ? (
+            {ehAprovado ? (
+              itensExecucao.length === 0 ? (
+                <p className="plano-dia-vazio" role="status">
+                  Nenhum bloco neste plano.
+                </p>
+              ) : (
+                <ol className="plano-blocos">
+                  {itensExecucao.map((item) => {
+                    const status = item.execucao.status
+                    const ocupado = acaoBlocoId === item.bloco.id
+                    const restante =
+                      status === 'EM_ANDAMENTO' && item.execucao.iniciadoEm
+                        ? formatarTempoRestante(
+                            minutosRestantes(
+                              item.execucao.iniciadoEm,
+                              item.bloco.duracaoMinutos,
+                              agora,
+                            ),
+                          )
+                        : null
+
+                    return (
+                      <li key={item.bloco.id} className="plano-bloco">
+                        <span className="plano-bloco-ordem">{item.bloco.ordem}</span>
+                        <div className="plano-bloco-corpo">
+                          <p className="plano-bloco-titulo">
+                            <Link to={`/tarefas/${item.tarefaResumo.id}`}>
+                              {item.tarefaResumo.titulo}
+                            </Link>
+                          </p>
+                          <p className="plano-bloco-meta">
+                            {formatarCapacidadeMinutos(item.bloco.duracaoMinutos)}
+                            {' · '}
+                            {item.tarefaResumo.prioridade}
+                            {' · '}
+                            <span className={`status-execucao status-execucao-${status.toLowerCase()}`}>
+                              {STATUS_EXECUCAO_LABEL[status]}
+                            </span>
+                            {restante ? (
+                              <>
+                                {' · '}
+                                <span aria-label="Tempo restante">
+                                  Restante: {restante}
+                                </span>
+                              </>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="plano-bloco-acoes-execucao">
+                          {status === 'NAO_INICIADO' || status === 'ABORTADO' ? (
+                            <button
+                              type="button"
+                              className="button-link"
+                              onClick={() => void handleIniciar(item.bloco.id)}
+                              disabled={ocupado}
+                              aria-label={`Iniciar ${item.tarefaResumo.titulo}`}
+                            >
+                              {ocupado ? 'Iniciando…' : 'Iniciar'}
+                            </button>
+                          ) : null}
+                          {status === 'EM_ANDAMENTO' && item.execucao.id ? (
+                            <>
+                              <button
+                                type="button"
+                                className="button-link"
+                                onClick={() =>
+                                  void handleConcluir(item.execucao.id!, item.bloco.id)
+                                }
+                                disabled={ocupado}
+                                aria-label={`Concluir ${item.tarefaResumo.titulo}`}
+                              >
+                                {ocupado ? 'Salvando…' : 'Concluir'}
+                              </button>
+                              <button
+                                type="button"
+                                className="button-secondary"
+                                onClick={() =>
+                                  void handleAbortar(item.execucao.id!, item.bloco.id)
+                                }
+                                disabled={ocupado}
+                                aria-label={`Abortar ${item.tarefaResumo.titulo}`}
+                              >
+                                {ocupado ? 'Abortando…' : 'Abortar'}
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )
+            ) : plano.blocos.length === 0 ? (
               <p className="plano-dia-vazio" role="status">
                 Nenhum bloco neste plano.
               </p>

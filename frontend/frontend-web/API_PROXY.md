@@ -31,6 +31,8 @@ Sempre que o backend ganhar um **prefixo de rota novo** (ex.: `/execucoes`, `/xp
 | `/tarefas`      | CRUD tarefas                               |
 | `/capacidades`  | semanal, overrides, resolvida              |
 | `/planos`       | planner (consulta, gerar, ajuste, aprovar) |
+| `/execucoes`    | execução de blocos (listar, iniciar, concluir, abortar) |
+| `/historico/dia`, `/historico/semana` | resumo de progresso (a tela SPA é `/historico` exato) |
 
 Arquivos:
 
@@ -60,6 +62,8 @@ Use a UI logada (`/capacidade`, `/`) ou o DevTools → Network com a sessão ati
 |------|---------|
 | `/capacidade` | Tela React (SPA) |
 | `/capacidades/...` | API (proxy → backend) |
+| `/historico` | Tela React (SPA) |
+| `/historico/dia`, `/historico/semana` | API (proxy → backend) |
 
 ## Erro “API devolveu a página do front (SPA)”
 

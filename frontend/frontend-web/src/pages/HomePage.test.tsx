@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthProvider } from '../auth/session/AuthContext'
 import * as capacidadeResolvidaApi from '../capacidade/api/capacidadeResolvidaApi'
+import * as execucaoApi from '../execucao/api/execucaoApi'
+import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
 import * as planoApi from '../planner/api/planoApi'
 import type { PlanoResponse } from '../planner/api/planoApi'
 import * as tarefaApi from '../tarefa/api/tarefaApi'
@@ -25,6 +27,13 @@ vi.mock('../capacidade/api/capacidadeResolvidaApi', () => ({
 
 vi.mock('../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
+}))
+
+vi.mock('../execucao/api/execucaoApi', () => ({
+  listarExecucoes: vi.fn(),
+  iniciarExecucao: vi.fn(),
+  concluirExecucao: vi.fn(),
+  abortarExecucao: vi.fn(),
 }))
 
 vi.mock('../planner/data', async (importOriginal) => {
@@ -75,6 +84,25 @@ const planoBase: PlanoResponse = {
   ],
 }
 
+const itemExecucaoBase: ItemExecucaoResponse = {
+  bloco: { id: 'b-1', duracaoMinutos: 60, ordem: 1 },
+  tarefaResumo: {
+    id: 't-1',
+    titulo: 'Estudar Spring',
+    prioridade: 'ALTA',
+    status: 'PENDENTE',
+    duracaoHoras: 1,
+  },
+  execucao: {
+    id: null,
+    blocoPlanoId: null,
+    status: 'NAO_INICIADO',
+    iniciadoEm: null,
+    concluidoEm: null,
+    abortadoEm: null,
+  },
+}
+
 function renderHome(initialPath = '/') {
   return render(
     <AuthProvider>
@@ -97,6 +125,10 @@ describe('HomePage — plano do dia', () => {
     vi.mocked(planoApi.removerBloco).mockReset()
     vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockReset()
+    vi.mocked(execucaoApi.listarExecucoes).mockReset()
+    vi.mocked(execucaoApi.iniciarExecucao).mockReset()
+    vi.mocked(execucaoApi.concluirExecucao).mockReset()
+    vi.mocked(execucaoApi.abortarExecucao).mockReset()
     vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([
       { data: '2026-10-20', horas: 2, origem: 'SEMANAL' },
     ])
@@ -106,6 +138,10 @@ describe('HomePage — plano do dia', () => {
       totalPages: 1,
       number: 0,
       size: 100,
+    })
+    vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+      planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+      itens: [itemExecucaoBase],
     })
   })
 
@@ -381,6 +417,155 @@ describe('HomePage — plano do dia', () => {
       await user.click(link)
 
       expect(await screen.findByText('Detalhe da tarefa')).toBeInTheDocument()
+    })
+  })
+
+  describe('modo execução (plano APROVADO)', () => {
+    it('T10: mostra CTA iniciar e não mostra aprovar/remover do rascunho', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+
+      renderHome()
+
+      expect(await screen.findByRole('button', { name: /iniciar estudar spring/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /aprovar plano/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /remover/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: /adicionar tarefa/i })).not.toBeInTheDocument()
+      expect(execucaoApi.listarExecucoes).toHaveBeenCalledWith('2026-10-20')
+    })
+
+    it('T11: mostra tempo restante quando em andamento', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: [
+          {
+            ...itemExecucaoBase,
+            execucao: {
+              id: 'e-1',
+              blocoPlanoId: 'b-1',
+              status: 'EM_ANDAMENTO',
+              iniciadoEm: new Date(Date.now() - 28 * 60_000).toISOString(),
+              concluidoEm: null,
+              abortadoEm: null,
+            },
+          },
+        ],
+      })
+
+      renderHome()
+
+      expect(await screen.findByLabelText(/tempo restante/i)).toHaveTextContent(/restante:\s*32min/i)
+      expect(screen.getByRole('button', { name: /concluir estudar spring/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /abortar estudar spring/i })).toBeInTheDocument()
+    })
+
+    it('inicia execução e atualiza a lista', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+      vi.mocked(execucaoApi.iniciarExecucao).mockResolvedValue({
+        id: 'e-1',
+        blocoPlanoId: 'b-1',
+        status: 'EM_ANDAMENTO',
+        iniciadoEm: '2026-10-20T14:00:00Z',
+        concluidoEm: null,
+        abortadoEm: null,
+      })
+      vi.mocked(execucaoApi.listarExecucoes)
+        .mockResolvedValueOnce({
+          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+          itens: [itemExecucaoBase],
+        })
+        .mockResolvedValueOnce({
+          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+          itens: [
+            {
+              ...itemExecucaoBase,
+              execucao: {
+                id: 'e-1',
+                blocoPlanoId: 'b-1',
+                status: 'EM_ANDAMENTO',
+                iniciadoEm: '2026-10-20T14:00:00Z',
+                concluidoEm: null,
+                abortadoEm: null,
+              },
+            },
+          ],
+        })
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /iniciar estudar spring/i }))
+
+      await waitFor(() => {
+        expect(execucaoApi.iniciarExecucao).toHaveBeenCalledWith('b-1')
+      })
+      expect(await screen.findByRole('button', { name: /concluir estudar spring/i })).toBeInTheDocument()
+    })
+
+    it('conclui e aborta execução', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+      const emAndamento: ItemExecucaoResponse = {
+        ...itemExecucaoBase,
+        execucao: {
+          id: 'e-1',
+          blocoPlanoId: 'b-1',
+          status: 'EM_ANDAMENTO',
+          iniciadoEm: '2026-10-20T14:00:00Z',
+          concluidoEm: null,
+          abortadoEm: null,
+        },
+      }
+      vi.mocked(execucaoApi.listarExecucoes)
+        .mockResolvedValueOnce({
+          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+          itens: [emAndamento],
+        })
+        .mockResolvedValueOnce({
+          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+          itens: [
+            {
+              ...itemExecucaoBase,
+              execucao: {
+                id: 'e-1',
+                blocoPlanoId: 'b-1',
+                status: 'CONCLUIDO',
+                iniciadoEm: '2026-10-20T14:00:00Z',
+                concluidoEm: '2026-10-20T15:00:00Z',
+                abortadoEm: null,
+              },
+            },
+          ],
+        })
+      vi.mocked(execucaoApi.concluirExecucao).mockResolvedValue({
+        id: 'e-1',
+        blocoPlanoId: 'b-1',
+        status: 'CONCLUIDO',
+        iniciadoEm: '2026-10-20T14:00:00Z',
+        concluidoEm: '2026-10-20T15:00:00Z',
+        abortadoEm: null,
+      })
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /concluir estudar spring/i }))
+
+      await waitFor(() => {
+        expect(execucaoApi.concluirExecucao).toHaveBeenCalledWith('e-1')
+      })
+      expect(await screen.findByText(/concluído/i)).toBeInTheDocument()
     })
   })
 })

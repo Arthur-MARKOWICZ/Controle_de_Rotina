@@ -41,9 +41,9 @@ Muitas atividades finas são ok; o que manda partir o arquivo é **escopo de pro
 | 2 | `tarefa.md` | feita | usuário | Entrada do produto (título, prazo, duração, prioridade, status) |
 | 3 | `capacidade.md` | feito | usuário | Disponibilidade por dia; entrada obrigatória do planner |
 | 4 | [`planner.md`](../plans/planner.md) | pendente (revisado) | tarefa, capacidade | Motor dia D + blocos + score + versões + ajuste/aprovação |
-| 5 | [`execucao.md`](../plans/execucao.md) | pendente (revisado) | planner (aprovado) | Iniciar / acompanhar / concluir / abortar blocos do plano aprovado |
-| 6 | `xp.md` | pendente | execução | Gamificação leve ao concluir (fórmula ainda aberta) |
-| 7 | `historico.md` | pendente | execução, xp | Progresso do dia / semana (tarefas, tempo, XP) |
+| 5 | [`execucao.md`](../plans/execucao.md) | feito | planner (aprovado) | Iniciar / acompanhar / concluir / abortar blocos do plano aprovado |
+| 6 | [`xp.md`](../plans/xp.md) | parcial (ledger + crédito no concluir; UI toast/header ainda do plano) | execução | Ledger + XP bloco/bônus tarefa + nível (curva 10×n) |
+| 7 | [`historico.md`](../plans/historico.md) | feito | execução, xp | Resumo dia/semana (tarefas, blocos, tempo canônico, XP); agregação na leitura |
 
 Fluxo resumido:
 
@@ -57,8 +57,8 @@ usuario → tarefa → capacidade → planner (+ aprovação) → execucao → x
 
 ## Próximo passo agora
 
-**Implementar / seguir** [`plans/planner.md`](../plans/planner.md) (quarto slice), se ainda não estiver feito.  
-Plano do quinto slice já revisado: [`plans/execucao.md`](../plans/execucao.md) (após planner aprovado).
+**Histórico** ([`historico.md`](../plans/historico.md)) está **feito**.  
+Fechar o restante de [`xp.md`](../plans/xp.md): enriquecer resposta do `concluir` + toast/`/me`/header (F1–F2 do plano de XP), se ainda não estiver na UI.
 
 ---
 

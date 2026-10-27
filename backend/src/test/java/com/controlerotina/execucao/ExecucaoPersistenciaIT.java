@@ -71,6 +71,7 @@ class ExecucaoPersistenciaIT {
         jdbcTemplate.update("delete from refresh_token");
         jdbcTemplate.update("delete from capacidade_override");
         jdbcTemplate.update("delete from capacidade_semanal");
+        jdbcTemplate.update("delete from xp_evento");
         jdbcTemplate.update("delete from usuario");
 
         Instant agora = Instant.parse("2026-10-27T12:00:00Z");

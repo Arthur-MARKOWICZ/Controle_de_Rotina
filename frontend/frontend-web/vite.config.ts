@@ -12,6 +12,10 @@ const API_PROXY_PREFIXES = [
   '/tarefas',
   '/capacidades',
   '/planos',
+  '/execucoes',
+  // /historico (exato) é rota SPA; só os subpaths da API
+  '/historico/dia',
+  '/historico/semana',
 ] as const
 
 const backendProxy = {

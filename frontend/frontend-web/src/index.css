@@ -298,6 +298,30 @@ a:hover {
   font-size: 0.85rem;
 }
 
+.plano-bloco-acoes-execucao {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.status-execucao {
+  font-weight: 600;
+}
+
+.status-execucao-em_andamento {
+  color: var(--accent-hover);
+}
+
+.status-execucao-concluido {
+  color: #2f5d2c;
+}
+
+.status-execucao-abortado {
+  color: var(--danger);
+}
+
 .plano-dia-acoes {
   display: flex;
   flex-wrap: wrap;
@@ -935,4 +959,70 @@ a:hover {
 .capacidade-override-vazio {
   color: var(--muted);
   padding: 0.5rem 0;
+}
+
+.historico-page .historico-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  margin-top: 1rem;
+}
+
+.historico-page .historico-card h2 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.historico-periodo,
+.historico-vazio {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.historico-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.85rem;
+  margin: 1rem 0 0;
+}
+
+.historico-metricas div {
+  margin: 0;
+}
+
+.historico-metricas dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.historico-metricas dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.historico-nav-periodo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.historico-nav-periodo button {
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.historico-nav-periodo button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

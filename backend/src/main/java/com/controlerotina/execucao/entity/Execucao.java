@@ -109,4 +109,42 @@ public class Execucao {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public static Execucao iniciarNova(
+            UUID id,
+            UUID usuarioId,
+            UUID blocoPlanoId,
+            Instant agora
+    ) {
+        return new Execucao(
+                id,
+                usuarioId,
+                blocoPlanoId,
+                StatusExecucao.EM_ANDAMENTO,
+                agora,
+                null,
+                null,
+                agora,
+                agora
+        );
+    }
+
+    public void reiniciar(Instant agora) {
+        this.status = StatusExecucao.EM_ANDAMENTO;
+        this.iniciadoEm = agora;
+        this.abortadoEm = null;
+        this.updatedAt = agora;
+    }
+
+    public void abortar(Instant agora) {
+        this.status = StatusExecucao.ABORTADO;
+        this.abortadoEm = agora;
+        this.updatedAt = agora;
+    }
+
+    public void concluir(Instant agora) {
+        this.status = StatusExecucao.CONCLUIDO;
+        this.concluidoEm = agora;
+        this.updatedAt = agora;
+    }
 }
