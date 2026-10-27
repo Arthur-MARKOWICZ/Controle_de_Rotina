@@ -11,9 +11,13 @@ import {
   type CapacidadeOverrideResponse,
 } from './capacidadeOverrideApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 const override: CapacidadeOverrideResponse = {
   id: 'o-1',

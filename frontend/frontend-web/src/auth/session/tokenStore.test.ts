@@ -1,6 +1,11 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 
-import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStore'
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+  subscribeAccessToken,
+} from './tokenStore'
 
 describe('tokenStore', () => {
   beforeEach(() => {
@@ -16,5 +21,19 @@ describe('tokenStore', () => {
     setAccessToken('jwt-abc')
     clearAccessToken()
     expect(getAccessToken()).toBeNull()
+  })
+
+  it('notifica assinantes quando o token muda ou é limpo', () => {
+    const listener = vi.fn()
+    const unsubscribe = subscribeAccessToken(listener)
+
+    setAccessToken('jwt-abc')
+    clearAccessToken()
+    unsubscribe()
+    setAccessToken('jwt-xyz')
+
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(listener).toHaveBeenNthCalledWith(1, 'jwt-abc')
+    expect(listener).toHaveBeenNthCalledWith(2, null)
   })
 })

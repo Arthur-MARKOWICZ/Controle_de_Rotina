@@ -70,6 +70,9 @@ Dependências: …   # se houver
 ## Front-end
 
 # telas/fluxos mínimos; reutilizar rotas/sessão já existentes quando der
+# Se o slice criar um **prefixo novo** de API (ex. /execucoes): incluir atividade F*
+#   para registrar o path em vite.config.ts + nginx.conf e atualizar API_PROXY.md
+#   (sem isso o front recebe index.html e quebra o JSON). Ver frontend/frontend-web/API_PROXY.md.
 
 ---
 
@@ -184,6 +187,7 @@ Objetivo: cada atividade caber em **uma sessão** de implementação, com diff r
 1. Uma atividade ≈ uma intenção de UI (leitura da home, um CTA que chama um endpoint, um fluxo de formulário).
 2. Não juntar aprovar + add + remove + detalhe na mesma F* se cada um depende de um endpoint/fluxo distinto.
 3. Preferir reutilizar telas/rotas de slices anteriores (ex.: detalhe de tarefa) em atividade fina de navegação, sem recriar CRUD.
+4. Prefixo HTTP **novo** no back → atividade (ou item explícito no escopo de uma F*) para `vite.config.ts` + `nginx.conf` + `API_PROXY.md`. Sem rebuild/restart o front recebe HTML.
 
 ### Ordem
 
@@ -232,6 +236,7 @@ Se pesos, status ou edge cases estiverem abertos: **pergunte** (lista curta) e s
 - Misturar execução/XP/histórico no mesmo arquivo sem necessidade.
 - Inventar padrões de API diferentes dos slices anteriores sem decisão explícita.
 - Implementar código “já que estamos aqui”.
+- Esquecer de registrar prefixo novo no proxy Vite/Nginx (`API_PROXY.md`).
 
 ---
 

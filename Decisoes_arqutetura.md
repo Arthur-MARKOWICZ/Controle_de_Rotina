@@ -20,6 +20,7 @@ Utilizar docker com docker compose para subir os componetes da applicacao
 ### Front-end web 
  - node 24.x.x
  - react
+ - API via paths relativos; proxy no Vite (dev) e Nginx (Docker). **Todo prefixo novo de endpoint** deve ser registrado nos dois — ver `frontend/frontend-web/API_PROXY.md`.
 
 ## Banco de dados
 - postgres

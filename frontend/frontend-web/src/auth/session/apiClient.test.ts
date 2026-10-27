@@ -9,7 +9,7 @@ describe('apiFetch', () => {
     vi.restoreAllMocks()
   })
 
-  it('envia Authorization Bearer quando há access token', async () => {
+  it('envia Authorization Bearer e evita cache HTTP', async () => {
     setAccessToken('access-1')
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -17,8 +17,11 @@ describe('apiFetch', () => {
     await apiFetch('/qualquer')
 
     expect(fetchMock).toHaveBeenCalledOnce()
-    const headers = fetchMock.mock.calls[0][1]?.headers as Headers
+    const init = fetchMock.mock.calls[0][1]
+    const headers = init?.headers as Headers
     expect(headers.get('Authorization')).toBe('Bearer access-1')
+    expect(headers.get('Accept')).toBe('application/json')
+    expect(init?.cache).toBe('no-store')
   })
 
   it('em 401 tenta refresh e refaz a requisição com o novo token', async () => {

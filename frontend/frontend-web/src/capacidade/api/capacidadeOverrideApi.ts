@@ -1,5 +1,5 @@
 import { ApiError } from '../../auth/api/authApi'
-import { apiFetch } from '../../auth/session/apiClient'
+import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export type CapacidadeOverrideResponse = {
   id: string
@@ -29,9 +29,12 @@ export type AtualizarCapacidadeOverrideRequest = {
 
 async function lerErro(response: Response, fallback: string): Promise<ApiError> {
   try {
-    const body = (await response.json()) as { detail?: string; title?: string }
+    const body = await readApiJson<{ detail?: string; title?: string }>(response)
     return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return error
+    }
     return new ApiError(response.status, fallback)
   }
 }
@@ -65,7 +68,7 @@ export async function listarCapacidadesOverride(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível carregar os overrides.')
   }
-  return (await response.json()) as CapacidadeOverrideResponse[]
+  return readApiJson<CapacidadeOverrideResponse[]>(response)
 }
 
 export async function criarCapacidadeOverride(
@@ -79,7 +82,7 @@ export async function criarCapacidadeOverride(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível criar o override.')
   }
-  return (await response.json()) as CapacidadeOverrideResponse[]
+  return readApiJson<CapacidadeOverrideResponse[]>(response)
 }
 
 export async function atualizarCapacidadeOverride(
@@ -94,7 +97,7 @@ export async function atualizarCapacidadeOverride(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível atualizar o override.')
   }
-  return (await response.json()) as CapacidadeOverrideResponse
+  return readApiJson<CapacidadeOverrideResponse>(response)
 }
 
 export async function excluirCapacidadeOverride(id: string): Promise<void> {
@@ -113,5 +116,5 @@ export async function restaurarCapacidadeOverride(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível restaurar o override.')
   }
-  return (await response.json()) as CapacidadeOverrideResponse
+  return readApiJson<CapacidadeOverrideResponse>(response)
 }

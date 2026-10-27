@@ -11,9 +11,13 @@ import {
   type CapacidadeSemanalResponse,
 } from './capacidadeSemanalApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 const capacidade: CapacidadeSemanalResponse = {
   id: 'c-1',

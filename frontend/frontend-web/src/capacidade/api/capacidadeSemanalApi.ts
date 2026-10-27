@@ -1,5 +1,5 @@
 import { ApiError } from '../../auth/api/authApi'
-import { apiFetch } from '../../auth/session/apiClient'
+import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export type DiaSemana =
   | 'SEGUNDA'
@@ -36,9 +36,12 @@ export type AtualizarCapacidadeSemanalRequest = {
 
 async function lerErro(response: Response, fallback: string): Promise<ApiError> {
   try {
-    const body = (await response.json()) as { detail?: string; title?: string }
+    const body = await readApiJson<{ detail?: string; title?: string }>(response)
     return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return error
+    }
     return new ApiError(response.status, fallback)
   }
 }
@@ -66,7 +69,7 @@ export async function listarCapacidadesSemanais(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível carregar as capacidades.')
   }
-  return (await response.json()) as CapacidadeSemanalResponse[]
+  return readApiJson<CapacidadeSemanalResponse[]>(response)
 }
 
 export async function criarCapacidadeSemanal(
@@ -80,7 +83,7 @@ export async function criarCapacidadeSemanal(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível criar a capacidade.')
   }
-  return (await response.json()) as CapacidadeSemanalResponse[]
+  return readApiJson<CapacidadeSemanalResponse[]>(response)
 }
 
 export async function atualizarCapacidadeSemanal(
@@ -95,7 +98,7 @@ export async function atualizarCapacidadeSemanal(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível atualizar a capacidade.')
   }
-  return (await response.json()) as CapacidadeSemanalResponse
+  return readApiJson<CapacidadeSemanalResponse>(response)
 }
 
 export async function excluirCapacidadeSemanal(id: string): Promise<void> {
@@ -114,5 +117,5 @@ export async function restaurarCapacidadeSemanal(
   if (!response.ok) {
     throw await lerErro(response, 'Não foi possível restaurar a capacidade.')
   }
-  return (await response.json()) as CapacidadeSemanalResponse
+  return readApiJson<CapacidadeSemanalResponse>(response)
 }

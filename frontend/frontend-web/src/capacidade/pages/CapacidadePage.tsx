@@ -140,9 +140,13 @@ export function CapacidadePage() {
           }
           setRascunhos(iniciais)
         }
-      } catch {
+      } catch (error) {
         if (ativo) {
-          setErro('Não foi possível carregar as capacidades.')
+          setErro(
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível carregar as capacidades.',
+          )
           setCapacidades([])
           setResolvidas([])
         }
@@ -172,9 +176,13 @@ export function CapacidadePage() {
         if (ativo) {
           setOverrides(data)
         }
-      } catch {
+      } catch (error) {
         if (ativo) {
-          setErro('Não foi possível carregar os overrides.')
+          setErro(
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível carregar os overrides.',
+          )
           setOverrides([])
         }
       }

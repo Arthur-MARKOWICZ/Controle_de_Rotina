@@ -7,9 +7,13 @@ import {
   type CapacidadeResolvidaResponse,
 } from './capacidadeResolvidaApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 const dia: CapacidadeResolvidaResponse = {
   data: '2026-10-08',

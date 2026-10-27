@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HomePage } from '../../pages/HomePage'
+import * as capacidadeResolvidaApi from '../../capacidade/api/capacidadeResolvidaApi'
+import * as planoApi from '../../planner/api/planoApi'
 import * as authApi from '../api/authApi'
 import { AuthProvider } from '../session/AuthContext'
 import { clearAccessToken, getAccessToken, setAccessToken } from '../session/tokenStore'
@@ -22,11 +24,27 @@ vi.mock('../api/authApi', () => ({
   },
 }))
 
+vi.mock('../../planner/api/planoApi', () => ({
+  buscarPlano: vi.fn(),
+  gerarPlano: vi.fn(),
+  aprovarPlano: vi.fn(),
+  adicionarBloco: vi.fn(),
+  removerBloco: vi.fn(),
+}))
+
+vi.mock('../../capacidade/api/capacidadeResolvidaApi', () => ({
+  consultarCapacidadeResolvida: vi.fn(),
+}))
+
 describe('Logout', () => {
   beforeEach(() => {
     clearAccessToken()
     vi.mocked(authApi.logout).mockReset()
     vi.mocked(authApi.logout).mockResolvedValue(undefined)
+    vi.mocked(planoApi.buscarPlano).mockReset()
+    vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
+    vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockReset()
+    vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([])
   })
 
   it('chama logout, limpa access token e volta para login', async () => {

@@ -1,28 +1,29 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
+/**
+ * Prefixo novo de API? Atualize esta lista, nginx.conf e API_PROXY.md.
+ * Depois reinicie o Vite (npm run dev).
+ */
+const API_PROXY_PREFIXES = [
+  '/usuarios',
+  '/auth',
+  '/me',
+  '/tarefas',
+  '/capacidades',
+  '/planos',
+] as const
+
+const backendProxy = {
+  target: 'http://localhost:8080',
+  changeOrigin: true,
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: {
-      '/usuarios': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/auth': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/me': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/tarefas': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-    },
+    proxy: Object.fromEntries(API_PROXY_PREFIXES.map((path) => [path, backendProxy])),
   },
   test: {
     environment: 'jsdom',

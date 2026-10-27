@@ -11,3 +11,14 @@ Decisões de arquitetura: `Decisoes_arqutetura.md`
 Planos de features: `plans/`  
 Ordem dos slices: `ordem_execucao/docs.md`  
 Skills de plano: `.agents/criar_plano` (escrever/reescrever), `.agents/revisao_plano` (criticar antes de fechar)
+
+## Proxy front → API (não esquecer)
+
+Todo **prefixo novo** de controller (`@RequestMapping("/…")`) precisa entrar no proxy do front:
+
+1. `frontend/frontend-web/vite.config.ts` (`server.proxy`) — `npm run dev`
+2. `frontend/frontend-web/nginx.conf` — **rebuild** da imagem Docker do frontend
+3. Atualizar a lista em `frontend/frontend-web/API_PROXY.md`
+
+Sem isso, o front recebe `index.html` e aparece erro `Unexpected token '<', "<!doctype…"`.  
+Detalhes e checklist: `frontend/frontend-web/API_PROXY.md`.

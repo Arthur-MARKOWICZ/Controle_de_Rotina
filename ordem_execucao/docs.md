@@ -41,7 +41,7 @@ Muitas atividades finas são ok; o que manda partir o arquivo é **escopo de pro
 | 2 | `tarefa.md` | feita | usuário | Entrada do produto (título, prazo, duração, prioridade, status) |
 | 3 | `capacidade.md` | feito | usuário | Disponibilidade por dia; entrada obrigatória do planner |
 | 4 | [`planner.md`](../plans/planner.md) | pendente (revisado) | tarefa, capacidade | Motor dia D + blocos + score + versões + ajuste/aprovação |
-| 5 | `execucao.md` | pendente | planner (aprovado) | Iniciar / acompanhar / concluir blocos do plano aprovado |
+| 5 | [`execucao.md`](../plans/execucao.md) | pendente (revisado) | planner (aprovado) | Iniciar / acompanhar / concluir / abortar blocos do plano aprovado |
 | 6 | `xp.md` | pendente | execução | Gamificação leve ao concluir (fórmula ainda aberta) |
 | 7 | `historico.md` | pendente | execução, xp | Progresso do dia / semana (tarefas, tempo, XP) |
 
@@ -57,7 +57,8 @@ usuario → tarefa → capacidade → planner (+ aprovação) → execucao → x
 
 ## Próximo passo agora
 
-**Implementar / seguir** [`plans/planner.md`](../plans/planner.md) (quarto slice), após tarefa e capacidade feitos.
+**Implementar / seguir** [`plans/planner.md`](../plans/planner.md) (quarto slice), se ainda não estiver feito.  
+Plano do quinto slice já revisado: [`plans/execucao.md`](../plans/execucao.md) (após planner aprovado).
 
 ---
 

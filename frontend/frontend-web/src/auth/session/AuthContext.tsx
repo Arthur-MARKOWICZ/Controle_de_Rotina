@@ -2,13 +2,19 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 
 import { logout as logoutApi } from '../api/authApi'
-import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStore'
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+  subscribeAccessToken,
+} from './tokenStore'
 
 type AuthContextValue = {
   isAuthenticated: boolean
@@ -21,9 +27,10 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => getAccessToken())
 
+  useEffect(() => subscribeAccessToken(setToken), [])
+
   const loginWithToken = useCallback((accessToken: string) => {
     setAccessToken(accessToken)
-    setToken(accessToken)
   }, [])
 
   const logout = useCallback(async () => {
@@ -31,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logoutApi()
     } finally {
       clearAccessToken()
-      setToken(null)
     }
   }, [])
 
