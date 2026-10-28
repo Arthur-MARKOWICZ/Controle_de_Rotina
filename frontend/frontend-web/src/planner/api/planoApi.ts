@@ -10,6 +10,7 @@ export type TarefaResumoResponse = {
   prioridade: Prioridade
   status: StatusTarefa
   duracaoHoras: number
+  prazo: string
 }
 
 export type BlocoPlanoResponse = {

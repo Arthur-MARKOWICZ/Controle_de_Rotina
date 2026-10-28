@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
-import { isSenhaForte } from './senhaForte'
+import { isSenhaForte, regrasSenha } from './senhaForte'
+
+describe('regrasSenha (T1)', () => {
+  it('marca cada regra ao digitar caractere que a satisfaz', () => {
+    expect(regrasSenha('').every((r) => !r.ok)).toBe(true)
+
+    const comMinuscula = regrasSenha('a')
+    expect(comMinuscula.find((r) => r.id === 'minuscula')?.ok).toBe(true)
+    expect(comMinuscula.find((r) => r.id === 'maiuscula')?.ok).toBe(false)
+
+    const comMaiuscula = regrasSenha('aA')
+    expect(comMaiuscula.find((r) => r.id === 'maiuscula')?.ok).toBe(true)
+
+    const comDigito = regrasSenha('aA1')
+    expect(comDigito.find((r) => r.id === 'digito')?.ok).toBe(true)
+
+    const comEspecial = regrasSenha('aA1@')
+    expect(comEspecial.find((r) => r.id === 'especial')?.ok).toBe(true)
+
+    const completa = regrasSenha('Senha@12')
+    expect(completa.every((r) => r.ok)).toBe(true)
+  })
+})
 
 describe('isSenhaForte', () => {
   it('aceita senha com 8–72 chars, minúscula, maiúscula, dígito e especial', () => {

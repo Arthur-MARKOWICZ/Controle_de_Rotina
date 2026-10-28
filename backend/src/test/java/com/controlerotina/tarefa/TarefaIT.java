@@ -161,17 +161,56 @@ class TarefaIT {
     }
 
     @Test
-    void deveRejeitarDescricaoAusenteCom400() {
-        Map<String, Object> body = tarefaValida();
-        body.remove("descricao");
+    void t1_deveCriarTarefaSemDescricaoCom201() {
+        Map<String, Object> semCampo = tarefaValida();
+        semCampo.remove("descricao");
 
-        ResponseEntity<Map> response = restTemplate.exchange(
+        ResponseEntity<Map> omitida = restTemplate.exchange(
                 "/tarefas",
                 HttpMethod.POST,
-                autenticadoJson(body),
+                autenticadoJson(semCampo),
                 Map.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(omitida.getStatusCode()).isEqualTo(CREATED);
+        assertThat(omitida.getBody()).isNotNull();
+        assertThat(omitida.getBody().get("descricao")).isEqualTo("");
+
+        Map<String, Object> vazia = tarefaValida();
+        vazia.put("titulo", "Sem descricao vazia");
+        vazia.put("descricao", "");
+
+        ResponseEntity<Map> blank = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(vazia),
+                Map.class);
+
+        assertThat(blank.getStatusCode()).isEqualTo(CREATED);
+        assertThat(blank.getBody()).isNotNull();
+        assertThat(blank.getBody().get("descricao")).isEqualTo("");
+    }
+
+    @Test
+    void t2_deveRejeitarPostSemTituloOuSemPrazoCom400() {
+        Map<String, Object> semTitulo = tarefaValida();
+        semTitulo.remove("titulo");
+
+        ResponseEntity<Map> semTituloResp = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(semTitulo),
+                Map.class);
+        assertThat(semTituloResp.getStatusCode()).isEqualTo(BAD_REQUEST);
+
+        Map<String, Object> semPrazo = tarefaValida();
+        semPrazo.remove("prazo");
+
+        ResponseEntity<Map> semPrazoResp = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(semPrazo),
+                Map.class);
+        assertThat(semPrazoResp.getStatusCode()).isEqualTo(BAD_REQUEST);
     }
 
     @Test

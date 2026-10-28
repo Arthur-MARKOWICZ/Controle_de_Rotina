@@ -1,0 +1,179 @@
+/* ——— Capacidade ——— */
+
+.capacidade-page {
+  min-width: 0;
+}
+
+.capacidade-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.capacidade-header h1 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 600;
+}
+
+.capacidade-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.capacidade-total {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.capacidade-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.capacidade-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.capacidade-grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.capacidade-celula {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+}
+
+.capacidade-celula-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.capacidade-celula h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.capacidade-dia-curto {
+  display: none;
+}
+
+.capacidade-barra-wrap {
+  height: 6.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--line) 55%, transparent);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.capacidade-barra {
+  width: 70%;
+  min-height: 0;
+  background: var(--accent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height 160ms ease;
+}
+
+.capacidade-celula-override .capacidade-barra {
+  background: color-mix(in srgb, var(--accent) 70%, var(--danger));
+}
+
+.capacidade-horas {
+  margin: 0;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.capacidade-stepper {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.capacidade-semana-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.capacidade-semana-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.capacidade-data-celula {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.capacidade-efetivas {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+.capacidade-celula-override {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-inset-accent);
+}
+
+.badge-excecao {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+}
+
+@media (max-width: 48rem) {
+  .capacidade-grade {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .capacidade-dia-longo {
+    display: none;
+  }
+
+  .capacidade-dia-curto {
+    display: inline;
+  }
+
+  .capacidade-celula {
+    padding: var(--space-2);
+  }
+
+  .capacidade-barra-wrap {
+    height: 4.5rem;
+  }
+
+  .capacidade-celula .btn--sm {
+    padding-inline: 0.45rem;
+  }
+}

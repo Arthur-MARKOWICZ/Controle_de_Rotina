@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
+import { InlineAlert } from '../../feedback/InlineAlert'
 import { ApiError, login } from '../api/authApi'
+import { CampoSenha } from '../components/CampoSenha'
 import { useAuth } from '../session/AuthContext'
 import { isEmailValido } from '../validation/email'
+
+const PROPOSTA_VALOR = 'Diga o que precisa fazer; o sistema monta o plano.'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -51,40 +55,42 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-panel">
+      <section className="auth-panel card">
         <h1>Entrar</h1>
+        <p className="auth-value">{PROPOSTA_VALOR}</p>
         <p className="auth-subtitle">Acesse sua conta para continuar.</p>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-          <label htmlFor="senha">Senha</label>
-          <input
+          <CampoSenha
             id="senha"
-            name="senha"
-            type="password"
-            autoComplete="current-password"
+            label="Senha"
             value={senha}
-            onChange={(e) => setSenha(e.target.value)}
+            onChange={setSenha}
+            autoComplete="current-password"
             required
           />
 
-          {erro ? (
-            <p className="auth-error" role="alert">
-              {erro}
-            </p>
-          ) : null}
+          {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
-          <button type="submit" disabled={enviando}>
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={enviando}
+            aria-busy={enviando}
+          >
             {enviando ? 'Entrando…' : 'Entrar'}
           </button>
         </form>

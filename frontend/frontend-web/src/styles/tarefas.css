@@ -1,0 +1,248 @@
+/* ——— Tarefas ——— */
+
+.tarefas-page {
+  min-width: 0;
+}
+
+.tarefas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.tarefas-header h1 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 600;
+}
+
+.tarefas-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.tarefas-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.tarefas-filtros {
+  margin-bottom: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.tarefas-filtros fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.tarefas-filtros legend {
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.filtros-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.filtros-avancados {
+  margin-top: 0.25rem;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.tarefas-meta {
+  color: var(--muted);
+  margin: 0 0 var(--space-3);
+}
+
+.visao-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.visao-chip {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.visao-chip--ativo {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.filtros-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  grid-column: 1 / -1;
+}
+
+.tarefas-grupos {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.tarefa-grupo__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tarefa-grupo__contador {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tarefa-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tarefa-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.tarefa-card--deletada {
+  opacity: 0.75;
+}
+
+.tarefa-card__principal {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.tarefa-card__titulo {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.tarefa-card__titulo:hover {
+  color: var(--accent-hover);
+}
+
+.tarefa-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tarefa-card__prazo {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.tarefa-card__duracao {
+  margin-left: 0.15rem;
+}
+
+.tarefa-card__acoes {
+  flex-shrink: 0;
+}
+
+.tarefas-empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-5);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.tarefas-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.tarefas-paginacao .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tarefa-form-panel {
+  width: min(100%, 32rem);
+}
+
+.tarefa-deletada-aviso {
+  margin: 0 0 var(--space-4);
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.95rem;
+}
+
+.tarefa-acoes-secundarias {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.tarefa-linha-deletada td {
+  opacity: 0.85;
+}
+
+.badge.status-deletada {
+  margin-left: var(--space-2);
+}

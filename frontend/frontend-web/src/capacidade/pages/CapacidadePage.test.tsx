@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ToastProvider } from '../../feedback/ToastProvider'
 import * as overrideApi from '../api/capacidadeOverrideApi'
 import * as resolvidaApi from '../api/capacidadeResolvidaApi'
 import * as capacidadeApi from '../api/capacidadeSemanalApi'
@@ -58,11 +59,13 @@ const resolvidaSemana = [
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/capacidade']}>
-      <Routes>
-        <Route path="/capacidade" element={<CapacidadePage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/capacidade']}>
+        <Routes>
+          <Route path="/capacidade" element={<CapacidadePage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
@@ -92,7 +95,7 @@ describe('CapacidadePage', () => {
     vi.useRealTimers()
   })
 
-  it('mostra grade Seg–Dom e carrega horas existentes', async () => {
+  it('mostra grade Seg–Dom, barras e total da semana', async () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: /capacidade/i })).toBeInTheDocument()
@@ -100,220 +103,145 @@ describe('CapacidadePage', () => {
     expect(screen.getByText('Terça')).toBeInTheDocument()
     expect(screen.getByText('Domingo')).toBeInTheDocument()
 
-    const inputSegunda = screen.getByLabelText(/horas de segunda/i)
-    expect(inputSegunda).toHaveValue(4)
+    expect(screen.getByLabelText(/horas de segunda/i)).toHaveTextContent('4h')
+    expect(screen.getByLabelText(/horas de terça/i)).toHaveTextContent('0h')
 
-    const inputTerca = screen.getByLabelText(/horas de terça/i)
-    expect(inputTerca).toHaveValue(null)
-
+    expect(screen.getByText(/4h disponíveis/i)).toBeInTheDocument()
     expect(capacidadeApi.listarCapacidadesSemanais).toHaveBeenCalled()
   })
 
-  it('mostra horas efetivas da semana via capacidade resolvida', async () => {
+  it('T1: stepper altera valor do dia no estado local', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
 
-    await screen.findByLabelText(/horas de segunda/i)
+    expect(await screen.findByLabelText(/horas de segunda/i)).toHaveTextContent('4h')
 
-    expect(resolvidaApi.consultarCapacidadeResolvida).toHaveBeenCalledWith({
-      dataDe: '2026-10-05',
-      dataAte: '2026-10-11',
+    await user.click(screen.getByRole('button', { name: /aumentar segunda/i }))
+    expect(screen.getByLabelText(/horas de segunda/i)).toHaveTextContent('5h')
+    expect(screen.getByText(/5h disponíveis/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /diminuir segunda/i }))
+    expect(screen.getByLabelText(/horas de segunda/i)).toHaveTextContent('4h')
+
+    expect(capacidadeApi.atualizarCapacidadeSemanal).not.toHaveBeenCalled()
+    expect(capacidadeApi.criarCapacidadeSemanal).not.toHaveBeenCalled()
+  })
+
+  it('T2: Salvar semana dispara persistência dos dias alterados', async () => {
+    vi.mocked(capacidadeApi.atualizarCapacidadeSemanal).mockResolvedValue({
+      ...segunda,
+      horas: 5,
     })
-
-    const celulaSegunda = screen.getByText('Segunda').closest('article')
-    expect(celulaSegunda).not.toBeNull()
-    expect(within(celulaSegunda as HTMLElement).getByText(/efetivas:\s*4h/i)).toBeInTheDocument()
-    expect(within(celulaSegunda as HTMLElement).getByText(/semanal/i)).toBeInTheDocument()
-
-    const celulaQuarta = screen.getByText('Quarta').closest('article')
-    expect(celulaQuarta).not.toBeNull()
-    expect(within(celulaQuarta as HTMLElement).getByText(/efetivas:\s*1h/i)).toBeInTheDocument()
-    expect(within(celulaQuarta as HTMLElement).getByText(/override/i)).toBeInTheDocument()
-  })
-
-  it('destaca célula com override na semana', async () => {
-    renderPage()
-    await screen.findByLabelText(/horas de segunda/i)
-
-    const celulaQuarta = screen.getByText('Quarta').closest('article')
-    expect(celulaQuarta).toHaveClass('capacidade-celula-override')
-  })
-
-  it('cria horas em dia vazio', async () => {
     vi.mocked(capacidadeApi.criarCapacidadeSemanal).mockResolvedValue([
-      { ...segunda, id: 'c-2', diaSemana: 'TERCA', horas: 3 },
+      { ...segunda, id: 'c-2', diaSemana: 'TERCA', horas: 1 },
     ])
     vi.mocked(capacidadeApi.listarCapacidadesSemanais)
       .mockResolvedValueOnce([segunda])
       .mockResolvedValueOnce([
-        segunda,
-        { ...segunda, id: 'c-2', diaSemana: 'TERCA', horas: 3 },
+        { ...segunda, horas: 5 },
+        { ...segunda, id: 'c-2', diaSemana: 'TERCA', horas: 1 },
       ])
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
     await screen.findByLabelText(/horas de segunda/i)
 
-    const inputTerca = screen.getByLabelText(/horas de terça/i)
-    await user.clear(inputTerca)
-    await user.type(inputTerca, '3')
-    await user.click(screen.getByRole('button', { name: /salvar terça/i }))
-
-    await waitFor(() => {
-      expect(capacidadeApi.criarCapacidadeSemanal).toHaveBeenCalledWith({
-        diaSemana: 'TERCA',
-        horas: 3,
-      })
-    })
-  })
-
-  it('edita horas de dia existente', async () => {
-    vi.mocked(capacidadeApi.atualizarCapacidadeSemanal).mockResolvedValue({
-      ...segunda,
-      horas: 6,
-    })
-    vi.mocked(capacidadeApi.listarCapacidadesSemanais)
-      .mockResolvedValueOnce([segunda])
-      .mockResolvedValueOnce([{ ...segunda, horas: 6 }])
-
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    renderPage()
-    const inputSegunda = await screen.findByLabelText(/horas de segunda/i)
-
-    await user.clear(inputSegunda)
-    await user.type(inputSegunda, '6')
-    await user.click(screen.getByRole('button', { name: /salvar segunda/i }))
+    await user.click(screen.getByRole('button', { name: /aumentar segunda/i }))
+    await user.click(screen.getByRole('button', { name: /aumentar terça/i }))
+    await user.click(screen.getByRole('button', { name: /salvar semana/i }))
 
     await waitFor(() => {
       expect(capacidadeApi.atualizarCapacidadeSemanal).toHaveBeenCalledWith('c-1', {
-        horas: 6,
+        horas: 5,
       })
     })
+    await waitFor(() => {
+      expect(capacidadeApi.criarCapacidadeSemanal).toHaveBeenCalledWith({
+        diaSemana: 'TERCA',
+        horas: 1,
+      })
+    })
+    expect(capacidadeApi.atualizarCapacidadeSemanal).toHaveBeenCalledTimes(1)
+    expect(capacidadeApi.criarCapacidadeSemanal).toHaveBeenCalledTimes(1)
   })
 
-  it('exclui capacidade da grade e recarrega', async () => {
-    vi.mocked(capacidadeApi.excluirCapacidadeSemanal).mockResolvedValue(undefined)
-    vi.mocked(capacidadeApi.listarCapacidadesSemanais)
-      .mockResolvedValueOnce([segunda])
-      .mockResolvedValueOnce([])
+  it('T3: dia com override mostra badge de exceção', async () => {
+    renderPage()
+    await screen.findByLabelText(/horas de segunda/i)
 
+    const celulaQuarta = screen.getByText('Quarta').closest('article')
+    expect(celulaQuarta).not.toBeNull()
+    expect(within(celulaQuarta as HTMLElement).getByText(/exceção/i)).toBeInTheDocument()
+    expect(celulaQuarta).toHaveClass('capacidade-celula-override')
+  })
+
+  it('aplica preset dias úteis 4h e fim de semana 0h no estado local', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
     await screen.findByLabelText(/horas de segunda/i)
 
-    await user.click(screen.getByRole('button', { name: /excluir segunda/i }))
+    await user.click(
+      screen.getByRole('button', { name: /dias úteis 4h, fim de semana 0h/i }),
+    )
 
-    await waitFor(() => {
-      expect(capacidadeApi.excluirCapacidadeSemanal).toHaveBeenCalledWith('c-1')
-    })
-    await waitFor(() => {
-      expect(capacidadeApi.listarCapacidadesSemanais).toHaveBeenCalledTimes(2)
-    })
+    expect(screen.getByLabelText(/horas de segunda/i)).toHaveTextContent('4h')
+    expect(screen.getByLabelText(/horas de sexta/i)).toHaveTextContent('4h')
+    expect(screen.getByLabelText(/horas de sábado/i)).toHaveTextContent('0h')
+    expect(screen.getByLabelText(/horas de domingo/i)).toHaveTextContent('0h')
+    expect(screen.getByText(/20h disponíveis/i)).toBeInTheDocument()
+    expect(capacidadeApi.criarCapacidadeSemanal).not.toHaveBeenCalled()
   })
 
-  it('filtra somente excluídas e restaura', async () => {
-    const deletada = { ...segunda, ativo: false }
-    vi.mocked(capacidadeApi.listarCapacidadesSemanais)
-      .mockResolvedValueOnce([segunda])
-      .mockResolvedValueOnce([deletada])
-      .mockResolvedValueOnce([segunda])
-    vi.mocked(capacidadeApi.restaurarCapacidadeSemanal).mockResolvedValue(segunda)
-
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    renderPage()
-    await screen.findByLabelText(/horas de segunda/i)
-
-    await user.selectOptions(screen.getByLabelText(/^excluídas$/i), 'somente')
-    await user.click(screen.getByRole('button', { name: /^aplicar filtro$/i }))
-
-    await waitFor(() => {
-      expect(capacidadeApi.listarCapacidadesSemanais).toHaveBeenLastCalledWith(
-        expect.objectContaining({ somenteDeletadas: true }),
-      )
-    })
-
-    expect(await screen.findByText('Excluída')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /restaurar segunda/i }))
-
-    await waitFor(() => {
-      expect(capacidadeApi.restaurarCapacidadeSemanal).toHaveBeenCalledWith('c-1')
-    })
-  })
-
-  it('cria override por data e recarrega lista/resolvida', async () => {
-    vi.mocked(overrideApi.criarCapacidadeOverride).mockResolvedValue([
-      { ...overrideQuarta, id: 'o-2', data: '2026-10-09', horas: 2 },
-    ])
-    vi.mocked(overrideApi.listarCapacidadesOverride)
-      .mockResolvedValueOnce([overrideQuarta])
+  it('copia semana anterior para o rascunho local', async () => {
+    vi.mocked(resolvidaApi.consultarCapacidadeResolvida)
+      .mockResolvedValueOnce(resolvidaSemana)
       .mockResolvedValueOnce([
-        overrideQuarta,
-        { ...overrideQuarta, id: 'o-2', data: '2026-10-09', horas: 2 },
+        { data: '2026-09-28', horas: 6, origem: 'SEMANAL' as const },
+        { data: '2026-09-29', horas: 5, origem: 'SEMANAL' as const },
+        { data: '2026-09-30', horas: 4, origem: 'SEMANAL' as const },
+        { data: '2026-10-01', horas: 3, origem: 'SEMANAL' as const },
+        { data: '2026-10-02', horas: 2, origem: 'SEMANAL' as const },
+        { data: '2026-10-03', horas: 0, origem: 'SEMANAL' as const },
+        { data: '2026-10-04', horas: 0, origem: 'SEMANAL' as const },
       ])
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
     await screen.findByLabelText(/horas de segunda/i)
 
-    await user.type(screen.getByLabelText(/data do override/i), '2026-10-09')
-    await user.type(screen.getByLabelText(/horas do override/i), '2')
-    await user.click(screen.getByRole('button', { name: /salvar override/i }))
+    await user.click(screen.getByRole('button', { name: /copiar semana anterior/i }))
 
     await waitFor(() => {
-      expect(overrideApi.criarCapacidadeOverride).toHaveBeenCalledWith({
-        data: '2026-10-09',
-        horas: 2,
+      expect(resolvidaApi.consultarCapacidadeResolvida).toHaveBeenCalledWith({
+        dataDe: '2026-09-28',
+        dataAte: '2026-10-04',
       })
     })
-    await waitFor(() => {
-      expect(resolvidaApi.consultarCapacidadeResolvida).toHaveBeenCalledTimes(2)
-    })
+    expect(screen.getByLabelText(/horas de segunda/i)).toHaveTextContent('6h')
+    expect(screen.getByLabelText(/horas de terça/i)).toHaveTextContent('5h')
+    expect(screen.getByLabelText(/horas de sábado/i)).toHaveTextContent('0h')
   })
 
-  it('lista overrides próximos e exclui', async () => {
+  it('volta ao padrão com toast de desfazer que restaura o override', async () => {
     vi.mocked(overrideApi.excluirCapacidadeOverride).mockResolvedValue(undefined)
+    vi.mocked(overrideApi.restaurarCapacidadeOverride).mockResolvedValue(overrideQuarta)
     vi.mocked(overrideApi.listarCapacidadesOverride)
       .mockResolvedValueOnce([overrideQuarta])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([overrideQuarta])
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
+    await screen.findByText(/exceção/i)
 
-    const excluir = await screen.findByRole('button', {
-      name: /excluir override 07\/10\/2026/i,
-    })
-    expect(screen.getByRole('heading', { name: /overrides por data/i })).toBeInTheDocument()
-
-    await user.click(excluir)
+    await user.click(screen.getByRole('button', { name: /voltar ao padrão.*quarta/i }))
 
     await waitFor(() => {
       expect(overrideApi.excluirCapacidadeOverride).toHaveBeenCalledWith('o-1')
     })
-  })
+    expect(await screen.findByText(/exceção removida/i)).toBeInTheDocument()
 
-  it('filtra overrides excluídos e restaura', async () => {
-    const deletado = { ...overrideQuarta, ativo: false }
-    vi.mocked(overrideApi.listarCapacidadesOverride)
-      .mockResolvedValueOnce([overrideQuarta])
-      .mockResolvedValueOnce([deletado])
-      .mockResolvedValueOnce([overrideQuarta])
-    vi.mocked(overrideApi.restaurarCapacidadeOverride).mockResolvedValue(overrideQuarta)
-
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    renderPage()
-    await screen.findByRole('button', { name: /excluir override 07\/10\/2026/i })
-
-    await user.selectOptions(screen.getByLabelText(/overrides excluídos/i), 'somente')
-    await user.click(screen.getByRole('button', { name: /aplicar filtro de overrides/i }))
-
-    await waitFor(() => {
-      expect(overrideApi.listarCapacidadesOverride).toHaveBeenLastCalledWith(
-        expect.objectContaining({ somenteDeletadas: true }),
-      )
-    })
-
-    await user.click(
-      await screen.findByRole('button', { name: /restaurar override 07\/10\/2026/i }),
-    )
+    await user.click(screen.getByRole('button', { name: /^desfazer$/i }))
 
     await waitFor(() => {
       expect(overrideApi.restaurarCapacidadeOverride).toHaveBeenCalledWith('o-1')

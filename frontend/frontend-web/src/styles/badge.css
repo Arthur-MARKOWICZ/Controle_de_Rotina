@@ -1,0 +1,74 @@
+/* ——— Design system: badge ——— */
+
+.badge {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--warning-bg);
+  color: var(--ink);
+}
+
+.badge.status-atrasada,
+.status-atrasada {
+  background: var(--status-atrasada-bg);
+  color: var(--status-atrasada);
+}
+
+.badge.status-em_progresso,
+.status-em_progresso {
+  background: var(--status-em_progresso-bg);
+  color: var(--status-em_progresso);
+}
+
+.badge.status-finalizada,
+.status-finalizada {
+  background: var(--status-finalizada-bg);
+  color: var(--status-finalizada);
+}
+
+.badge.status-cancelada,
+.status-cancelada {
+  background: var(--status-cancelada-bg);
+  color: var(--status-cancelada);
+}
+
+.badge.status-pendente,
+.status-pendente {
+  background: var(--status-pendente-bg);
+  color: var(--status-pendente);
+}
+
+.badge.status-deletada,
+.status-deletada {
+  background: var(--status-deletada-bg);
+  color: var(--status-deletada);
+}
+
+.badge.status-plano-rascunho,
+.status-plano-rascunho {
+  background: var(--status-plano-rascunho-bg);
+  color: var(--status-plano-rascunho);
+}
+
+.badge.status-plano-aprovado,
+.status-plano-aprovado {
+  background: var(--status-plano-aprovado-bg);
+  color: var(--status-plano-aprovado);
+}
+
+.badge.priority-alta {
+  background: var(--priority-alta-bg);
+  color: var(--priority-alta);
+}
+
+.badge.priority-media {
+  background: var(--priority-media-bg);
+  color: var(--priority-media);
+}
+
+.badge.priority-baixa {
+  background: var(--priority-baixa-bg);
+  color: var(--priority-baixa);
+}

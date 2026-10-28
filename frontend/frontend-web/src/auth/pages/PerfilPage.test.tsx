@@ -28,6 +28,10 @@ describe('PerfilPage', () => {
       id: '1',
       nome: 'Ana Silva',
       email: 'ana@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
     })
   })
 
@@ -36,6 +40,14 @@ describe('PerfilPage', () => {
 
     expect(await screen.findByDisplayValue('Ana Silva')).toBeInTheDocument()
     expect(screen.getByDisplayValue('ana@email.com')).toBeInTheDocument()
+  })
+
+  it('T3: renderiza seções Dados e Alterar senha distintas', async () => {
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    expect(screen.getByRole('group', { name: 'Dados' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Alterar senha' })).toBeInTheDocument()
   })
 
   it('exige senha atual para salvar', async () => {
@@ -84,6 +96,10 @@ describe('PerfilPage', () => {
       id: '1',
       nome: 'Ana Atualizada',
       email: 'nova@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
     })
     const user = userEvent.setup()
     renderPerfil()

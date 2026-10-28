@@ -1,7 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
+import { InlineAlert } from '../../feedback/InlineAlert'
+import { Skeleton } from '../../feedback/Skeleton'
+import { useToast } from '../../feedback/ToastProvider'
+import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
 import {
   excluirTarefa,
   listarTarefas,
@@ -11,74 +15,27 @@ import {
   type SortDirection,
 } from '../api/tarefaApi'
 import { formatarDataHora } from '../datetime'
-import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
-
-type VisibilidadeDelecao = 'ativas' | 'incluir' | 'somente'
-
-const STATUS_OPCOES: StatusTarefa[] = [
-  'PENDENTE',
-  'EM_PROGRESSO',
-  'FINALIZADA',
-  'ATRASADA',
-  'CANCELADA',
-]
+import { agruparPorPrazo, formatarPrazoLista } from '../listaGrupos'
+import {
+  escreverFiltrosNaUrl,
+  FILTROS_LISTA_INICIAIS,
+  lerFiltrosDaUrl,
+  paramsApiDaVisao,
+  type FiltrosListaUrl,
+  type VisaoLista,
+} from '../listaUrl'
+import { QuickAddTarefaDialog } from '../QuickAddTarefaDialog'
+import type { Prioridade } from '../validation/tarefaForm'
 
 const PRIORIDADE_OPCOES: Prioridade[] = ['ALTA', 'MEDIA', 'BAIXA']
 
-const STATUS_LABEL: Record<StatusTarefa, string> = {
-  PENDENTE: 'Pendente',
-  EM_PROGRESSO: 'Em progresso',
-  FINALIZADA: 'Finalizada',
-  ATRASADA: 'Atrasada',
-  CANCELADA: 'Cancelada',
-}
-
-type FiltrosForm = {
-  status: StatusTarefa[]
-  prioridade: Prioridade[]
-  prazoDe: string
-  prazoAte: string
-  duracaoDe: string
-  duracaoAte: string
-  criadoDe: string
-  criadoAte: string
-  atualizadoDe: string
-  atualizadoAte: string
-  visibilidade: VisibilidadeDelecao
-  sort: SortCampo
-  direction: SortDirection
-  size: number
-}
-
-const FILTROS_INICIAIS: FiltrosForm = {
-  status: [],
-  prioridade: [],
-  prazoDe: '',
-  prazoAte: '',
-  duracaoDe: '',
-  duracaoAte: '',
-  criadoDe: '',
-  criadoAte: '',
-  atualizadoDe: '',
-  atualizadoAte: '',
-  visibilidade: 'ativas',
-  sort: 'prazo',
-  direction: 'asc',
-  size: 20,
-}
-
-function paramsDelecao(visibilidade: VisibilidadeDelecao): {
-  incluirDeletadas?: boolean
-  somenteDeletadas?: boolean
-} {
-  if (visibilidade === 'incluir') {
-    return { incluirDeletadas: true, somenteDeletadas: false }
-  }
-  if (visibilidade === 'somente') {
-    return { incluirDeletadas: false, somenteDeletadas: true }
-  }
-  return {}
-}
+const VISOES: { id: VisaoLista; label: string }[] = [
+  { id: 'todas', label: 'Todas' },
+  { id: 'pendentes', label: 'Pendentes' },
+  { id: 'em_progresso', label: 'Em progresso' },
+  { id: 'finalizadas', label: 'Finalizadas' },
+  { id: 'excluidas', label: 'Excluídas' },
+]
 
 function toggleValor<T extends string>(lista: T[], valor: T): T[] {
   return lista.includes(valor) ? lista.filter((item) => item !== valor) : [...lista, valor]
@@ -103,16 +60,59 @@ function paraNumeroOuUndefined(valor: string): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
+  return (
+    filtros.visao === 'todas' &&
+    filtros.prioridade.length === 0 &&
+    !filtros.prazoDe &&
+    !filtros.prazoAte &&
+    !filtros.duracaoDe &&
+    !filtros.duracaoAte &&
+    filtros.sort === 'prazo' &&
+    filtros.direction === 'asc'
+  )
+}
+
 export function TarefasPage() {
-  const [filtros, setFiltros] = useState<FiltrosForm>(FILTROS_INICIAIS)
-  const [aplicados, setAplicados] = useState<FiltrosForm>(FILTROS_INICIAIS)
-  const [page, setPage] = useState(0)
+  const toast = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filtrosUrl = useMemo(() => lerFiltrosDaUrl(searchParams), [searchParams])
+
+  const [filtrosAvancados, setFiltrosAvancados] = useState(() => ({
+    prioridade: filtrosUrl.prioridade,
+    prazoDe: filtrosUrl.prazoDe,
+    prazoAte: filtrosUrl.prazoAte,
+    duracaoDe: filtrosUrl.duracaoDe,
+    duracaoAte: filtrosUrl.duracaoAte,
+    sort: filtrosUrl.sort,
+    direction: filtrosUrl.direction,
+    size: filtrosUrl.size,
+  }))
   const [resultado, setResultado] = useState<PageTarefa | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [acaoId, setAcaoId] = useState<string | null>(null)
   const [recarregarEm, setRecarregarEm] = useState(0)
-  const [mostrarMaisFiltros, setMostrarMaisFiltros] = useState(false)
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
+  const [quickAddAberto, setQuickAddAberto] = useState(false)
+
+  useEffect(() => {
+    setFiltrosAvancados({
+      prioridade: filtrosUrl.prioridade,
+      prazoDe: filtrosUrl.prazoDe,
+      prazoAte: filtrosUrl.prazoAte,
+      duracaoDe: filtrosUrl.duracaoDe,
+      duracaoAte: filtrosUrl.duracaoAte,
+      sort: filtrosUrl.sort,
+      direction: filtrosUrl.direction,
+      size: filtrosUrl.size,
+    })
+  }, [filtrosUrl])
+
+  function atualizarUrl(proximo: FiltrosListaUrl) {
+    const params = escreverFiltrosNaUrl(proximo)
+    setSearchParams(params, { replace: true })
+  }
 
   useEffect(() => {
     let ativo = true
@@ -122,21 +122,16 @@ export function TarefasPage() {
       setErro(null)
       try {
         const data = await listarTarefas({
-          status: aplicados.status.length ? aplicados.status : undefined,
-          prioridade: aplicados.prioridade.length ? aplicados.prioridade : undefined,
-          prazoDe: paraInstantOuUndefined(aplicados.prazoDe),
-          prazoAte: paraInstantOuUndefined(aplicados.prazoAte),
-          duracaoDe: paraNumeroOuUndefined(aplicados.duracaoDe),
-          duracaoAte: paraNumeroOuUndefined(aplicados.duracaoAte),
-          criadoDe: paraInstantOuUndefined(aplicados.criadoDe),
-          criadoAte: paraInstantOuUndefined(aplicados.criadoAte),
-          atualizadoDe: paraInstantOuUndefined(aplicados.atualizadoDe),
-          atualizadoAte: paraInstantOuUndefined(aplicados.atualizadoAte),
-          ...paramsDelecao(aplicados.visibilidade),
-          page,
-          size: aplicados.size,
-          sort: aplicados.sort,
-          direction: aplicados.direction,
+          ...paramsApiDaVisao(filtrosUrl.visao),
+          prioridade: filtrosUrl.prioridade.length ? filtrosUrl.prioridade : undefined,
+          prazoDe: paraInstantOuUndefined(filtrosUrl.prazoDe),
+          prazoAte: paraInstantOuUndefined(filtrosUrl.prazoAte),
+          duracaoDe: paraNumeroOuUndefined(filtrosUrl.duracaoDe),
+          duracaoAte: paraNumeroOuUndefined(filtrosUrl.duracaoAte),
+          page: filtrosUrl.page,
+          size: filtrosUrl.size,
+          sort: filtrosUrl.sort,
+          direction: filtrosUrl.direction,
         })
         if (ativo) {
           setResultado(data)
@@ -157,18 +152,26 @@ export function TarefasPage() {
     return () => {
       ativo = false
     }
-  }, [aplicados, page, recarregarEm])
+  }, [filtrosUrl, recarregarEm])
 
-  function handleFiltrar(event: FormEvent) {
-    event.preventDefault()
-    setPage(0)
-    setAplicados(filtros)
+  function aplicarVisao(visao: VisaoLista) {
+    atualizarUrl({ ...filtrosUrl, visao, page: 0 })
   }
 
-  function handleLimpar() {
-    setFiltros(FILTROS_INICIAIS)
-    setAplicados(FILTROS_INICIAIS)
-    setPage(0)
+  function handleAplicarFiltros(event: FormEvent) {
+    event.preventDefault()
+    atualizarUrl({
+      ...filtrosUrl,
+      ...filtrosAvancados,
+      page: 0,
+    })
+  }
+
+  function handleLimparFiltros() {
+    atualizarUrl({
+      ...FILTROS_LISTA_INICIAIS,
+      visao: filtrosUrl.visao,
+    })
   }
 
   async function handleExcluir(id: string) {
@@ -177,6 +180,22 @@ export function TarefasPage() {
     try {
       await excluirTarefa(id)
       setRecarregarEm((n) => n + 1)
+      toast.success('Tarefa excluída', {
+        action: {
+          label: 'Desfazer',
+          onClick: () => {
+            void restaurarTarefa(id)
+              .then(() => setRecarregarEm((n) => n + 1))
+              .catch((error) => {
+                setErro(
+                  error instanceof ApiError
+                    ? error.message
+                    : 'Não foi possível restaurar a tarefa.',
+                )
+              })
+          },
+        },
+      })
     } catch (error) {
       setErro(
         error instanceof ApiError ? error.message : 'Não foi possível excluir a tarefa.',
@@ -202,154 +221,144 @@ export function TarefasPage() {
   }
 
   const totalPages = resultado?.totalPages ?? 0
+  const grupos = resultado ? agruparPorPrazo(resultado.content) : []
+  const listaVazia = !carregando && resultado != null && resultado.content.length === 0
+  const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
 
   return (
     <main className="tarefas-page">
+      <QuickAddTarefaDialog
+        open={quickAddAberto}
+        onClose={() => setQuickAddAberto(false)}
+        onCriada={() => setRecarregarEm((n) => n + 1)}
+      />
       <header className="tarefas-header">
         <div>
           <h1>Tarefas</h1>
           <p className="tarefas-subtitle">Liste, filtre e ordene o que precisa ser planejado.</p>
         </div>
         <div className="tarefas-header-actions">
-          <Link to="/tarefas/nova" className="button-link">
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => setQuickAddAberto(true)}
+          >
             Nova tarefa
-          </Link>
-          <Link to="/">Início</Link>
+          </button>
         </div>
       </header>
 
-      <form className="tarefas-filtros" onSubmit={handleFiltrar}>
-        <fieldset>
-          <legend>Status</legend>
-          <div className="chip-group">
-            {STATUS_OPCOES.map((status) => (
-              <label key={status} className="chip">
-                <input
-                  type="checkbox"
-                  checked={filtros.status.includes(status)}
-                  onChange={() =>
-                    setFiltros((atual) => ({
-                      ...atual,
-                      status: toggleValor(atual.status, status),
-                    }))
-                  }
-                />
-                {STATUS_LABEL[status]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Prioridade</legend>
-          <div className="chip-group">
-            {PRIORIDADE_OPCOES.map((prioridade) => (
-              <label key={prioridade} className="chip">
-                <input
-                  type="checkbox"
-                  checked={filtros.prioridade.includes(prioridade)}
-                  onChange={() =>
-                    setFiltros((atual) => ({
-                      ...atual,
-                      prioridade: toggleValor(atual.prioridade, prioridade),
-                    }))
-                  }
-                />
-                {prioridade}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="filtros-actions">
-          <button type="submit">Aplicar filtros</button>
-          <button type="button" className="button-secondary" onClick={handleLimpar}>
-            Limpar
+      <div className="visao-chips" role="group" aria-label="Visão da lista">
+        {VISOES.map((visao) => (
+          <button
+            key={visao.id}
+            type="button"
+            className={
+              filtrosUrl.visao === visao.id ? 'visao-chip visao-chip--ativo' : 'visao-chip'
+            }
+            aria-pressed={filtrosUrl.visao === visao.id}
+            onClick={() => aplicarVisao(visao.id)}
+          >
+            {visao.label}
           </button>
+        ))}
+      </div>
+
+      <form className="tarefas-filtros card" onSubmit={handleAplicarFiltros}>
+        <div className="filtros-actions">
           <button
             type="button"
-            className="button-secondary"
-            aria-expanded={mostrarMaisFiltros}
-            onClick={() => setMostrarMaisFiltros((atual) => !atual)}
+            className="btn btn--secondary"
+            aria-expanded={mostrarFiltros}
+            onClick={() => setMostrarFiltros((atual) => !atual)}
           >
-            {mostrarMaisFiltros ? 'Ocultar mais filtros' : 'Mostrar mais filtros'}
+            {mostrarFiltros ? 'Ocultar filtros' : 'Filtros'}
           </button>
+          {mostrarFiltros ? (
+            <>
+              <button type="submit" className="btn btn--primary">
+                Aplicar filtros
+              </button>
+              <button type="button" className="btn btn--secondary" onClick={handleLimparFiltros}>
+                Limpar
+              </button>
+            </>
+          ) : null}
         </div>
 
-        {mostrarMaisFiltros ? (
+        {mostrarFiltros ? (
           <div className="filtros-grid filtros-avancados">
-            <label>
+            <fieldset className="filtros-fieldset">
+              <legend>Prioridade</legend>
+              <div className="chip-group">
+                {PRIORIDADE_OPCOES.map((prioridade) => (
+                  <label key={prioridade} className="chip">
+                    <input
+                      type="checkbox"
+                      checked={filtrosAvancados.prioridade.includes(prioridade)}
+                      onChange={() =>
+                        setFiltrosAvancados((atual) => ({
+                          ...atual,
+                          prioridade: toggleValor(atual.prioridade, prioridade),
+                        }))
+                      }
+                    />
+                    {PRIORIDADE_LABEL[prioridade]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label className="field">
               Prazo de
               <input
                 type="datetime-local"
-                value={filtros.prazoDe}
-                onChange={(e) => setFiltros((a) => ({ ...a, prazoDe: e.target.value }))}
+                value={filtrosAvancados.prazoDe}
+                onChange={(e) =>
+                  setFiltrosAvancados((a) => ({ ...a, prazoDe: e.target.value }))
+                }
               />
             </label>
-            <label>
+            <label className="field">
               Prazo até
               <input
                 type="datetime-local"
-                value={filtros.prazoAte}
-                onChange={(e) => setFiltros((a) => ({ ...a, prazoAte: e.target.value }))}
+                value={filtrosAvancados.prazoAte}
+                onChange={(e) =>
+                  setFiltrosAvancados((a) => ({ ...a, prazoAte: e.target.value }))
+                }
               />
             </label>
-            <label>
+            <label className="field">
               Duração de (h)
               <input
                 type="number"
                 min={1}
-                value={filtros.duracaoDe}
-                onChange={(e) => setFiltros((a) => ({ ...a, duracaoDe: e.target.value }))}
+                value={filtrosAvancados.duracaoDe}
+                onChange={(e) =>
+                  setFiltrosAvancados((a) => ({ ...a, duracaoDe: e.target.value }))
+                }
               />
             </label>
-            <label>
+            <label className="field">
               Duração até (h)
               <input
                 type="number"
                 min={1}
-                value={filtros.duracaoAte}
-                onChange={(e) => setFiltros((a) => ({ ...a, duracaoAte: e.target.value }))}
+                value={filtrosAvancados.duracaoAte}
+                onChange={(e) =>
+                  setFiltrosAvancados((a) => ({ ...a, duracaoAte: e.target.value }))
+                }
               />
             </label>
-            <label>
-              Criado de
-              <input
-                type="datetime-local"
-                value={filtros.criadoDe}
-                onChange={(e) => setFiltros((a) => ({ ...a, criadoDe: e.target.value }))}
-              />
-            </label>
-            <label>
-              Criado até
-              <input
-                type="datetime-local"
-                value={filtros.criadoAte}
-                onChange={(e) => setFiltros((a) => ({ ...a, criadoAte: e.target.value }))}
-              />
-            </label>
-            <label>
-              Atualizado de
-              <input
-                type="datetime-local"
-                value={filtros.atualizadoDe}
-                onChange={(e) => setFiltros((a) => ({ ...a, atualizadoDe: e.target.value }))}
-              />
-            </label>
-            <label>
-              Atualizado até
-              <input
-                type="datetime-local"
-                value={filtros.atualizadoAte}
-                onChange={(e) => setFiltros((a) => ({ ...a, atualizadoAte: e.target.value }))}
-              />
-            </label>
-            <label>
+            <label className="field">
               Ordenar por
               <select
-                value={filtros.sort}
+                value={filtrosAvancados.sort}
                 onChange={(e) =>
-                  setFiltros((a) => ({ ...a, sort: e.target.value as SortCampo }))
+                  setFiltrosAvancados((a) => ({
+                    ...a,
+                    sort: e.target.value as SortCampo,
+                  }))
                 }
               >
                 <option value="prazo">Prazo</option>
@@ -357,23 +366,28 @@ export function TarefasPage() {
                 <option value="prioridade">Prioridade</option>
               </select>
             </label>
-            <label>
+            <label className="field">
               Direção
               <select
-                value={filtros.direction}
+                value={filtrosAvancados.direction}
                 onChange={(e) =>
-                  setFiltros((a) => ({ ...a, direction: e.target.value as SortDirection }))
+                  setFiltrosAvancados((a) => ({
+                    ...a,
+                    direction: e.target.value as SortDirection,
+                  }))
                 }
               >
                 <option value="asc">Ascendente</option>
                 <option value="desc">Descendente</option>
               </select>
             </label>
-            <label>
+            <label className="field">
               Por página
               <select
-                value={filtros.size}
-                onChange={(e) => setFiltros((a) => ({ ...a, size: Number(e.target.value) }))}
+                value={filtrosAvancados.size}
+                onChange={(e) =>
+                  setFiltrosAvancados((a) => ({ ...a, size: Number(e.target.value) }))
+                }
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -381,33 +395,13 @@ export function TarefasPage() {
                 <option value={100}>100</option>
               </select>
             </label>
-            <label>
-              Excluídas
-              <select
-                value={filtros.visibilidade}
-                onChange={(e) =>
-                  setFiltros((a) => ({
-                    ...a,
-                    visibilidade: e.target.value as VisibilidadeDelecao,
-                  }))
-                }
-              >
-                <option value="ativas">Somente ativas</option>
-                <option value="incluir">Incluir excluídas</option>
-                <option value="somente">Somente excluídas</option>
-              </select>
-            </label>
           </div>
         ) : null}
       </form>
 
-      {erro ? (
-        <p className="auth-error" role="alert">
-          {erro}
-        </p>
-      ) : null}
+      {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
-      {carregando ? <p>Carregando tarefas…</p> : null}
+      {carregando ? <Skeleton variant="tarefas-lista" /> : null}
 
       {!carregando && resultado ? (
         <>
@@ -415,81 +409,125 @@ export function TarefasPage() {
             {resultado.totalElements} tarefa{resultado.totalElements === 1 ? '' : 's'}
           </p>
 
-          {resultado.content.length === 0 ? (
-            <p>Nenhuma tarefa encontrada.</p>
+          {listaVazia ? (
+            <div className="tarefas-empty" role="status">
+              {emptyPrimeira ? (
+                <>
+                  <p>Nenhuma tarefa ainda.</p>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => setQuickAddAberto(true)}
+                  >
+                    Criar primeira tarefa
+                  </button>
+                </>
+              ) : (
+                <p>Nenhuma tarefa encontrada com estes filtros.</p>
+              )}
+            </div>
           ) : (
-            <div className="tarefas-table-wrap">
-              <table className="tarefas-table">
-                <thead>
-                  <tr>
-                    <th>Título</th>
-                    <th>Status</th>
-                    <th>Prioridade</th>
-                    <th>Prazo</th>
-                    <th>Duração</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resultado.content.map((tarefa) => (
-                    <tr key={tarefa.id} className={tarefa.deletada ? 'tarefa-linha-deletada' : undefined}>
-                      <td>
-                        <Link to={`/tarefas/${tarefa.id}`}>{tarefa.titulo}</Link>
-                        {tarefa.deletada ? (
-                          <span className="status-badge status-deletada">Excluída</span>
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className={`status-badge status-${tarefa.status.toLowerCase()}`}>
-                          {STATUS_LABEL[tarefa.status]}
-                        </span>
-                      </td>
-                      <td>{tarefa.prioridade}</td>
-                      <td>{formatarDataHora(tarefa.prazo)}</td>
-                      <td>{tarefa.duracaoHoras}h</td>
-                      <td>
-                        {tarefa.deletada ? (
-                          <button
-                            type="button"
-                            className="button-table"
-                            disabled={acaoId === tarefa.id}
-                            onClick={() => void handleRestaurar(tarefa.id)}
-                          >
-                            {acaoId === tarefa.id ? 'Restaurando…' : 'Restaurar'}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="button-table button-table-danger"
-                            disabled={acaoId === tarefa.id}
-                            onClick={() => void handleExcluir(tarefa.id)}
-                          >
-                            {acaoId === tarefa.id ? 'Excluindo…' : 'Excluir'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="tarefas-grupos">
+              {grupos.map((grupo) => (
+                <section
+                  key={grupo.id}
+                  className="tarefa-grupo"
+                  aria-labelledby={`grupo-${grupo.id}`}
+                >
+                  <h2 id={`grupo-${grupo.id}`} className="tarefa-grupo__titulo">
+                    {grupo.label}{' '}
+                    <span className="tarefa-grupo__contador">({grupo.tarefas.length})</span>
+                  </h2>
+                  <ul className="tarefa-cards">
+                    {grupo.tarefas.map((tarefa) => {
+                      const prazoRelativo = formatarPrazoLista(tarefa.prazo)
+                      const prazoAbsoluto = formatarDataHora(tarefa.prazo)
+                      return (
+                        <li
+                          key={tarefa.id}
+                          className={
+                            tarefa.deletada
+                              ? 'tarefa-card tarefa-card--deletada'
+                              : 'tarefa-card'
+                          }
+                        >
+                          <div className="tarefa-card__principal">
+                            <Link to={`/tarefas/${tarefa.id}`} className="tarefa-card__titulo">
+                              {tarefa.titulo}
+                            </Link>
+                            <div className="tarefa-card__meta">
+                              <span
+                                className={`badge status-${tarefa.status.toLowerCase()}`}
+                              >
+                                {STATUS_TAREFA_LABEL[tarefa.status]}
+                              </span>
+                              <span
+                                className={`badge priority-${tarefa.prioridade.toLowerCase()}`}
+                              >
+                                {PRIORIDADE_LABEL[tarefa.prioridade]}
+                              </span>
+                              {tarefa.deletada ? (
+                                <span className="badge status-deletada">Excluída</span>
+                              ) : null}
+                            </div>
+                            <p className="tarefa-card__prazo">
+                              <time dateTime={tarefa.prazo} title={prazoAbsoluto}>
+                                {prazoRelativo}
+                              </time>
+                              <span className="tarefa-card__duracao">
+                                · {tarefa.duracaoHoras}h
+                              </span>
+                            </p>
+                          </div>
+                          <div className="tarefa-card__acoes">
+                            {tarefa.deletada ? (
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                disabled={acaoId === tarefa.id}
+                                onClick={() => void handleRestaurar(tarefa.id)}
+                              >
+                                {acaoId === tarefa.id ? 'Restaurando…' : 'Restaurar'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--danger btn--sm"
+                                disabled={acaoId === tarefa.id}
+                                onClick={() => void handleExcluir(tarefa.id)}
+                              >
+                                {acaoId === tarefa.id ? 'Excluindo…' : 'Excluir'}
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              ))}
             </div>
           )}
 
           <div className="tarefas-paginacao">
             <button
               type="button"
-              disabled={page <= 0}
-              onClick={() => setPage((atual) => Math.max(0, atual - 1))}
+              className="btn btn--primary"
+              disabled={filtrosUrl.page <= 0}
+              onClick={() =>
+                atualizarUrl({ ...filtrosUrl, page: Math.max(0, filtrosUrl.page - 1) })
+              }
             >
               Anterior
             </button>
             <span>
-              Página {totalPages === 0 ? 0 : page + 1} de {totalPages}
+              Página {totalPages === 0 ? 0 : filtrosUrl.page + 1} de {totalPages}
             </span>
             <button
               type="button"
-              disabled={totalPages === 0 || page >= totalPages - 1}
-              onClick={() => setPage((atual) => atual + 1)}
+              className="btn btn--primary"
+              disabled={totalPages === 0 || filtrosUrl.page >= totalPages - 1}
+              onClick={() => atualizarUrl({ ...filtrosUrl, page: filtrosUrl.page + 1 })}
             >
               Próxima
             </button>

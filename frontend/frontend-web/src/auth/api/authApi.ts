@@ -17,6 +17,10 @@ export type UsuarioResponse = {
   id: string
   nome: string
   email: string
+  xpTotal: number
+  nivel: number
+  xpNoNivel: number
+  xpParaProximoNivel: number
 }
 
 export class ApiError extends Error {

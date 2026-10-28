@@ -1,20 +1,20 @@
 ---
 name: criar_plano
-desc: Cria ou reescreve planos de feature (slices) em plans/*.md no formato do projeto. Use ao pedir novo plano, escrever/reescrever plans/X.md, fatiar atividades B*/F*, ou alinhar um plano ao padrão de usuario/tarefa/capacidade/planner.
+desc: Cria ou reescreve planos de feature (slices) em plans/negocio/*.md ou plans/ui/*.md no formato do projeto. Use ao pedir novo plano, escrever/reescrever plans/…, fatiar atividades B*/F*, ou alinhar um plano ao padrão de usuario/tarefa/capacidade/planner.
 ---
 
 # Criar plano de feature (slice)
 
-Não implemente código. O entregável é um (ou mais) arquivo(s) Markdown em `plans/` e, se necessário, atualização de `ordem_execucao/docs.md`.
+Não implemente código. O entregável é um (ou mais) arquivo(s) Markdown em `plans/negocio/` (domínio/API) ou `plans/ui/` (UI/UX) e, se necessário, atualização de `ordem_execucao/docs.md`.
 
-Antes de escrever o plano final: leia planos irmãos em `plans/`, a visão (`assistente_planejamento_rotina_gamificado.md`), `Decisoes_arqutetura.md` e a fila em `ordem_execucao/docs.md`. Se o pedido for rascunho cru ou ideia solta, use o espírito de `.agents/revisao_plano` — critique e pergunte **antes** de fechar o Markdown completo.
+Antes de escrever o plano final: leia planos irmãos na pasta correspondente (`plans/negocio/` ou `plans/ui/`), a visão (`assistente_planejamento_rotina_gamificado.md`), `Decisoes_arqutetura.md` e a fila em `ordem_execucao/docs.md`. Se o pedido for rascunho cru ou ideia solta, use o espírito de `.agents/revisao_plano` — critique e pergunte **antes** de fechar o Markdown completo.
 
 ---
 
 ## Quando usar
 
 - “Cria o plano de X”
-- “Escreve / reescreve `plans/….md`”
+- “Escreve / reescreve `plans/negocio/….md` ou `plans/ui/….md`”
 - “Parte as atividades do plano”
 - “Próximo slice da fila”
 
@@ -35,7 +35,7 @@ Um plano = **um domínio / um slice vertical**, não o produto inteiro.
 
 ## Estrutura obrigatória do arquivo
 
-Salvar em `plans/<nome>.md`. Espelhar o nível de detalhe de `plans/usuario.md`, `plans/tarefa.md`, `plans/capacidade.md`, `plans/planner.md`.
+Salvar em `plans/negocio/<nome>.md` (domínio/API) ou `plans/ui/<nome>.md` (UI/UX). Espelhar o nível de detalhe de `plans/negocio/usuario.md`, `plans/negocio/tarefa.md`, `plans/negocio/capacidade.md`, `plans/negocio/planner.md` (negócio) ou dos planos em `plans/ui/` (UI).
 
 ```markdown
 # Feature — <Nome> (<N>º slice)
@@ -221,7 +221,7 @@ Se pesos, status ou edge cases estiverem abertos: **pergunte** (lista curta) e s
 1. Confirmar posição na fila (`ordem_execucao/docs.md`) e dependências.
 2. Rascunhar escopo + fora de escopo + entities + endpoints em bullet (ou receber rascunho do usuário).
 3. Criticar / perguntar (inconsistências, API, segurança, extremos) — não redesenhar tudo de uma vez.
-4. Com respostas, escrever o `plans/<nome>.md` completo.
+4. Com respostas, escrever o `plans/negocio/<nome>.md` ou `plans/ui/<nome>.md` completo.
 5. Atualizar `ordem_execucao/docs.md`: status, ordem, dependências, “próximo passo”; se um slice absorver outro (ex. aprovação dentro do planner), remover ou anotar o plano absorvido.
 6. Não commitar (salvo pedido explícito do usuário).
 
@@ -244,9 +244,10 @@ Se pesos, status ou edge cases estiverem abertos: **pergunte** (lista curta) e s
 
 | Exemplo | Por quê |
 |---------|---------|
-| `plans/usuario.md` | Slice auth mínimo, decisões + B/F enxutos |
-| `plans/tarefa.md` | CRUD + job + regras de status |
-| `plans/capacidade.md` | Duas entities + consulta resolvida |
-| `plans/planner.md` | Atividades finas + seção de testes obrigatórios |
+| `plans/negocio/usuario.md` | Slice auth mínimo, decisões + B/F enxutos |
+| `plans/negocio/tarefa.md` | CRUD + job + regras de status |
+| `plans/negocio/capacidade.md` | Duas entities + consulta resolvida |
+| `plans/negocio/planner.md` | Atividades finas + seção de testes obrigatórios |
+| `plans/ui/ui-layout-nav.md` | Exemplo de slice UI/UX (shell + navegação) |
 | `ordem_execucao/docs.md` | Fila e dependências |
 | `.agents/revisao_plano/SKILL.md` | Só crítica/perguntas, sem implementar |

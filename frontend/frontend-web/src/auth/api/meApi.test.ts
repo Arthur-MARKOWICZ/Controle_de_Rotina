@@ -13,26 +13,56 @@ describe('meApi', () => {
     vi.mocked(apiClient.apiFetch).mockReset()
   })
 
-  it('busca nome e email em GET /me', async () => {
+  it('busca nome, email e progresso XP em GET /me', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ id: '1', nome: 'Ana', email: 'ana@email.com' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      new Response(
+        JSON.stringify({
+          id: '1',
+          nome: 'Ana',
+          email: 'ana@email.com',
+          xpTotal: 0,
+          nivel: 1,
+          xpNoNivel: 0,
+          xpParaProximoNivel: 10,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
     )
 
     const me = await buscarMe()
 
     expect(apiClient.apiFetch).toHaveBeenCalledWith('/me')
-    expect(me).toEqual({ id: '1', nome: 'Ana', email: 'ana@email.com' })
+    expect(me).toEqual({
+      id: '1',
+      nome: 'Ana',
+      email: 'ana@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
+    })
   })
 
   it('atualiza perfil com PUT /me', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ id: '1', nome: 'Ana Nova', email: 'ana@email.com' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      new Response(
+        JSON.stringify({
+          id: '1',
+          nome: 'Ana Nova',
+          email: 'ana@email.com',
+          xpTotal: 0,
+          nivel: 1,
+          xpNoNivel: 0,
+          xpParaProximoNivel: 10,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
     )
 
     const body = { senhaAtual: 'Senha@123', nome: 'Ana Nova' }

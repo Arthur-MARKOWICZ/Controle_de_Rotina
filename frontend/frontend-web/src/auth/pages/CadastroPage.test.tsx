@@ -33,6 +33,21 @@ describe('CadastroPage', () => {
     vi.mocked(authApi.cadastrarUsuario).mockReset()
   })
 
+  it('exibe proposta de valor e checklist de senha', async () => {
+    const user = userEvent.setup()
+    renderCadastro()
+
+    expect(
+      screen.getByText(/diga o que precisa fazer; o sistema monta o plano/i),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/requisitos da senha/i)).toBeInTheDocument()
+
+    const minuscula = screen.getByText(/uma letra minúscula/i).closest('li')
+    expect(minuscula).toHaveAttribute('data-ok', 'false')
+    await user.type(screen.getByLabelText(/^senha$/i), 'a')
+    expect(minuscula).toHaveAttribute('data-ok', 'true')
+  })
+
   it('mostra erro quando as senhas não conferem', async () => {
     const user = userEvent.setup()
     renderCadastro()
@@ -66,6 +81,10 @@ describe('CadastroPage', () => {
       id: '1',
       nome: 'Ana Silva',
       email: 'ana@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
     })
     const user = userEvent.setup()
     renderCadastro()
