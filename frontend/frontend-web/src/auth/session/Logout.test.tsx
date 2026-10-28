@@ -3,13 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { HomePage } from '../../pages/HomePage'
-import * as capacidadeResolvidaApi from '../../capacidade/api/capacidadeResolvidaApi'
-import * as planoApi from '../../planner/api/planoApi'
-import * as authApi from '../api/authApi'
-import { AuthProvider } from '../session/AuthContext'
-import { clearAccessToken, getAccessToken, setAccessToken } from '../session/tokenStore'
 import { ProtectedRoute } from '../components/ProtectedRoute'
+import * as authApi from '../api/authApi'
+import * as meApi from '../api/meApi'
+import { AuthProvider } from './AuthContext'
+import { clearAccessToken, getAccessToken, setAccessToken } from '../session/tokenStore'
+import { AppShell } from '../../layout/AppShell'
 
 vi.mock('../api/authApi', () => ({
   logout: vi.fn(),
@@ -24,16 +23,9 @@ vi.mock('../api/authApi', () => ({
   },
 }))
 
-vi.mock('../../planner/api/planoApi', () => ({
-  buscarPlano: vi.fn(),
-  gerarPlano: vi.fn(),
-  aprovarPlano: vi.fn(),
-  adicionarBloco: vi.fn(),
-  removerBloco: vi.fn(),
-}))
-
-vi.mock('../../capacidade/api/capacidadeResolvidaApi', () => ({
-  consultarCapacidadeResolvida: vi.fn(),
+vi.mock('../api/meApi', () => ({
+  buscarMe: vi.fn(),
+  atualizarMe: vi.fn(),
 }))
 
 describe('Logout', () => {
@@ -41,10 +33,16 @@ describe('Logout', () => {
     clearAccessToken()
     vi.mocked(authApi.logout).mockReset()
     vi.mocked(authApi.logout).mockResolvedValue(undefined)
-    vi.mocked(planoApi.buscarPlano).mockReset()
-    vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
-    vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockReset()
-    vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([])
+    vi.mocked(meApi.buscarMe).mockReset()
+    vi.mocked(meApi.buscarMe).mockResolvedValue({
+      id: '1',
+      nome: 'Ana',
+      email: 'ana@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
+    })
   })
 
   it('chama logout, limpa access token e volta para login', async () => {
@@ -56,20 +54,21 @@ describe('Logout', () => {
         <MemoryRouter initialEntries={['/']}>
           <Routes>
             <Route
-              path="/"
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <AppShell />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route path="/" element={<p>Conteúdo protegido</p>} />
+            </Route>
             <Route path="/login" element={<p>Tela de login</p>} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: /sair/i }))
+    await user.click(screen.getAllByRole('button', { name: /sair/i })[0])
 
     await waitFor(() => {
       expect(screen.getByText('Tela de login')).toBeInTheDocument()

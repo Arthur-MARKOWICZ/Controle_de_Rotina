@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.controlerotina.execucao.dto.ExecucaoResponse;
 import com.controlerotina.execucao.dto.ExecucoesDoDiaResponse;
 import com.controlerotina.execucao.dto.IniciarExecucaoRequest;
+import com.controlerotina.execucao.dto.ResultadoConclusao;
 import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.service.ExecucaoService;
+import com.controlerotina.xp.dto.XpConclusaoResponse;
 
 import jakarta.validation.Valid;
 
@@ -55,7 +57,8 @@ public class ExecucaoController {
             @AuthenticationPrincipal UUID usuarioId,
             @PathVariable UUID id
     ) {
-        return ExecucaoResponse.from(execucaoService.concluir(usuarioId, id));
+        ResultadoConclusao resultado = execucaoService.concluir(usuarioId, id);
+        return ExecucaoResponse.from(resultado.execucao(), XpConclusaoResponse.from(resultado.xp()));
     }
 
     @PostMapping("/{id}/abortar")

@@ -1,0 +1,293 @@
+/* ——— Feedback: toast, skeleton, confirm ——— */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toast-host {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 40;
+  display: grid;
+  gap: var(--space-2);
+  width: min(100% - 2rem, 22rem);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+  animation: toast-in 160ms ease-out;
+}
+
+.toast--success {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--line));
+}
+
+.toast--error {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.toast--info {
+  border-color: var(--line);
+}
+
+.toast__message {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.toast__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+.skeleton {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.skeleton__item {
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    color-mix(in srgb, var(--line) 55%, var(--surface)) 50%,
+    var(--surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.2s ease-in-out infinite;
+}
+
+.skeleton--plano-blocos .skeleton__item {
+  min-height: 3.5rem;
+}
+
+.skeleton--tarefas-lista .skeleton__item {
+  min-height: 2.75rem;
+}
+
+.skeleton--capacidade-grade {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.skeleton--capacidade-grade .skeleton__item {
+  min-height: 12rem;
+}
+
+@keyframes skeleton-shine {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__item {
+    animation: none;
+  }
+}
+
+.confirm-dialog {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  max-width: min(100% - 2rem, 24rem);
+}
+
+.confirm-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.confirm-dialog__form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.confirm-dialog__title {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.confirm-dialog__message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.quick-add-dialog {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  max-width: min(100% - 2rem, 28rem);
+  width: 100%;
+}
+
+.quick-add-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.quick-add-dialog__form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.quick-add-dialog__title {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.quick-add-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.atalhos-ajuda-dialog {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  max-width: min(100% - 2rem, 24rem);
+  width: 100%;
+}
+
+.atalhos-ajuda-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.atalhos-ajuda-dialog__body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.atalhos-ajuda-dialog__title {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.atalhos-ajuda-dialog__lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.atalhos-ajuda-dialog__lista li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.atalhos-ajuda-dialog__lista kbd {
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.field-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.prazo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.prazo-chip {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.prazo-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.prazo-chip--ativo {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}

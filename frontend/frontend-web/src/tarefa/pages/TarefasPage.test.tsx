@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ToastProvider } from '../../feedback/ToastProvider'
 import * as tarefaApi from '../api/tarefaApi'
 import { TarefasPage } from './TarefasPage'
 
@@ -12,15 +13,56 @@ vi.mock('../api/tarefaApi', () => ({
   restaurarTarefa: vi.fn(),
 }))
 
-const pagina = {
+const refIso = '2026-10-28T15:00:00.000Z'
+
+const paginaVariada = {
   content: [
     {
-      id: 't-1',
-      titulo: 'Estudar Spring',
-      descricao: 'Revisão',
+      id: 't-atrasada',
+      titulo: 'Atrasada',
+      descricao: '',
       prioridade: 'ALTA' as const,
-      prazo: '2030-01-01T12:00:00Z',
+      prazo: '2026-10-20T12:00:00Z',
       status: 'ATRASADA' as const,
+      duracaoHoras: 1,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    },
+    {
+      id: 't-hoje',
+      titulo: 'Hoje item',
+      descricao: '',
+      prioridade: 'MEDIA' as const,
+      prazo: '2026-10-28T20:00:00Z',
+      status: 'PENDENTE' as const,
+      duracaoHoras: 2,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    },
+    {
+      id: 't-semana',
+      titulo: 'Semana item',
+      descricao: '',
+      prioridade: 'BAIXA' as const,
+      prazo: '2026-10-30T12:00:00Z',
+      status: 'PENDENTE' as const,
+      duracaoHoras: 1,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    },
+    {
+      id: 't-depois',
+      titulo: 'Depois item',
+      descricao: '',
+      prioridade: 'MEDIA' as const,
+      prazo: '2026-11-10T12:00:00Z',
+      status: 'EM_PROGRESSO' as const,
       duracaoHoras: 3,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
@@ -28,19 +70,29 @@ const pagina = {
       deletada: false,
     },
   ],
+  totalElements: 4,
+  totalPages: 1,
+  number: 0,
+  size: 20,
+}
+
+const pagina = {
+  content: [paginaVariada.content[1]],
   totalElements: 1,
   totalPages: 1,
   number: 0,
   size: 20,
 }
 
-function renderLista() {
+function renderLista(path = '/tarefas') {
   return render(
-    <MemoryRouter initialEntries={['/tarefas']}>
-      <Routes>
-        <Route path="/tarefas" element={<TarefasPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/tarefas" element={<TarefasPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
@@ -50,13 +102,19 @@ describe('TarefasPage', () => {
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina)
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(refIso))
   })
 
-  it('lista tarefas autenticadas e mostra status visualmente', async () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('lista tarefas e mostra status em PT', async () => {
     renderLista()
 
-    expect(await screen.findByText('Estudar Spring')).toBeInTheDocument()
-    expect(document.querySelector('.status-atrasada')).toHaveTextContent('Atrasada')
+    expect(await screen.findByText('Hoje item')).toBeInTheDocument()
+    expect(document.querySelector('.status-pendente')).toHaveTextContent('Pendente')
     expect(tarefaApi.listarTarefas).toHaveBeenCalledWith(
       expect.objectContaining({
         page: 0,
@@ -67,24 +125,68 @@ describe('TarefasPage', () => {
     )
   })
 
-  it('mostra só status e prioridade até expandir mais filtros', async () => {
+  it('T3: renderiza grupos com contador', async () => {
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaVariada)
     renderLista()
-    await screen.findByText('Estudar Spring')
 
-    expect(screen.getByLabelText(/^pendente$/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^alta$/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/ordenar por/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/^excluídas$/i)).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /atrasadas \(1\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^hoje \(1\)$/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /esta semana \(1\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /depois \(1\)/i })).toBeInTheDocument()
   })
 
-  it('aplica filtros multi-valor e ordenação na listagem', async () => {
-    const user = userEvent.setup()
+  it('T4: lista usa cards, sem tabela', async () => {
     renderLista()
-    await screen.findByText('Estudar Spring')
+    await screen.findByText('Hoje item')
 
-    await user.click(screen.getByLabelText(/^pendente$/i))
+    expect(document.querySelector('table')).not.toBeInTheDocument()
+    expect(document.querySelector('.tarefa-card')).toBeInTheDocument()
+  })
+
+  it('T1: search params reaplicam visão e filtro na carga', async () => {
+    renderLista('/tarefas?visao=pendentes&prioridade=ALTA&sort=duracao&direction=desc&page=1')
+
+    await waitFor(() => {
+      expect(tarefaApi.listarTarefas).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: ['PENDENTE'],
+          prioridade: ['ALTA'],
+          sort: 'duracao',
+          direction: 'desc',
+          page: 1,
+        }),
+      )
+    })
+    expect(screen.getByRole('button', { name: 'Pendentes' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('chip de visão aplica filtro imediatamente', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderLista()
+    await screen.findByText('Hoje item')
+
+    await user.click(screen.getByRole('button', { name: 'Em progresso' }))
+
+    await waitFor(() => {
+      expect(tarefaApi.listarTarefas).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status: ['EM_PROGRESSO'],
+          page: 0,
+        }),
+      )
+    })
+  })
+
+  it('filtros avançados: prioridade e ordenação via painel', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderLista()
+    await screen.findByText('Hoje item')
+
+    await user.click(screen.getByRole('button', { name: /^filtros$/i }))
     await user.click(screen.getByLabelText(/^alta$/i))
-    await user.click(screen.getByRole('button', { name: /mostrar mais filtros/i }))
     await user.selectOptions(screen.getByLabelText(/ordenar por/i), 'duracao')
     await user.selectOptions(screen.getByLabelText(/^direção$/i), 'desc')
     await user.click(screen.getByRole('button', { name: /aplicar filtros/i }))
@@ -92,7 +194,6 @@ describe('TarefasPage', () => {
     await waitFor(() => {
       expect(tarefaApi.listarTarefas).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          status: ['PENDENTE'],
           prioridade: ['ALTA'],
           sort: 'duracao',
           direction: 'desc',
@@ -102,27 +203,35 @@ describe('TarefasPage', () => {
     })
   })
 
-  it('exclui tarefa da lista e recarrega', async () => {
+  it('T2: excluir mostra Desfazer e restore é chamado', async () => {
     vi.mocked(tarefaApi.excluirTarefa).mockResolvedValue(undefined)
+    vi.mocked(tarefaApi.restaurarTarefa).mockResolvedValue({
+      ...pagina.content[0],
+      deletada: false,
+      deletedAt: null,
+    })
     vi.mocked(tarefaApi.listarTarefas)
       .mockResolvedValueOnce(pagina)
       .mockResolvedValueOnce({ ...pagina, content: [], totalElements: 0, totalPages: 0 })
+      .mockResolvedValueOnce(pagina)
 
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderLista()
-    await screen.findByText('Estudar Spring')
+    await screen.findByText('Hoje item')
 
     await user.click(screen.getByRole('button', { name: /^excluir$/i }))
 
     await waitFor(() => {
-      expect(tarefaApi.excluirTarefa).toHaveBeenCalledWith('t-1')
+      expect(tarefaApi.excluirTarefa).toHaveBeenCalledWith('t-hoje')
     })
+
+    await user.click(screen.getByRole('button', { name: /desfazer/i }))
     await waitFor(() => {
-      expect(tarefaApi.listarTarefas).toHaveBeenCalledTimes(2)
+      expect(tarefaApi.restaurarTarefa).toHaveBeenCalledWith('t-hoje')
     })
   })
 
-  it('filtra somente excluídas e restaura na lista', async () => {
+  it('visão Excluídas lista deletadas e permite restaurar', async () => {
     const deletada = {
       ...pagina.content[0],
       deletada: true,
@@ -141,13 +250,11 @@ describe('TarefasPage', () => {
       deletedAt: null,
     })
 
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderLista()
-    await screen.findByText('Estudar Spring')
+    await screen.findByText('Hoje item')
 
-    await user.click(screen.getByRole('button', { name: /mostrar mais filtros/i }))
-    await user.selectOptions(screen.getByLabelText(/^excluídas$/i), 'somente')
-    await user.click(screen.getByRole('button', { name: /aplicar filtros/i }))
+    await user.click(screen.getByRole('button', { name: 'Excluídas' }))
 
     await waitFor(() => {
       expect(tarefaApi.listarTarefas).toHaveBeenLastCalledWith(
@@ -161,7 +268,25 @@ describe('TarefasPage', () => {
     await user.click(screen.getByRole('button', { name: /^restaurar$/i }))
 
     await waitFor(() => {
-      expect(tarefaApi.restaurarTarefa).toHaveBeenCalledWith('t-1')
+      expect(tarefaApi.restaurarTarefa).toHaveBeenCalledWith('t-hoje')
     })
+  })
+
+  it('T5: empty state oferece CTA Criar primeira tarefa', async () => {
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+    })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderLista()
+
+    expect(await screen.findByText(/nenhuma tarefa ainda/i)).toBeInTheDocument()
+    const empty = screen.getByText(/nenhuma tarefa ainda/i).closest('.tarefas-empty')
+    expect(empty).not.toBeNull()
+    await user.click(within(empty as HTMLElement).getByRole('button', { name: /criar primeira tarefa/i }))
+    expect(await screen.findByRole('heading', { name: /nova tarefa/i })).toBeInTheDocument()
   })
 })

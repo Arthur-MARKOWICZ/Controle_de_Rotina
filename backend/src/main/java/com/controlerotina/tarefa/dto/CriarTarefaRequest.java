@@ -14,7 +14,6 @@ public record CriarTarefaRequest(
         @Size(max = 120)
         String titulo,
 
-        @NotBlank
         @Size(max = 2000)
         String descricao,
 
@@ -32,7 +31,9 @@ public record CriarTarefaRequest(
         if (titulo != null) {
             titulo = titulo.trim();
         }
-        if (descricao != null) {
+        if (descricao == null || descricao.isBlank()) {
+            descricao = "";
+        } else {
             descricao = descricao.trim();
         }
     }

@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
-import { useAuth } from '../auth/session/AuthContext'
+import {
+  atualizarCapacidadeOverride,
+  criarCapacidadeOverride,
+  listarCapacidadesOverride,
+} from '../capacidade/api/capacidadeOverrideApi'
 import {
   consultarCapacidadeResolvida,
   type CapacidadeResolvidaResponse,
@@ -13,17 +16,33 @@ import {
   iniciarExecucao,
   listarExecucoes,
   type ItemExecucaoResponse,
-  type StatusExecucao,
 } from '../execucao/api/execucaoApi'
-import { formatarTempoRestante, minutosRestantes } from '../execucao/data'
+import { minutosRestantes } from '../execucao/data'
+import { InlineAlert } from '../feedback/InlineAlert'
+import { Skeleton } from '../feedback/Skeleton'
+import { useToast } from '../feedback/ToastProvider'
+import { useConfirmDialog } from '../feedback/useConfirmDialog'
+import { mensagensFeedbackXp } from '../xp/feedbackXp'
+import { useXpProgress } from '../xp/XpProgressContext'
+import { AdicionarTarefaForm } from '../home/AdicionarTarefaForm'
+import { AjustarCapacidadeHoje } from '../home/AjustarCapacidadeHoje'
+import { BlocoAtivo } from '../home/BlocoAtivo'
+import { BlocoCard } from '../home/BlocoCard'
+import { CapacidadeBar } from '../home/CapacidadeBar'
+import { ConflitoBanner } from '../home/ConflitoBanner'
+import { EmptyStatePlano } from '../home/EmptyStatePlano'
+import { formatarDataPorExtenso } from '../home/formatacao'
+import { OnboardingChecklist } from '../home/OnboardingChecklist'
+import { escolherBlocoMenorPrioridade } from '../home/justificativa'
+import { labelStatusPlano } from '../home/labels'
 import {
   adicionarBloco,
   aprovarPlano,
   buscarPlano,
   gerarPlano,
   removerBloco,
+  type BlocoPlanoResponse,
   type PlanoResponse,
-  type StatusPlano,
 } from '../planner/api/planoApi'
 import {
   dataHojeIso,
@@ -34,17 +53,12 @@ import {
   statusElegiveisParaPlano,
 } from '../planner/data'
 import { listarTarefas, type TarefaResponse } from '../tarefa/api/tarefaApi'
+import { QuickAddTarefaDialog } from '../tarefa/QuickAddTarefaDialog'
 
-const STATUS_PLANO_LABEL: Record<StatusPlano, string> = {
-  RASCUNHO: 'Rascunho',
-  APROVADO: 'Aprovado',
-}
-
-const STATUS_EXECUCAO_LABEL: Record<StatusExecucao, string> = {
-  NAO_INICIADO: 'Não iniciado',
-  EM_ANDAMENTO: 'Em andamento',
-  CONCLUIDO: 'Concluído',
-  ABORTADO: 'Abortado',
+type SnapshotBlocos = {
+  /** IDs de tarefa (bloco.id muda a cada versão). */
+  tarefaIds: Set<string>
+  titulosPorTarefaId: Map<string, string>
 }
 
 function capacidadeDoDia(
@@ -61,8 +75,17 @@ function mensagemErro(error: unknown, fallback: string): string {
   return fallback
 }
 
+function snapshotDeBlocos(blocos: BlocoPlanoResponse[]): SnapshotBlocos {
+  return {
+    tarefaIds: new Set(blocos.map((bloco) => bloco.tarefa.id)),
+    titulosPorTarefaId: new Map(blocos.map((bloco) => [bloco.tarefa.id, bloco.tarefa.titulo])),
+  }
+}
+
 export function HomePage() {
-  const { logout } = useAuth()
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
+  const toast = useToast()
+  const { progresso, aplicarProgresso } = useXpProgress()
   const [plano, setPlano] = useState<PlanoResponse | null>(null)
   const [capacidade, setCapacidade] = useState<CapacidadeResolvidaResponse | undefined>()
   const [itensExecucao, setItensExecucao] = useState<ItemExecucaoResponse[]>([])
@@ -78,6 +101,15 @@ export function HomePage() {
   const [carregandoElegiveis, setCarregandoElegiveis] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [agora, setAgora] = useState(() => new Date())
+  const [conflitoDismissed, setConflitoDismissed] = useState(false)
+  const [snapshotAnterior, setSnapshotAnterior] = useState<SnapshotBlocos | null>(null)
+  const [titulosRemovidosDiff, setTitulosRemovidosDiff] = useState<string[]>([])
+  const [xpGanhoSessao, setXpGanhoSessao] = useState(0)
+  const [quickAddAberto, setQuickAddAberto] = useState(false)
+  const [elegiveisTick, setElegiveisTick] = useState(0)
+  const [ajustarCapacidadeAberto, setAjustarCapacidadeAberto] = useState(false)
+  const [salvandoCapacidadeHoje, setSalvandoCapacidadeHoje] = useState(false)
+  const [ctaGerarAposCapacidade, setCtaGerarAposCapacidade] = useState(false)
 
   const ehRascunho = plano?.status === 'RASCUNHO'
   const ehAprovado = plano?.status === 'APROVADO'
@@ -172,7 +204,11 @@ export function HomePage() {
     return () => {
       cancelado = true
     }
-  }, [ehRascunho, plano])
+  }, [ehRascunho, plano, elegiveisTick])
+
+  useEffect(() => {
+    setConflitoDismissed(false)
+  }, [plano?.id, plano?.versao, plano?.mensagem, plano?.temConflito])
 
   useEffect(() => {
     const temAndamento = itensExecucao.some((item) => item.execucao.status === 'EM_ANDAMENTO')
@@ -192,13 +228,29 @@ export function HomePage() {
     if (!podeGerar) {
       return
     }
+    const anterior = plano ? snapshotDeBlocos(plano.blocos) : null
     setGerando(true)
     setAcaoErro(null)
     setErro(null)
     try {
       const gerado = await gerarPlano(dataHojeIso())
+      if (anterior) {
+        setSnapshotAnterior(anterior)
+        const tarefaIdsNovos = new Set(gerado.blocos.map((bloco) => bloco.tarefa.id))
+        const removidos: string[] = []
+        for (const tarefaId of anterior.tarefaIds) {
+          if (!tarefaIdsNovos.has(tarefaId)) {
+            removidos.push(anterior.titulosPorTarefaId.get(tarefaId) ?? 'Tarefa removida')
+          }
+        }
+        setTitulosRemovidosDiff(removidos)
+      } else {
+        setSnapshotAnterior(null)
+        setTitulosRemovidosDiff([])
+      }
       setPlano(gerado)
       setItensExecucao([])
+      setCtaGerarAposCapacidade(false)
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível gerar o plano.'))
     } finally {
@@ -206,8 +258,41 @@ export function HomePage() {
     }
   }
 
+  async function handleSalvarCapacidadeHoje(horas: number) {
+    const data = dataHojeIso()
+    setSalvandoCapacidadeHoje(true)
+    setAcaoErro(null)
+    try {
+      const existentes = await listarCapacidadesOverride({ dataDe: data, dataAte: data })
+      const ativo = existentes.find((item) => item.ativo && item.data === data)
+      if (ativo) {
+        await atualizarCapacidadeOverride(ativo.id, { horas })
+      } else {
+        await criarCapacidadeOverride({ data, horas })
+      }
+      const resolvidas = await consultarCapacidadeResolvida({ dataDe: data, dataAte: data })
+      setCapacidade(capacidadeDoDia(resolvidas, data))
+      setAjustarCapacidadeAberto(false)
+      setCtaGerarAposCapacidade(true)
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível ajustar a capacidade de hoje.'))
+    } finally {
+      setSalvandoCapacidadeHoje(false)
+    }
+  }
+
   async function handleAprovar() {
     if (!plano || !ehRascunho) {
+      return
+    }
+    const usadosMin = minutosUsados(plano.blocos)
+    const disponiveisMin = minutosDisponiveis(capacidade?.horas, capacidade?.origem)
+    const confirmado = await confirm({
+      title: 'Aprovar plano?',
+      message: `${plano.blocos.length} bloco${plano.blocos.length === 1 ? '' : 's'}, ${formatarCapacidadeMinutos(usadosMin)} de ${formatarCapacidadeMinutos(disponiveisMin)} de capacidade. Após aprovar, o plano entra em execução e deixa de ser editável como rascunho.`,
+      confirmLabel: 'Aprovar',
+    })
+    if (!confirmado) {
       return
     }
     setAprovando(true)
@@ -215,6 +300,8 @@ export function HomePage() {
     try {
       const atualizado = await aprovarPlano(plano.id)
       setPlano(atualizado)
+      setSnapshotAnterior(null)
+      setTitulosRemovidosDiff([])
       await recarregarExecucoes(atualizado.data)
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível aprovar o plano.'))
@@ -238,6 +325,17 @@ export function HomePage() {
     } finally {
       setRemovendoBlocoId(null)
     }
+  }
+
+  async function handleRemoverMenorPrioridade() {
+    if (!plano || !ehRascunho) {
+      return
+    }
+    const alvo = escolherBlocoMenorPrioridade(plano.blocos)
+    if (!alvo) {
+      return
+    }
+    await handleRemover(alvo.id)
   }
 
   async function handleAdicionar(event: FormEvent) {
@@ -275,7 +373,18 @@ export function HomePage() {
     setAcaoBlocoId(blocoId)
     setAcaoErro(null)
     try {
-      await concluirExecucao(execucaoId)
+      const resultado = await concluirExecucao(execucaoId)
+      const xp = resultado.xp
+      if (xp) {
+        const nivelAnterior = progresso?.nivel ?? null
+        for (const mensagem of mensagensFeedbackXp(xp, nivelAnterior)) {
+          toast.success(mensagem)
+        }
+        if (xp.ganhoNesteRequest > 0) {
+          setXpGanhoSessao((atual) => atual + xp.ganhoNesteRequest)
+        }
+        aplicarProgresso(xp.progresso)
+      }
       await recarregarExecucoes(dataHojeIso())
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível concluir a execução.'))
@@ -285,6 +394,14 @@ export function HomePage() {
   }
 
   async function handleAbortar(execucaoId: string, blocoId: string) {
+    const confirmado = await confirm({
+      title: 'Abortar execução?',
+      message: 'Abortar interrompe o bloco em andamento. Esta ação não pode ser desfeita na UI.',
+      confirmLabel: 'Abortar',
+    })
+    if (!confirmado) {
+      return
+    }
     setAcaoBlocoId(blocoId)
     setAcaoErro(null)
     try {
@@ -299,89 +416,133 @@ export function HomePage() {
 
   const usados = plano ? minutosUsados(plano.blocos) : 0
   const disponiveis = minutosDisponiveis(capacidade?.horas, capacidade?.origem)
-  const resumoCapacidade = `${formatarCapacidadeMinutos(usados)} / ${formatarCapacidadeMinutos(disponiveis)}`
+  const blocoAtivo = itensExecucao.find((item) => item.execucao.status === 'EM_ANDAMENTO')
+  const minutosDoAtivo =
+    blocoAtivo?.execucao.iniciadoEm != null
+      ? minutosRestantes(
+          blocoAtivo.execucao.iniciadoEm,
+          blocoAtivo.bloco.duracaoMinutos,
+          agora,
+        )
+      : 0
+
+  const diaCompleto =
+    ehAprovado &&
+    itensExecucao.length > 0 &&
+    itensExecucao.every((item) => item.execucao.status === 'CONCLUIDO')
+
+  const mostrarBannerConflito =
+    Boolean(plano?.mensagem) && !(plano?.temConflito && conflitoDismissed)
 
   return (
     <main className="home-page">
-      <header className="home-header">
-        <h1>Controle de Rotina</h1>
-        <div className="home-actions">
-          <Link to="/tarefas">Tarefas</Link>
-          <Link to="/capacidade">Capacidade</Link>
-          <Link to="/historico">Histórico</Link>
-          <Link to="/perfil">Meu perfil</Link>
-          <button type="button" onClick={() => void logout()}>
-            Sair
-          </button>
-        </div>
-      </header>
-
-      <section className="plano-dia" aria-labelledby="plano-dia-titulo">
+      {confirmDialog}
+      <QuickAddTarefaDialog
+        open={quickAddAberto}
+        onClose={() => setQuickAddAberto(false)}
+        onCriada={() => setElegiveisTick((n) => n + 1)}
+      />
+      <div className="home-topo">
+        <p className="home-saudacao">{formatarDataPorExtenso()}</p>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => setQuickAddAberto(true)}
+        >
+          Nova tarefa
+        </button>
+      </div>
+      <OnboardingChecklist
+        temPlano={plano != null}
+        onAbrirQuickAdd={() => setQuickAddAberto(true)}
+        onGerarPlano={podeGerar ? () => void handleGerar() : undefined}
+      />
+      <section className="plano-dia card" aria-labelledby="plano-dia-titulo">
         <div className="plano-dia-cabecalho">
           <h2 id="plano-dia-titulo">Plano de hoje</h2>
           {plano ? (
-            <span
-              className={`status-badge status-plano-${plano.status.toLowerCase()}`}
-            >
-              {STATUS_PLANO_LABEL[plano.status]}
+            <span className={`badge status-plano-${plano.status.toLowerCase()}`}>
+              {labelStatusPlano(plano.status)}
             </span>
           ) : null}
         </div>
 
-        {carregando ? (
-          <p className="plano-dia-meta" aria-busy="true">
-            Carregando plano…
+        {diaCompleto ? (
+          <p className="plano-dia-completo" role="status">
+            {xpGanhoSessao > 0
+              ? `Plano de hoje concluído · +${xpGanhoSessao} XP`
+              : 'Plano de hoje concluído'}
           </p>
         ) : null}
 
-        {erro ? (
-          <p className="plano-dia-erro" role="alert">
-            {erro}
-          </p>
-        ) : null}
+        {carregando ? <Skeleton variant="plano-blocos" /> : null}
 
-        {acaoErro ? (
-          <p className="plano-dia-erro" role="alert">
-            {acaoErro}
-          </p>
-        ) : null}
+        {erro ? <InlineAlert>{erro}</InlineAlert> : null}
+
+        {acaoErro ? <InlineAlert>{acaoErro}</InlineAlert> : null}
 
         {!carregando && !erro && !plano ? (
-          <div className="plano-dia-vazio-bloco">
-            <p className="plano-dia-vazio" role="status">
-              Ainda não há plano para hoje.
-            </p>
-            <div className="plano-dia-acoes">
-              <button
-                type="button"
-                className="button-link"
-                onClick={() => void handleGerar()}
-                disabled={gerando}
-              >
-                {gerando ? 'Gerando…' : 'Gerar plano'}
-              </button>
-            </div>
-          </div>
+          <>
+            <AjustarCapacidadeHoje
+              aberto={ajustarCapacidadeAberto}
+              horasIniciais={capacidade?.horas ?? 0}
+              salvando={salvandoCapacidadeHoje}
+              mostrarCtaGerar={ctaGerarAposCapacidade && podeGerar}
+              gerando={gerando}
+              onAbrir={() => setAjustarCapacidadeAberto(true)}
+              onFechar={() => setAjustarCapacidadeAberto(false)}
+              onSalvar={(horas) => void handleSalvarCapacidadeHoje(horas)}
+              onGerarVersao={() => void handleGerar()}
+            />
+            <EmptyStatePlano gerando={gerando} onGerar={() => void handleGerar()} />
+          </>
         ) : null}
 
         {!carregando && !erro && plano ? (
           <>
-            <p className="plano-dia-capacidade">
-              Capacidade: <strong>{resumoCapacidade}</strong>
-              {plano.versao > 0 ? (
-                <span className="plano-dia-versao"> · versão {plano.versao}</span>
-              ) : null}
-            </p>
+            <CapacidadeBar
+              usadosMinutos={usados}
+              disponiveisMinutos={disponiveis}
+              sobrecarga={plano.temConflito}
+              versao={plano.versao}
+            />
 
-            {plano.mensagem ? (
-              <p
-                className={
-                  plano.temConflito ? 'plano-dia-banner conflito' : 'plano-dia-banner'
+            <AjustarCapacidadeHoje
+              aberto={ajustarCapacidadeAberto}
+              horasIniciais={capacidade?.horas ?? 0}
+              salvando={salvandoCapacidadeHoje}
+              mostrarCtaGerar={ctaGerarAposCapacidade && podeGerar}
+              gerando={gerando}
+              onAbrir={() => setAjustarCapacidadeAberto(true)}
+              onFechar={() => setAjustarCapacidadeAberto(false)}
+              onSalvar={(horas) => void handleSalvarCapacidadeHoje(horas)}
+              onGerarVersao={() => void handleGerar()}
+            />
+
+            {mostrarBannerConflito && plano.mensagem ? (
+              <ConflitoBanner
+                mensagem={plano.mensagem}
+                temConflito={plano.temConflito}
+                onRemoverMenorPrioridade={
+                  plano.temConflito && ehRascunho
+                    ? () => void handleRemoverMenorPrioridade()
+                    : undefined
                 }
-                role="status"
-                aria-label={plano.temConflito ? 'Conflito no plano' : 'Mensagem do plano'}
-              >
-                {plano.mensagem}
+                onAumentarCapacidade={
+                  plano.temConflito
+                    ? () => setAjustarCapacidadeAberto(true)
+                    : undefined
+                }
+                onManterAssim={
+                  plano.temConflito ? () => setConflitoDismissed(true) : undefined
+                }
+                removendo={removendoBlocoId != null}
+              />
+            ) : null}
+
+            {titulosRemovidosDiff.length > 0 ? (
+              <p className="plano-diff-removidos" role="status">
+                Removidos na nova versão: {titulosRemovidosDiff.join(', ')}
               </p>
             ) : null}
 
@@ -390,9 +551,10 @@ export function HomePage() {
                 {podeGerar ? (
                   <button
                     type="button"
-                    className="button-secondary"
+                    className="btn btn--secondary"
                     onClick={() => void handleGerar()}
                     disabled={gerando || aprovando}
+                    aria-busy={gerando}
                   >
                     {gerando ? 'Gerando…' : plano ? 'Gerar nova versão' : 'Gerar plano'}
                   </button>
@@ -400,14 +562,30 @@ export function HomePage() {
                 {ehRascunho ? (
                   <button
                     type="button"
-                    className="button-link"
+                    className="btn btn--primary"
                     onClick={() => void handleAprovar()}
                     disabled={aprovando || gerando}
+                    aria-busy={aprovando}
                   >
                     {aprovando ? 'Aprovando…' : 'Aprovar plano'}
                   </button>
                 ) : null}
               </div>
+            ) : null}
+
+            {ehAprovado && blocoAtivo && blocoAtivo.execucao.id ? (
+              <BlocoAtivo
+                titulo={blocoAtivo.tarefaResumo.titulo}
+                duracaoMinutos={blocoAtivo.bloco.duracaoMinutos}
+                minutosRestantes={minutosDoAtivo}
+                ocupado={acaoBlocoId === blocoAtivo.bloco.id}
+                onConcluir={() =>
+                  void handleConcluir(blocoAtivo.execucao.id!, blocoAtivo.bloco.id)
+                }
+                onAbortar={() =>
+                  void handleAbortar(blocoAtivo.execucao.id!, blocoAtivo.bloco.id)
+                }
+              />
             ) : null}
 
             {ehAprovado ? (
@@ -420,84 +598,32 @@ export function HomePage() {
                   {itensExecucao.map((item) => {
                     const status = item.execucao.status
                     const ocupado = acaoBlocoId === item.bloco.id
-                    const restante =
-                      status === 'EM_ANDAMENTO' && item.execucao.iniciadoEm
-                        ? formatarTempoRestante(
-                            minutosRestantes(
-                              item.execucao.iniciadoEm,
-                              item.bloco.duracaoMinutos,
-                              agora,
-                            ),
-                          )
-                        : null
+
+                    const acoes =
+                      status === 'NAO_INICIADO' || status === 'ABORTADO' ? (
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          onClick={() => void handleIniciar(item.bloco.id)}
+                          disabled={ocupado}
+                          aria-busy={ocupado}
+                          aria-label={`Iniciar ${item.tarefaResumo.titulo}`}
+                        >
+                          {ocupado ? 'Iniciando…' : 'Iniciar'}
+                        </button>
+                      ) : null
 
                     return (
-                      <li key={item.bloco.id} className="plano-bloco">
-                        <span className="plano-bloco-ordem">{item.bloco.ordem}</span>
-                        <div className="plano-bloco-corpo">
-                          <p className="plano-bloco-titulo">
-                            <Link to={`/tarefas/${item.tarefaResumo.id}`}>
-                              {item.tarefaResumo.titulo}
-                            </Link>
-                          </p>
-                          <p className="plano-bloco-meta">
-                            {formatarCapacidadeMinutos(item.bloco.duracaoMinutos)}
-                            {' · '}
-                            {item.tarefaResumo.prioridade}
-                            {' · '}
-                            <span className={`status-execucao status-execucao-${status.toLowerCase()}`}>
-                              {STATUS_EXECUCAO_LABEL[status]}
-                            </span>
-                            {restante ? (
-                              <>
-                                {' · '}
-                                <span aria-label="Tempo restante">
-                                  Restante: {restante}
-                                </span>
-                              </>
-                            ) : null}
-                          </p>
-                        </div>
-                        <div className="plano-bloco-acoes-execucao">
-                          {status === 'NAO_INICIADO' || status === 'ABORTADO' ? (
-                            <button
-                              type="button"
-                              className="button-link"
-                              onClick={() => void handleIniciar(item.bloco.id)}
-                              disabled={ocupado}
-                              aria-label={`Iniciar ${item.tarefaResumo.titulo}`}
-                            >
-                              {ocupado ? 'Iniciando…' : 'Iniciar'}
-                            </button>
-                          ) : null}
-                          {status === 'EM_ANDAMENTO' && item.execucao.id ? (
-                            <>
-                              <button
-                                type="button"
-                                className="button-link"
-                                onClick={() =>
-                                  void handleConcluir(item.execucao.id!, item.bloco.id)
-                                }
-                                disabled={ocupado}
-                                aria-label={`Concluir ${item.tarefaResumo.titulo}`}
-                              >
-                                {ocupado ? 'Salvando…' : 'Concluir'}
-                              </button>
-                              <button
-                                type="button"
-                                className="button-secondary"
-                                onClick={() =>
-                                  void handleAbortar(item.execucao.id!, item.bloco.id)
-                                }
-                                disabled={ocupado}
-                                aria-label={`Abortar ${item.tarefaResumo.titulo}`}
-                              >
-                                {ocupado ? 'Abortando…' : 'Abortar'}
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                      </li>
+                      <BlocoCard
+                        key={item.bloco.id}
+                        ordem={item.bloco.ordem}
+                        titulo={item.tarefaResumo.titulo}
+                        tarefaId={item.tarefaResumo.id}
+                        duracaoMinutos={item.bloco.duracaoMinutos}
+                        prioridade={item.tarefaResumo.prioridade}
+                        statusExecucao={status}
+                        acoes={acoes}
+                      />
                     )
                   })}
                 </ol>
@@ -508,72 +634,40 @@ export function HomePage() {
               </p>
             ) : (
               <ol className="plano-blocos">
-                {plano.blocos.map((bloco) => (
-                  <li key={bloco.id} className="plano-bloco">
-                    <span className="plano-bloco-ordem">{bloco.ordem}</span>
-                    <div className="plano-bloco-corpo">
-                      <p className="plano-bloco-titulo">
-                        <Link to={`/tarefas/${bloco.tarefa.id}`}>
-                          {bloco.tarefa.titulo}
-                        </Link>
-                      </p>
-                      <p className="plano-bloco-meta">
-                        {formatarCapacidadeMinutos(bloco.duracaoMinutos)}
-                        {' · '}
-                        {bloco.tarefa.prioridade}
-                      </p>
-                    </div>
-                    {ehRascunho ? (
-                      <button
-                        type="button"
-                        className="button-secondary plano-bloco-remover"
-                        onClick={() => void handleRemover(bloco.id)}
-                        disabled={removendoBlocoId === bloco.id}
-                        aria-label={`Remover ${bloco.tarefa.titulo}`}
-                      >
-                        {removendoBlocoId === bloco.id ? 'Removendo…' : 'Remover'}
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
+                {plano.blocos.map((bloco) => {
+                  const ehNovo =
+                    snapshotAnterior != null &&
+                    !snapshotAnterior.tarefaIds.has(bloco.tarefa.id)
+                  return (
+                    <BlocoCard
+                      key={bloco.id}
+                      ordem={bloco.ordem}
+                      titulo={bloco.tarefa.titulo}
+                      tarefaId={bloco.tarefa.id}
+                      duracaoMinutos={bloco.duracaoMinutos}
+                      prioridade={bloco.tarefa.prioridade}
+                      prazo={bloco.tarefa.prazo}
+                      mostrarJustificativa={ehRascunho}
+                      diff={ehNovo ? 'novo' : null}
+                      onRemover={
+                        ehRascunho ? () => void handleRemover(bloco.id) : undefined
+                      }
+                      removendo={removendoBlocoId === bloco.id}
+                    />
+                  )
+                })}
               </ol>
             )}
 
             {ehRascunho ? (
-              <form className="plano-adicionar" onSubmit={(event) => void handleAdicionar(event)}>
-                <h3>Adicionar tarefa</h3>
-                {carregandoElegiveis ? (
-                  <p className="plano-dia-meta">Carregando tarefas elegíveis…</p>
-                ) : elegiveis.length === 0 ? (
-                  <p className="plano-dia-meta">Nenhuma tarefa elegível fora do plano.</p>
-                ) : (
-                  <>
-                    <label htmlFor="plano-tarefa-elegivel">
-                      Tarefa
-                      <select
-                        id="plano-tarefa-elegivel"
-                        value={tarefaSelecionadaId}
-                        onChange={(event) => setTarefaSelecionadaId(event.target.value)}
-                        required
-                      >
-                        <option value="">Selecione…</option>
-                        {elegiveis.map((tarefa) => (
-                          <option key={tarefa.id} value={tarefa.id}>
-                            {tarefa.titulo} ({tarefa.duracaoHoras}h)
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      type="submit"
-                      className="button-link"
-                      disabled={adicionando || !tarefaSelecionadaId}
-                    >
-                      {adicionando ? 'Adicionando…' : 'Adicionar ao plano'}
-                    </button>
-                  </>
-                )}
-              </form>
+              <AdicionarTarefaForm
+                elegiveis={elegiveis}
+                tarefaSelecionadaId={tarefaSelecionadaId}
+                carregandoElegiveis={carregandoElegiveis}
+                adicionando={adicionando}
+                onSelecionar={setTarefaSelecionadaId}
+                onSubmit={(event) => void handleAdicionar(event)}
+              />
             ) : null}
           </>
         ) : null}

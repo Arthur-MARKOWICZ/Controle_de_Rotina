@@ -1,6 +1,7 @@
 import { ApiError } from '../../auth/api/authApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
+import type { XpConclusao } from '../../xp/types'
 
 export type StatusExecucao = 'NAO_INICIADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'ABORTADO'
 
@@ -25,6 +26,7 @@ export type ExecucaoResponse = {
   iniciadoEm: string | null
   concluidoEm: string | null
   abortadoEm: string | null
+  xp?: XpConclusao | null
 }
 
 export type ItemExecucaoResponse = {

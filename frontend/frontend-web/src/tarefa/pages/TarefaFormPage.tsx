@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
+import { InlineAlert } from '../../feedback/InlineAlert'
+import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
 import {
   atualizarTarefa,
   buscarTarefa,
@@ -196,7 +198,7 @@ export function TarefaFormPage() {
   if (carregando) {
     return (
       <main className="auth-page">
-        <section className="auth-panel" aria-busy="true">
+        <section className="auth-panel card" aria-busy="true">
           <p>Carregando tarefa…</p>
         </section>
       </main>
@@ -205,7 +207,7 @@ export function TarefaFormPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-panel tarefa-form-panel">
+      <section className="auth-panel card tarefa-form-panel">
         <h1>{modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'}</h1>
         <p className="auth-subtitle">
           {modo === 'criar'
@@ -220,80 +222,89 @@ export function TarefaFormPage() {
         ) : null}
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <label htmlFor="titulo">Título</label>
-          <input
-            id="titulo"
-            name="titulo"
-            type="text"
-            maxLength={120}
-            value={values.titulo}
-            onChange={(e) => setValues((a) => ({ ...a, titulo: e.target.value }))}
-            disabled={deletada}
-            required
-          />
+          <div className="field">
+            <label htmlFor="titulo">Título</label>
+            <input
+              id="titulo"
+              name="titulo"
+              type="text"
+              maxLength={120}
+              value={values.titulo}
+              onChange={(e) => setValues((a) => ({ ...a, titulo: e.target.value }))}
+              disabled={deletada}
+              required
+            />
+          </div>
 
-          <label htmlFor="descricao">Descrição</label>
-          <textarea
-            id="descricao"
-            name="descricao"
-            maxLength={2000}
-            rows={4}
-            value={values.descricao}
-            onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
-            disabled={deletada}
-            required
-          />
+          <div className="field">
+            <label htmlFor="descricao">Descrição (opcional)</label>
+            <textarea
+              id="descricao"
+              name="descricao"
+              maxLength={2000}
+              rows={4}
+              value={values.descricao}
+              onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
+              disabled={deletada}
+            />
+          </div>
 
-          <label htmlFor="prioridade">Prioridade</label>
-          <select
-            id="prioridade"
-            name="prioridade"
-            value={values.prioridade}
-            onChange={(e) =>
-              setValues((a) => ({ ...a, prioridade: e.target.value as Prioridade | '' }))
-            }
-            disabled={deletada}
-            required
-          >
-            <option value="">Selecione</option>
-            {PRIORIDADES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <div className="field">
+            <label htmlFor="prioridade">Prioridade</label>
+            <select
+              id="prioridade"
+              name="prioridade"
+              value={values.prioridade}
+              onChange={(e) =>
+                setValues((a) => ({ ...a, prioridade: e.target.value as Prioridade | '' }))
+              }
+              disabled={deletada}
+              required
+            >
+              <option value="">Selecione</option>
+              {PRIORIDADES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORIDADE_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <label htmlFor="prazo">Prazo</label>
-          <input
-            id="prazo"
-            name="prazo"
-            type="datetime-local"
-            value={values.prazo}
-            onChange={(e) => setValues((a) => ({ ...a, prazo: e.target.value }))}
-            disabled={deletada}
-            required
-          />
+          <div className="field">
+            <label htmlFor="prazo">Prazo</label>
+            <input
+              id="prazo"
+              name="prazo"
+              type="datetime-local"
+              value={values.prazo}
+              onChange={(e) => setValues((a) => ({ ...a, prazo: e.target.value }))}
+              disabled={deletada}
+              required
+            />
+          </div>
 
-          <label htmlFor="duracaoHoras">Duração (horas)</label>
-          <input
-            id="duracaoHoras"
-            name="duracaoHoras"
-            type="number"
-            min={1}
-            step={1}
-            value={values.duracaoHoras}
-            onChange={(e) =>
-              setValues((a) => ({
-                ...a,
-                duracaoHoras: e.target.value === '' ? '' : Number(e.target.value),
-              }))
-            }
-            disabled={deletada}
-            required
-          />
+          <div className="field">
+            <label htmlFor="duracaoHoras">Duração (horas)</label>
+            <input
+              id="duracaoHoras"
+              name="duracaoHoras"
+              type="number"
+              min={1}
+              step={1}
+              value={values.duracaoHoras}
+              onChange={(e) =>
+                setValues((a) => ({
+                  ...a,
+                  duracaoHoras: e.target.value === '' ? '' : Number(e.target.value),
+                }))
+              }
+              disabled={deletada}
+              required
+            />
+          </div>
 
           {modo === 'editar' ? (
-            <>
+            <div className="field">
               <label htmlFor="status">Status</label>
               <select
                 id="status"
@@ -308,21 +319,17 @@ export function TarefaFormPage() {
                 <option value="">Selecione</option>
                 {STATUS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {STATUS_TAREFA_LABEL[s]}
                   </option>
                 ))}
               </select>
-            </>
+            </div>
           ) : null}
 
-          {erro ? (
-            <p className="auth-error" role="alert">
-              {erro}
-            </p>
-          ) : null}
+          {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
           {!deletada ? (
-            <button type="submit" disabled={enviando}>
+            <button type="submit" className="btn btn--primary" disabled={enviando}>
               {enviando ? 'Salvando…' : modo === 'criar' ? 'Criar tarefa' : 'Salvar'}
             </button>
           ) : null}
@@ -333,7 +340,7 @@ export function TarefaFormPage() {
             {deletada ? (
               <button
                 type="button"
-                className="button-link"
+                className="btn btn--primary"
                 disabled={restaurando}
                 onClick={() => void handleRestaurar()}
               >
@@ -342,7 +349,7 @@ export function TarefaFormPage() {
             ) : (
               <button
                 type="button"
-                className="button-danger"
+                className="btn btn--danger"
                 disabled={excluindo}
                 onClick={() => void handleExcluir()}
               >
@@ -352,9 +359,6 @@ export function TarefaFormPage() {
           </div>
         ) : null}
 
-        <p className="auth-footer">
-          <Link to="/tarefas">Voltar à lista</Link>
-        </p>
       </section>
     </main>
   )

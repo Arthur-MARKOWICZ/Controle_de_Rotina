@@ -39,6 +39,13 @@ describe('LoginPage', () => {
     vi.mocked(authApi.login).mockReset()
   })
 
+  it('exibe proposta de valor na tela pública', () => {
+    renderLogin()
+    expect(
+      screen.getByText(/diga o que precisa fazer; o sistema monta o plano/i),
+    ).toBeInTheDocument()
+  })
+
   it('mostra erro genérico quando as credenciais são inválidas', async () => {
     vi.mocked(authApi.login).mockRejectedValue(new authApi.ApiError(401, 'Credenciais inválidas.'))
     const user = userEvent.setup()

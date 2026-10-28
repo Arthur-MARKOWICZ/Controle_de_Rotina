@@ -1,0 +1,96 @@
+:root {
+  color-scheme: light;
+
+  /* Surfaces & text */
+  --bg: #f3efe6;
+  --bg-accent: #e4ddd0;
+  --bg-spot: #dceee9;
+  --panel: #fffdf8;
+  --surface: #ffffff;
+  --surface-muted: #f5f1ea;
+  --ink: #1c1914;
+  --muted: #4f4a42;
+  --line: #d4cdc0;
+  --accent: #0f6b5c;
+  --accent-hover: #0b5549;
+  --accent-soft: #d7ebe6;
+  --focus: #1f7a6c;
+
+  /* Semantic */
+  --success: #2f5d2c;
+  --success-bg: #dde8d8;
+  --warning: #5c4a2a;
+  --warning-bg: #ece7dc;
+  --danger: #9b2c2c;
+  --danger-bg: #f3d4d4;
+  --danger-border: #e0b4b4;
+  --neutral-soft: #e7e3db;
+  --neutral-warm: #e8e0d0;
+
+  /* Priority */
+  --priority-alta: #9b2c2c;
+  --priority-alta-bg: #f3d4d4;
+  --priority-media: #5c4a2a;
+  --priority-media-bg: #ece7dc;
+  --priority-baixa: #2f5d2c;
+  --priority-baixa-bg: #dde8d8;
+
+  /* Status tarefa */
+  --status-pendente-bg: var(--warning-bg);
+  --status-pendente: var(--ink);
+  --status-atrasada-bg: var(--danger-bg);
+  --status-atrasada: var(--danger);
+  --status-em_progresso-bg: var(--accent-soft);
+  --status-em_progresso: var(--accent-hover);
+  --status-finalizada-bg: var(--success-bg);
+  --status-finalizada: var(--success);
+  --status-cancelada-bg: var(--neutral-soft);
+  --status-cancelada: var(--muted);
+  --status-deletada-bg: var(--neutral-soft);
+  --status-deletada: var(--muted);
+
+  /* Status plano */
+  --status-plano-rascunho-bg: var(--neutral-warm);
+  --status-plano-rascunho: var(--ink);
+  --status-plano-aprovado-bg: var(--success-bg);
+  --status-plano-aprovado: var(--success);
+
+  /* Status execução */
+  --status-execucao-em_andamento: var(--accent-hover);
+  --status-execucao-concluido: var(--success);
+  --status-execucao-abortado: var(--danger);
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Radius */
+  --radius-sm: 0.35rem;
+  --radius-md: 0.45rem;
+  --radius-lg: 0.75rem;
+
+  /* Layout / a11y */
+  --app-content-max: 64rem;
+  --app-content-max-narrow: 40rem;
+  --touch-min: 44px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
+  --shadow-inset-accent: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, var(--bg-spot) 0%, transparent 45%),
+    linear-gradient(160deg, var(--bg), var(--bg-accent));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

@@ -165,6 +165,7 @@ class PlanoConsultaIT {
         assertThat(tarefa0.get("prioridade")).isEqualTo("ALTA");
         assertThat(tarefa0.get("status")).isEqualTo("PENDENTE");
         assertThat(tarefa0.get("duracaoHoras")).isEqualTo(1);
+        assertThat(tarefa0.get("prazo")).isNotNull();
 
         @SuppressWarnings("unchecked")
         Map<String, Object> tarefa1 = (Map<String, Object>) blocos.get(1).get("tarefa");

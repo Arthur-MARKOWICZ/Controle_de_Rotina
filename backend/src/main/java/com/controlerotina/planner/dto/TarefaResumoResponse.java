@@ -1,5 +1,6 @@
 package com.controlerotina.planner.dto;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.controlerotina.tarefa.entity.Prioridade;
@@ -11,7 +12,8 @@ public record TarefaResumoResponse(
         String titulo,
         Prioridade prioridade,
         StatusTarefa status,
-        int duracaoHoras
+        int duracaoHoras,
+        Instant prazo
 ) {
     public static TarefaResumoResponse from(Tarefa tarefa) {
         return new TarefaResumoResponse(
@@ -19,7 +21,8 @@ public record TarefaResumoResponse(
                 tarefa.getTitulo(),
                 tarefa.getPrioridade(),
                 tarefa.getStatus(),
-                tarefa.getDuracaoHoras()
+                tarefa.getDuracaoHoras(),
+                tarefa.getPrazo()
         );
     }
 }

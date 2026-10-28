@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -182,6 +183,67 @@ class ExecucaoConcluirIT {
                 autenticado(),
                 Map.class);
         assertThat(deOutro.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void t2_concluir200ComXpGanhoEventosEProgresso() {
+        ResponseEntity<Map> iniciada = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+        assertThat(iniciada.getStatusCode()).isEqualTo(CREATED);
+        UUID execucaoId = UUID.fromString(iniciada.getBody().get("id").toString());
+
+        ResponseEntity<Map> concluida = restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/concluir",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(concluida.getStatusCode()).isEqualTo(OK);
+        assertThat(concluida.getBody()).isNotNull();
+
+        Map<String, Object> xp = (Map<String, Object>) concluida.getBody().get("xp");
+        assertThat(xp).isNotNull();
+        // 60 min × MEDIA 1.5 = 90; bônus tarefa 1h × 60 × 1.5 × 0.1 = 9 → ganho 99
+        assertThat(((Number) xp.get("ganhoNesteRequest")).intValue()).isEqualTo(99);
+
+        var eventos = (java.util.List<Map<String, Object>>) xp.get("eventos");
+        assertThat(eventos).hasSize(2);
+        assertThat(eventos).anySatisfy(e -> {
+            assertThat(e.get("tipo")).isEqualTo("BLOCO_CONCLUIDO");
+            assertThat(((Number) e.get("quantidade")).intValue()).isEqualTo(90);
+        });
+        assertThat(eventos).anySatisfy(e -> {
+            assertThat(e.get("tipo")).isEqualTo("TAREFA_FINALIZADA");
+            assertThat(((Number) e.get("quantidade")).intValue()).isEqualTo(9);
+        });
+
+        Map<String, Object> progresso = (Map<String, Object>) xp.get("progresso");
+        assertThat(progresso).isNotNull();
+        assertThat(((Number) progresso.get("xpTotal")).intValue()).isEqualTo(99);
+        assertThat(((Number) progresso.get("nivel")).intValue()).isEqualTo(4);
+        assertThat(((Number) progresso.get("xpNoNivel")).intValue()).isEqualTo(39);
+        assertThat(((Number) progresso.get("xpParaProximoNivel")).intValue()).isEqualTo(40);
+    }
+
+    @Test
+    void t4_concluirSemTokenRetorna401() {
+        UUID execucaoId = UUID.randomUUID();
+        execucaoRepository.save(new Execucao(
+                execucaoId, usuarioId, blocoId, StatusExecucao.EM_ANDAMENTO,
+                AGORA, null, null, AGORA, AGORA
+        ));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/concluir",
+                HttpMethod.POST,
+                new HttpEntity<>(new HttpHeaders()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
     }
 
     private HttpEntity<Void> autenticado() {

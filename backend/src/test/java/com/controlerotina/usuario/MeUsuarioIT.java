@@ -104,6 +104,22 @@ class MeUsuarioIT {
     }
 
     @Test
+    void t3_getMeRetornaProgressoXpDeUsuarioNovo() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/me",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(((Number) response.getBody().get("xpTotal")).intValue()).isZero();
+        assertThat(((Number) response.getBody().get("nivel")).intValue()).isEqualTo(1);
+        assertThat(((Number) response.getBody().get("xpNoNivel")).intValue()).isZero();
+        assertThat(((Number) response.getBody().get("xpParaProximoNivel")).intValue()).isEqualTo(10);
+    }
+
+    @Test
     void deveRetornar401EmPutMeSemToken() {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/me",

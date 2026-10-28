@@ -73,7 +73,7 @@ describe('TarefaFormPage', () => {
     expect(screen.queryByLabelText(/^status$/i)).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText(/^título$/i), 'Estudar')
-    await user.type(screen.getByLabelText(/^descrição$/i), 'Spring Boot')
+    await user.type(screen.getByLabelText(/descrição/i), 'Spring Boot')
     await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
     await user.type(screen.getByLabelText(/^prazo$/i), prazoFuturoLocal())
     await user.type(screen.getByLabelText(/duração/i), '2')
@@ -96,7 +96,7 @@ describe('TarefaFormPage', () => {
     const user = userEvent.setup()
     renderCriar()
 
-    await user.type(screen.getByLabelText(/^descrição$/i), 'Algo')
+    await user.type(screen.getByLabelText(/descrição/i), 'Algo')
     await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'BAIXA')
     await user.type(screen.getByLabelText(/^prazo$/i), prazoFuturoLocal())
     await user.type(screen.getByLabelText(/duração/i), '1')

@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 
 import { ApiError } from '../../auth/api/authApi'
+import { InlineAlert } from '../../feedback/InlineAlert'
+import { Skeleton } from '../../feedback/Skeleton'
+import { useToast } from '../../feedback/ToastProvider'
 import {
-  atualizarCapacidadeOverride,
-  criarCapacidadeOverride,
   excluirCapacidadeOverride,
   listarCapacidadesOverride,
   restaurarCapacidadeOverride,
@@ -13,14 +13,11 @@ import {
 import {
   consultarCapacidadeResolvida,
   type CapacidadeResolvidaResponse,
-  type OrigemCapacidade,
 } from '../api/capacidadeResolvidaApi'
 import {
   atualizarCapacidadeSemanal,
   criarCapacidadeSemanal,
-  excluirCapacidadeSemanal,
   listarCapacidadesSemanais,
-  restaurarCapacidadeSemanal,
   type CapacidadeSemanalResponse,
   type DiaSemana,
 } from '../api/capacidadeSemanalApi'
@@ -32,43 +29,52 @@ import {
   parseDataIsoLocal,
 } from '../semana'
 
-type VisibilidadeDelecao = 'ativas' | 'incluir' | 'somente'
-
-const DIAS: { valor: DiaSemana; label: string }[] = [
-  { valor: 'SEGUNDA', label: 'Segunda' },
-  { valor: 'TERCA', label: 'Terça' },
-  { valor: 'QUARTA', label: 'Quarta' },
-  { valor: 'QUINTA', label: 'Quinta' },
-  { valor: 'SEXTA', label: 'Sexta' },
-  { valor: 'SABADO', label: 'Sábado' },
-  { valor: 'DOMINGO', label: 'Domingo' },
+const DIAS: { valor: DiaSemana; label: string; curto: string }[] = [
+  { valor: 'SEGUNDA', label: 'Segunda', curto: 'Seg' },
+  { valor: 'TERCA', label: 'Terça', curto: 'Ter' },
+  { valor: 'QUARTA', label: 'Quarta', curto: 'Qua' },
+  { valor: 'QUINTA', label: 'Quinta', curto: 'Qui' },
+  { valor: 'SEXTA', label: 'Sexta', curto: 'Sex' },
+  { valor: 'SABADO', label: 'Sábado', curto: 'Sáb' },
+  { valor: 'DOMINGO', label: 'Domingo', curto: 'Dom' },
 ]
 
-const ORIGEM_LABEL: Record<OrigemCapacidade, string> = {
-  SEMANAL: 'Semanal',
-  OVERRIDE: 'Override',
-  VAZIO: 'Vazio',
-}
+const DIAS_UTEIS: DiaSemana[] = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA']
+const FIM_DE_SEMANA: DiaSemana[] = ['SABADO', 'DOMINGO']
+const HORAS_MAX = 16
+const BARRA_ESCALA_MIN = 8
 
-function paramsDelecao(visibilidade: VisibilidadeDelecao): {
-  incluirDeletadas?: boolean
-  somenteDeletadas?: boolean
-} {
-  if (visibilidade === 'incluir') {
-    return { incluirDeletadas: true, somenteDeletadas: false }
-  }
-  if (visibilidade === 'somente') {
-    return { incluirDeletadas: false, somenteDeletadas: true }
-  }
-  return {}
-}
+type RascunhoHoras = Record<DiaSemana, number>
 
 function mapaPorDia(
   lista: CapacidadeSemanalResponse[],
 ): Partial<Record<DiaSemana, CapacidadeSemanalResponse>> {
   const mapa: Partial<Record<DiaSemana, CapacidadeSemanalResponse>> = {}
   for (const item of lista) {
-    mapa[item.diaSemana] = item
+    if (item.ativo) {
+      mapa[item.diaSemana] = item
+    }
+  }
+  return mapa
+}
+
+function rascunhoDeCapacidades(lista: CapacidadeSemanalResponse[]): RascunhoHoras {
+  const rascunho = {} as RascunhoHoras
+  for (const { valor } of DIAS) {
+    const item = lista.find((c) => c.diaSemana === valor && c.ativo)
+    rascunho[valor] = item?.horas ?? 0
+  }
+  return rascunho
+}
+
+function mapaOverridePorData(
+  lista: CapacidadeOverrideResponse[],
+): Record<string, CapacidadeOverrideResponse> {
+  const mapa: Record<string, CapacidadeOverrideResponse> = {}
+  for (const item of lista) {
+    if (item.ativo) {
+      mapa[item.data] = item
+    }
   }
   return mapa
 }
@@ -84,40 +90,55 @@ function mapaResolvidaPorData(
 }
 
 function formatarDataBr(iso: string): string {
-  return parseDataIsoLocal(iso).toLocaleDateString('pt-BR')
+  return parseDataIsoLocal(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  })
 }
 
-function textoEfetivas(resolvida: CapacidadeResolvidaResponse | undefined): string {
-  if (!resolvida || resolvida.origem === 'VAZIO' || resolvida.horas == null) {
-    return 'Efetivas: vazio'
+function totalHoras(rascunho: RascunhoHoras): number {
+  return DIAS.reduce((acc, { valor }) => acc + rascunho[valor], 0)
+}
+
+function mensagemErro(error: unknown, fallback: string): string {
+  if (error instanceof ApiError || error instanceof Error) {
+    return error.message
   }
-  return `Efetivas: ${resolvida.horas}h`
+  return fallback
+}
+
+function diasAlterados(
+  rascunho: RascunhoHoras,
+  porDia: Partial<Record<DiaSemana, CapacidadeSemanalResponse>>,
+): DiaSemana[] {
+  return DIAS.map(({ valor }) => valor).filter((dia) => {
+    const salvo = porDia[dia]
+    const horasSalvas = salvo?.horas ?? 0
+    const temRegistro = salvo != null
+    if (!temRegistro && rascunho[dia] === 0) {
+      return false
+    }
+    if (!temRegistro) {
+      return true
+    }
+    return rascunho[dia] !== horasSalvas
+  })
 }
 
 export function CapacidadePage() {
-  const [visibilidade, setVisibilidade] = useState<VisibilidadeDelecao>('ativas')
-  const [aplicada, setAplicada] = useState<VisibilidadeDelecao>('ativas')
+  const toast = useToast()
   const [capacidades, setCapacidades] = useState<CapacidadeSemanalResponse[]>([])
-  const [rascunhos, setRascunhos] = useState<Partial<Record<DiaSemana, string>>>({})
+  const [rascunho, setRascunho] = useState<RascunhoHoras>(() => rascunhoDeCapacidades([]))
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [acaoDia, setAcaoDia] = useState<DiaSemana | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const [copiando, setCopiando] = useState(false)
+  const [acaoOverrideId, setAcaoOverrideId] = useState<string | null>(null)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
   const [semanaInicio, setSemanaInicio] = useState(() => inicioSemana())
   const [resolvidas, setResolvidas] = useState<CapacidadeResolvidaResponse[]>([])
-
-  const [visibilidadeOverride, setVisibilidadeOverride] =
-    useState<VisibilidadeDelecao>('ativas')
-  const [aplicadaOverride, setAplicadaOverride] =
-    useState<VisibilidadeDelecao>('ativas')
   const [overrides, setOverrides] = useState<CapacidadeOverrideResponse[]>([])
-  const [overrideData, setOverrideData] = useState('')
-  const [overrideHoras, setOverrideHoras] = useState('')
-  const [editandoOverrideId, setEditandoOverrideId] = useState<string | null>(null)
-  const [acaoOverrideId, setAcaoOverrideId] = useState<string | null>(null)
-  const [salvandoOverride, setSalvandoOverride] = useState(false)
-  const [recarregarOverridesEm, setRecarregarOverridesEm] = useState(0)
 
   useEffect(() => {
     let ativo = true
@@ -127,28 +148,26 @@ export function CapacidadePage() {
       setErro(null)
       try {
         const dataAte = adicionarDiasIso(semanaInicio, 6)
-        const [semanais, resolvida] = await Promise.all([
-          listarCapacidadesSemanais(paramsDelecao(aplicada)),
+        const [semanais, resolvida, overridesLista] = await Promise.all([
+          listarCapacidadesSemanais(),
           consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
+          listarCapacidadesOverride({
+            dataDe: semanaInicio,
+            dataAte,
+          }),
         ])
         if (ativo) {
           setCapacidades(semanais)
+          setRascunho(rascunhoDeCapacidades(semanais))
           setResolvidas(resolvida)
-          const iniciais: Partial<Record<DiaSemana, string>> = {}
-          for (const item of semanais) {
-            iniciais[item.diaSemana] = String(item.horas)
-          }
-          setRascunhos(iniciais)
+          setOverrides(overridesLista)
         }
       } catch (error) {
         if (ativo) {
-          setErro(
-            error instanceof ApiError
-              ? error.message
-              : 'Não foi possível carregar as capacidades.',
-          )
+          setErro(mensagemErro(error, 'Não foi possível carregar as capacidades.'))
           setCapacidades([])
           setResolvidas([])
+          setOverrides([])
         }
       } finally {
         if (ativo) {
@@ -161,223 +180,115 @@ export function CapacidadePage() {
     return () => {
       ativo = false
     }
-  }, [aplicada, recarregarEm, semanaInicio])
-
-  useEffect(() => {
-    let ativo = true
-
-    async function carregarOverrides() {
-      try {
-        const data = await listarCapacidadesOverride({
-          ...paramsDelecao(aplicadaOverride),
-          dataDe: adicionarDiasIso(semanaInicio, -14),
-          dataAte: adicionarDiasIso(semanaInicio, 20),
-        })
-        if (ativo) {
-          setOverrides(data)
-        }
-      } catch (error) {
-        if (ativo) {
-          setErro(
-            error instanceof ApiError
-              ? error.message
-              : 'Não foi possível carregar os overrides.',
-          )
-          setOverrides([])
-        }
-      }
-    }
-
-    void carregarOverrides()
-    return () => {
-      ativo = false
-    }
-  }, [aplicadaOverride, recarregarOverridesEm, semanaInicio])
+  }, [recarregarEm, semanaInicio])
 
   const porDia = mapaPorDia(capacidades)
+  const porDataOverride = mapaOverridePorData(overrides)
   const porDataResolvida = mapaResolvidaPorData(resolvidas)
   const datasSemana = datasDaSemana(semanaInicio)
+  const alterados = diasAlterados(rascunho, porDia)
+  const sujo = alterados.length > 0
+  const total = totalHoras(rascunho)
+  const escalaBarra = Math.max(
+    BARRA_ESCALA_MIN,
+    ...DIAS.map(({ valor }) => rascunho[valor]),
+    ...Object.values(porDataOverride).map((o) => o.horas),
+  )
 
-  function handleFiltrar(event: FormEvent) {
-    event.preventDefault()
-    setAplicada(visibilidade)
+  function ajustarHoras(dia: DiaSemana, delta: number) {
+    setRascunho((atual) => {
+      const proximo = Math.min(HORAS_MAX, Math.max(0, atual[dia] + delta))
+      return { ...atual, [dia]: proximo }
+    })
   }
 
-  function handleFiltrarOverrides(event: FormEvent) {
-    event.preventDefault()
-    setAplicadaOverride(visibilidadeOverride)
-  }
-
-  function valorInput(dia: DiaSemana): string {
-    return rascunhos[dia] ?? ''
-  }
-
-  function setValorInput(dia: DiaSemana, valor: string) {
-    setRascunhos((atual) => ({ ...atual, [dia]: valor }))
-  }
-
-  async function handleSalvar(dia: DiaSemana) {
-    setErro(null)
-    const texto = valorInput(dia).trim()
-    if (texto === '') {
-      setErro('Informe as horas (0 ou mais) para salvar.')
-      return
-    }
-    const horas = Number(texto)
-    if (!Number.isInteger(horas) || horas < 0) {
-      setErro('Horas deve ser um inteiro maior ou igual a zero.')
-      return
-    }
-
-    setAcaoDia(dia)
-    try {
-      const existente = porDia[dia]
-      if (existente && existente.ativo) {
-        await atualizarCapacidadeSemanal(existente.id, { horas })
-      } else if (existente && !existente.ativo) {
-        setErro('Restaure o dia antes de editar as horas.')
-        return
-      } else {
-        await criarCapacidadeSemanal({ diaSemana: dia, horas })
+  function aplicarPresetDiasUteis() {
+    setRascunho((atual) => {
+      const proximo = { ...atual }
+      for (const dia of DIAS_UTEIS) {
+        proximo[dia] = 4
       }
-      setRecarregarEm((n) => n + 1)
-    } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível salvar a capacidade.',
-      )
-    } finally {
-      setAcaoDia(null)
-    }
-  }
-
-  async function handleExcluir(dia: DiaSemana) {
-    const existente = porDia[dia]
-    if (!existente || !existente.ativo) {
-      return
-    }
-    setErro(null)
-    setAcaoDia(dia)
-    try {
-      await excluirCapacidadeSemanal(existente.id)
-      setRecarregarEm((n) => n + 1)
-    } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível excluir a capacidade.',
-      )
-    } finally {
-      setAcaoDia(null)
-    }
-  }
-
-  async function handleRestaurar(dia: DiaSemana) {
-    const existente = porDia[dia]
-    if (!existente || existente.ativo) {
-      return
-    }
-    setErro(null)
-    setAcaoDia(dia)
-    try {
-      await restaurarCapacidadeSemanal(existente.id)
-      setRecarregarEm((n) => n + 1)
-    } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível restaurar a capacidade.',
-      )
-    } finally {
-      setAcaoDia(null)
-    }
-  }
-
-  function limparFormOverride() {
-    setOverrideData('')
-    setOverrideHoras('')
-    setEditandoOverrideId(null)
-  }
-
-  function iniciarEdicaoOverride(item: CapacidadeOverrideResponse) {
-    setEditandoOverrideId(item.id)
-    setOverrideData(item.data)
-    setOverrideHoras(String(item.horas))
-  }
-
-  async function handleSalvarOverride(event: FormEvent) {
-    event.preventDefault()
-    setErro(null)
-
-    const data = overrideData.trim()
-    const textoHoras = overrideHoras.trim()
-    if (!data) {
-      setErro('Informe a data do override.')
-      return
-    }
-    if (textoHoras === '') {
-      setErro('Informe as horas do override (0 ou mais).')
-      return
-    }
-    const horas = Number(textoHoras)
-    if (!Number.isInteger(horas) || horas < 0) {
-      setErro('Horas do override deve ser um inteiro maior ou igual a zero.')
-      return
-    }
-
-    setSalvandoOverride(true)
-    try {
-      if (editandoOverrideId) {
-        await atualizarCapacidadeOverride(editandoOverrideId, { data, horas })
-      } else {
-        await criarCapacidadeOverride({ data, horas })
+      for (const dia of FIM_DE_SEMANA) {
+        proximo[dia] = 0
       }
-      limparFormOverride()
-      setRecarregarOverridesEm((n) => n + 1)
-      setRecarregarEm((n) => n + 1)
+      return proximo
+    })
+  }
+
+  async function handleCopiarSemanaAnterior() {
+    setErro(null)
+    setCopiando(true)
+    try {
+      const inicioAnterior = adicionarDiasIso(semanaInicio, -7)
+      const fimAnterior = adicionarDiasIso(inicioAnterior, 6)
+      const resolvidaAnterior = await consultarCapacidadeResolvida({
+        dataDe: inicioAnterior,
+        dataAte: fimAnterior,
+      })
+      const porData = mapaResolvidaPorData(resolvidaAnterior)
+      const datas = datasDaSemana(inicioAnterior)
+      setRascunho((atual) => {
+        const proximo = { ...atual }
+        for (const { valor } of DIAS) {
+          const item = porData[datas[valor]]
+          proximo[valor] = item?.horas ?? 0
+        }
+        return proximo
+      })
     } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível salvar o override.',
-      )
+      setErro(mensagemErro(error, 'Não foi possível copiar a semana anterior.'))
     } finally {
-      setSalvandoOverride(false)
+      setCopiando(false)
     }
   }
 
-  async function handleExcluirOverride(id: string) {
+  async function handleSalvarSemana() {
+    if (!sujo) {
+      return
+    }
     setErro(null)
-    setAcaoOverrideId(id)
+    setSalvando(true)
     try {
-      await excluirCapacidadeOverride(id)
-      setRecarregarOverridesEm((n) => n + 1)
+      const operacoes = alterados.map(async (dia) => {
+        const horas = rascunho[dia]
+        const existente = porDia[dia]
+        if (existente) {
+          await atualizarCapacidadeSemanal(existente.id, { horas })
+        } else {
+          await criarCapacidadeSemanal({ diaSemana: dia, horas })
+        }
+      })
+      await Promise.all(operacoes)
       setRecarregarEm((n) => n + 1)
     } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível excluir o override.',
-      )
+      setErro(mensagemErro(error, 'Não foi possível salvar a capacidade.'))
     } finally {
-      setAcaoOverrideId(null)
+      setSalvando(false)
     }
   }
 
-  async function handleRestaurarOverride(id: string) {
+  async function handleVoltarAoPadrao(override: CapacidadeOverrideResponse, label: string) {
     setErro(null)
-    setAcaoOverrideId(id)
+    setAcaoOverrideId(override.id)
     try {
-      await restaurarCapacidadeOverride(id)
-      setRecarregarOverridesEm((n) => n + 1)
+      await excluirCapacidadeOverride(override.id)
       setRecarregarEm((n) => n + 1)
+      toast.success('Exceção removida', {
+        action: {
+          label: 'Desfazer',
+          onClick: () => {
+            void restaurarCapacidadeOverride(override.id)
+              .then(() => setRecarregarEm((n) => n + 1))
+              .catch((error) => {
+                setErro(
+                  mensagemErro(error, `Não foi possível restaurar a exceção de ${label}.`),
+                )
+              })
+          },
+        },
+      })
     } catch (error) {
-      setErro(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível restaurar o override.',
-      )
+      setErro(mensagemErro(error, `Não foi possível remover a exceção de ${label}.`))
     } finally {
       setAcaoOverrideId(null)
     }
@@ -392,30 +303,15 @@ export function CapacidadePage() {
             Defina quantas horas você tem disponíveis em cada dia da semana.
           </p>
         </div>
-        <div className="capacidade-header-actions">
-          <Link to="/">Início</Link>
-        </div>
+        <p className="capacidade-total" aria-live="polite">
+          {total}h disponíveis
+        </p>
       </header>
-
-      <form className="capacidade-filtros" onSubmit={handleFiltrar}>
-        <label>
-          Excluídas
-          <select
-            value={visibilidade}
-            onChange={(e) => setVisibilidade(e.target.value as VisibilidadeDelecao)}
-          >
-            <option value="ativas">Somente ativas</option>
-            <option value="incluir">Incluir excluídas</option>
-            <option value="somente">Somente excluídas</option>
-          </select>
-        </label>
-        <button type="submit">Aplicar filtro</button>
-      </form>
 
       <div className="capacidade-semana-nav" aria-label="Semana selecionada">
         <button
           type="button"
-          className="button-table"
+          className="btn btn--ghost btn--sm"
           onClick={() => setSemanaInicio((atual) => adicionarDiasIso(atual, -7))}
         >
           Semana anterior
@@ -425,38 +321,67 @@ export function CapacidadePage() {
         </p>
         <button
           type="button"
-          className="button-table"
+          className="btn btn--ghost btn--sm"
           onClick={() => setSemanaInicio((atual) => adicionarDiasIso(atual, 7))}
         >
           Semana seguinte
         </button>
       </div>
 
-      {erro ? (
-        <p className="auth-error" role="alert">
-          {erro}
-        </p>
-      ) : null}
+      <div className="capacidade-toolbar">
+        <div className="capacidade-presets">
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={aplicarPresetDiasUteis}
+            disabled={carregando || salvando}
+          >
+            Dias úteis 4h, fim de semana 0h
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => void handleCopiarSemanaAnterior()}
+            disabled={carregando || salvando || copiando}
+            aria-busy={copiando}
+          >
+            {copiando ? 'Copiando…' : 'Copiar semana anterior'}
+          </button>
+        </div>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => void handleSalvarSemana()}
+          disabled={!sujo || carregando || salvando}
+          aria-busy={salvando}
+        >
+          {salvando ? 'Salvando…' : 'Salvar semana'}
+        </button>
+      </div>
 
-      {carregando ? <p>Carregando capacidade…</p> : null}
+      {erro ? <InlineAlert>{erro}</InlineAlert> : null}
+
+      {carregando ? <Skeleton variant="capacidade-grade" /> : null}
 
       {!carregando ? (
         <div className="capacidade-grade" role="list">
-          {DIAS.map(({ valor, label }) => {
-            const registro = porDia[valor]
-            const inativo = registro != null && !registro.ativo
-            const ocupado = acaoDia === valor
-            const labelLower = label.toLowerCase()
+          {DIAS.map(({ valor, label, curto }) => {
+            const horas = rascunho[valor]
             const dataDia = datasSemana[valor]
+            const override = porDataOverride[dataDia]
             const resolvida = porDataResolvida[dataDia]
-            const comOverride = resolvida?.origem === 'OVERRIDE'
+            const comOverride = override != null || resolvida?.origem === 'OVERRIDE'
+            const horasBarra = override?.horas ?? horas
+            const alturaPct = Math.round((horasBarra / escalaBarra) * 100)
+            const labelLower = label.toLowerCase()
+            const ocupadoOverride = override != null && acaoOverrideId === override.id
 
             return (
               <article
                 key={valor}
                 className={[
                   'capacidade-celula',
-                  inativo ? 'capacidade-celula-deletada' : '',
+                  'card',
                   comOverride ? 'capacidade-celula-override' : '',
                 ]
                   .filter(Boolean)
@@ -464,199 +389,70 @@ export function CapacidadePage() {
                 role="listitem"
               >
                 <div className="capacidade-celula-topo">
-                  <h2>{label}</h2>
-                  {inativo ? (
-                    <span className="status-badge status-deletada">Excluída</span>
-                  ) : null}
+                  <h2>
+                    <span className="capacidade-dia-curto">{curto}</span>
+                    <span className="capacidade-dia-longo">{label}</span>
+                  </h2>
+                  {comOverride ? <span className="badge badge-excecao">Exceção</span> : null}
                 </div>
 
                 <p className="capacidade-data-celula">{formatarDataBr(dataDia)}</p>
 
-                <p className="capacidade-efetivas">
-                  {textoEfetivas(resolvida)}
-                  {resolvida ? (
-                    <span className="capacidade-origem">
-                      {' '}
-                      ({ORIGEM_LABEL[resolvida.origem]})
-                    </span>
-                  ) : null}
+                <div className="capacidade-barra-wrap" aria-hidden="true">
+                  <div
+                    className="capacidade-barra"
+                    style={{ height: `${Math.max(alturaPct, horasBarra > 0 ? 8 : 0)}%` }}
+                  />
+                </div>
+
+                <p
+                  className="capacidade-horas"
+                  aria-label={`Horas de ${labelLower}`}
+                >
+                  {horas}h
                 </p>
 
-                <label>
-                  Horas de {labelLower}
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={valorInput(valor)}
-                    disabled={inativo || ocupado}
-                    onChange={(e) => setValorInput(valor, e.target.value)}
-                  />
-                </label>
+                {comOverride && override ? (
+                  <p className="capacidade-efetivas">Efetivas: {override.horas}h</p>
+                ) : null}
 
-                <div className="capacidade-celula-acoes">
-                  {inativo ? (
-                    <button
-                      type="button"
-                      className="button-table"
-                      disabled={ocupado}
-                      onClick={() => void handleRestaurar(valor)}
-                    >
-                      {ocupado ? 'Restaurando…' : `Restaurar ${labelLower}`}
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        disabled={ocupado}
-                        onClick={() => void handleSalvar(valor)}
-                      >
-                        {ocupado ? 'Salvando…' : `Salvar ${labelLower}`}
-                      </button>
-                      {registro?.ativo ? (
-                        <button
-                          type="button"
-                          className="button-table button-table-danger"
-                          disabled={ocupado}
-                          onClick={() => void handleExcluir(valor)}
-                        >
-                          {`Excluir ${labelLower}`}
-                        </button>
-                      ) : null}
-                    </>
-                  )}
+                <div className="capacidade-stepper">
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    aria-label={`Diminuir ${labelLower}`}
+                    disabled={horas <= 0 || salvando}
+                    onClick={() => ajustarHoras(valor, -1)}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    aria-label={`Aumentar ${labelLower}`}
+                    disabled={horas >= HORAS_MAX || salvando}
+                    onClick={() => ajustarHoras(valor, 1)}
+                  >
+                    +
+                  </button>
                 </div>
+
+                {override ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    disabled={ocupadoOverride || salvando}
+                    aria-busy={ocupadoOverride}
+                    onClick={() => void handleVoltarAoPadrao(override, labelLower)}
+                  >
+                    {ocupadoOverride ? 'Removendo…' : `Voltar ao padrão (${labelLower})`}
+                  </button>
+                ) : null}
               </article>
             )
           })}
         </div>
       ) : null}
-
-      <section className="capacidade-overrides" aria-labelledby="overrides-titulo">
-        <h2 id="overrides-titulo">Overrides por data</h2>
-        <p className="capacidade-subtitle">
-          Exceções para um dia concreto (prevalecem sobre o template da semana).
-        </p>
-
-        <form className="capacidade-filtros" onSubmit={handleFiltrarOverrides}>
-          <label>
-            Overrides excluídos
-            <select
-              value={visibilidadeOverride}
-              onChange={(e) =>
-                setVisibilidadeOverride(e.target.value as VisibilidadeDelecao)
-              }
-            >
-              <option value="ativas">Somente ativos</option>
-              <option value="incluir">Incluir excluídos</option>
-              <option value="somente">Somente excluídos</option>
-            </select>
-          </label>
-          <button type="submit">Aplicar filtro de overrides</button>
-        </form>
-
-        <form className="capacidade-override-form" onSubmit={(e) => void handleSalvarOverride(e)}>
-          <label>
-            Data do override
-            <input
-              type="date"
-              value={overrideData}
-              onChange={(e) => setOverrideData(e.target.value)}
-              disabled={salvandoOverride}
-            />
-          </label>
-          <label>
-            Horas do override
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={overrideHoras}
-              onChange={(e) => setOverrideHoras(e.target.value)}
-              disabled={salvandoOverride}
-            />
-          </label>
-          <div className="capacidade-override-form-acoes">
-            <button type="submit" disabled={salvandoOverride}>
-              {salvandoOverride
-                ? 'Salvando…'
-                : editandoOverrideId
-                  ? 'Atualizar override'
-                  : 'Salvar override'}
-            </button>
-            {editandoOverrideId ? (
-              <button
-                type="button"
-                className="button-table"
-                disabled={salvandoOverride}
-                onClick={limparFormOverride}
-              >
-                Cancelar edição
-              </button>
-            ) : null}
-          </div>
-        </form>
-
-        <ul className="capacidade-override-lista">
-          {overrides.length === 0 ? (
-            <li className="capacidade-override-vazio">Nenhum override neste período.</li>
-          ) : (
-            overrides.map((item) => {
-              const dataBr = formatarDataBr(item.data)
-              const ocupado = acaoOverrideId === item.id
-              return (
-                <li
-                  key={item.id}
-                  className={
-                    item.ativo
-                      ? 'capacidade-override-item'
-                      : 'capacidade-override-item capacidade-override-item-deletado'
-                  }
-                >
-                  <div>
-                    <strong>{dataBr}</strong>
-                    <span> — {item.horas}h</span>
-                    {!item.ativo ? (
-                      <span className="status-badge status-deletada">Excluído</span>
-                    ) : null}
-                  </div>
-                  <div className="capacidade-celula-acoes">
-                    {item.ativo ? (
-                      <>
-                        <button
-                          type="button"
-                          className="button-table"
-                          disabled={ocupado}
-                          onClick={() => iniciarEdicaoOverride(item)}
-                        >
-                          {`Editar override ${dataBr}`}
-                        </button>
-                        <button
-                          type="button"
-                          className="button-table button-table-danger"
-                          disabled={ocupado}
-                          onClick={() => void handleExcluirOverride(item.id)}
-                        >
-                          {ocupado ? 'Excluindo…' : `Excluir override ${dataBr}`}
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="button-table"
-                        disabled={ocupado}
-                        onClick={() => void handleRestaurarOverride(item.id)}
-                      >
-                        {ocupado ? 'Restaurando…' : `Restaurar override ${dataBr}`}
-                      </button>
-                    )}
-                  </div>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      </section>
     </main>
   )
 }

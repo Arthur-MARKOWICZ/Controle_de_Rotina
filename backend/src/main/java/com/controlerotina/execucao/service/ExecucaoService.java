@@ -19,6 +19,7 @@ import com.controlerotina.execucao.dto.ExecucaoResponse;
 import com.controlerotina.execucao.dto.ExecucoesDoDiaResponse;
 import com.controlerotina.execucao.dto.ItemExecucaoResponse;
 import com.controlerotina.execucao.dto.PlanoAprovadoResumoResponse;
+import com.controlerotina.execucao.dto.ResultadoConclusao;
 import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
@@ -128,7 +129,7 @@ public class ExecucaoService {
     }
 
     @Transactional
-    public Execucao concluir(UUID usuarioId, UUID execucaoId) {
+    public ResultadoConclusao concluir(UUID usuarioId, UUID execucaoId) {
         Execucao execucao = carregarExecucaoDoUsuario(usuarioId, execucaoId);
         BlocoPlano bloco = carregarBlocoDoUsuario(usuarioId, execucao.getBlocoPlanoId());
         garantirPlanoAprovadoCorrente(bloco.getPlanoId(), usuarioId);
@@ -142,13 +143,13 @@ public class ExecucaoService {
         execucaoRepository.save(execucao);
 
         Tarefa tarefa = atualizarTarefaAposConcluir(bloco.getTarefaId(), usuarioId, agora);
-        xpConcessaoService.concederAoConcluir(
+        XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederAoConcluir(
                 usuarioId,
                 execucao.getId(),
                 bloco.getDuracaoMinutos(),
                 tarefa
         );
-        return execucao;
+        return new ResultadoConclusao(execucao, xp);
     }
 
     @Transactional(readOnly = true)

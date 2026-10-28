@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validarTarefaForm } from './tarefaForm'
+import { validarTarefaForm, validarTarefaFormCampos } from './tarefaForm'
 
 describe('validarTarefaForm', () => {
   const futuro = new Date(Date.now() + 60 * 60 * 1000).toISOString()
@@ -17,6 +17,18 @@ describe('validarTarefaForm', () => {
     ).toBeNull()
   })
 
+  it('aceita descrição vazia no create', () => {
+    expect(
+      validarTarefaForm({
+        titulo: 'Tarefa',
+        descricao: '  ',
+        prioridade: 'BAIXA',
+        prazo: futuro,
+        duracaoHoras: 1,
+      }),
+    ).toBeNull()
+  })
+
   it('rejeita título vazio', () => {
     expect(
       validarTarefaForm({
@@ -29,6 +41,18 @@ describe('validarTarefaForm', () => {
     ).toMatch(/título/i)
   })
 
+  it('T5: erro de título fica no campo', () => {
+    const erros = validarTarefaFormCampos({
+      titulo: '',
+      descricao: '',
+      prioridade: 'MEDIA',
+      prazo: futuro,
+      duracaoHoras: 1,
+    })
+    expect(erros.titulo).toMatch(/título/i)
+    expect(erros.descricao).toBeUndefined()
+  })
+
   it('rejeita título acima de 120 caracteres', () => {
     expect(
       validarTarefaForm({
@@ -39,18 +63,6 @@ describe('validarTarefaForm', () => {
         duracaoHoras: 1,
       }),
     ).toMatch(/120/)
-  })
-
-  it('rejeita descrição vazia', () => {
-    expect(
-      validarTarefaForm({
-        titulo: 'Tarefa',
-        descricao: '  ',
-        prioridade: 'BAIXA',
-        prazo: futuro,
-        duracaoHoras: 1,
-      }),
-    ).toMatch(/descrição/i)
   })
 
   it('rejeita descrição acima de 2000 caracteres', () => {

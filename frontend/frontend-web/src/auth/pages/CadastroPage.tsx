@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { InlineAlert } from '../../feedback/InlineAlert'
 import { ApiError, cadastrarUsuario } from '../api/authApi'
+import { CampoSenha } from '../components/CampoSenha'
 import { isEmailValido } from '../validation/email'
 import { isSenhaForte } from '../validation/senhaForte'
+
+const PROPOSTA_VALOR = 'Diga o que precisa fazer; o sistema monta o plano.'
 
 export function CadastroPage() {
   const navigate = useNavigate()
@@ -58,62 +62,65 @@ export function CadastroPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-panel">
+      <section className="auth-panel card">
         <h1>Criar conta</h1>
+        <p className="auth-value">{PROPOSTA_VALOR}</p>
         <p className="auth-subtitle">Cadastre-se para planejar sua rotina.</p>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <label htmlFor="nome">Nome</label>
-          <input
-            id="nome"
-            name="nome"
-            type="text"
-            autoComplete="name"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            required
-          />
+          <div className="field">
+            <label htmlFor="nome">Nome</label>
+            <input
+              id="nome"
+              name="nome"
+              type="text"
+              autoComplete="name"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              required
+            />
+          </div>
 
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-          <label htmlFor="senha">Senha</label>
-          <input
+          <CampoSenha
             id="senha"
-            name="senha"
-            type="password"
-            autoComplete="new-password"
+            label="Senha"
             value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-          />
-
-          <label htmlFor="confirmacao">Confirmar senha</label>
-          <input
-            id="confirmacao"
-            name="confirmacao"
-            type="password"
+            onChange={setSenha}
             autoComplete="new-password"
+            required
+            mostrarChecklist
+          />
+
+          <CampoSenha
+            id="confirmacao"
+            label="Confirmar senha"
             value={confirmacao}
-            onChange={(e) => setConfirmacao(e.target.value)}
+            onChange={setConfirmacao}
+            autoComplete="new-password"
             required
           />
 
-          {erro ? (
-            <p className="auth-error" role="alert">
-              {erro}
-            </p>
-          ) : null}
+          {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
-          <button type="submit" disabled={enviando}>
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={enviando}
+            aria-busy={enviando}
+          >
             {enviando ? 'Criando…' : 'Criar conta'}
           </button>
         </form>

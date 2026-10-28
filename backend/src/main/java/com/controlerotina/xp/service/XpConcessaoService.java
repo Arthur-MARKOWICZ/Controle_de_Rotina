@@ -74,8 +74,9 @@ public class XpConcessaoService {
 
         if (novos.isEmpty()) {
             Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
-            XpMotor.ProgressoXp progresso = XpMotor.progresso(usuario.getXpTotal());
-            return new ResultadoConcessao(0, List.of(), progresso);
+            int xpTotal = usuario.getXpTotal();
+            XpMotor.ProgressoXp progresso = XpMotor.progresso(xpTotal);
+            return new ResultadoConcessao(0, List.of(), xpTotal, progresso);
         }
 
         xpEventoRepository.saveAll(novos);
@@ -87,9 +88,14 @@ public class XpConcessaoService {
         usuario.atualizarProgressoXp(xpTotal, progresso.nivel(), agora);
         usuarioRepository.save(usuario);
 
-        return new ResultadoConcessao(ganho, List.copyOf(novos), progresso);
+        return new ResultadoConcessao(ganho, List.copyOf(novos), xpTotal, progresso);
     }
 
-    public record ResultadoConcessao(int ganhoNesteRequest, List<XpEvento> eventos, XpMotor.ProgressoXp progresso) {
+    public record ResultadoConcessao(
+            int ganhoNesteRequest,
+            List<XpEvento> eventos,
+            int xpTotal,
+            XpMotor.ProgressoXp progresso
+    ) {
     }
 }

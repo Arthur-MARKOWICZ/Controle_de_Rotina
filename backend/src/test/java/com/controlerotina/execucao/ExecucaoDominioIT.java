@@ -233,7 +233,7 @@ class ExecucaoDominioIT {
         ));
 
         ResultadoInicio inicio1 = execucaoService.iniciar(usuarioId, blocoId);
-        Execucao parcial = execucaoService.concluir(usuarioId, inicio1.execucao().getId());
+        Execucao parcial = execucaoService.concluir(usuarioId, inicio1.execucao().getId()).execucao();
 
         assertThat(parcial.getStatus()).isEqualTo(StatusExecucao.CONCLUIDO);
         assertThat(parcial.getConcluidoEm()).isNotNull();
