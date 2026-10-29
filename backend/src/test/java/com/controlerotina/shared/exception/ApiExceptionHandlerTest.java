@@ -2,14 +2,59 @@ package com.controlerotina.shared.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 class ApiExceptionHandlerTest {
 
     private final ApiExceptionHandler handler = new ApiExceptionHandler();
+
+    @Test
+    void deveMapearJsonInvalidoPara400() {
+        HttpInputMessage input = new MockHttpInputMessage("{".getBytes());
+        ProblemDetail problem = handler.handleHttpMessageNotReadable(
+                new HttpMessageNotReadableException("JSON parse error", input));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problem.getTitle()).isEqualTo("Requisição inválida");
+        assertThat(problem.getDetail()).isEqualTo("O corpo da requisição está malformado ou ilegível.");
+        assertThat(problem.getDetail()).doesNotContain("JSON parse error");
+    }
+
+    @Test
+    void deveMapearTipoDeParametroInvalidoPara400() {
+        ProblemDetail problem = handler.handleMethodArgumentTypeMismatch(
+                new MethodArgumentTypeMismatchException(
+                        "nao-e-uuid",
+                        UUID.class,
+                        "id",
+                        null,
+                        new IllegalArgumentException("Invalid UUID")));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problem.getTitle()).isEqualTo("Parâmetro inválido");
+        assertThat(problem.getDetail()).isEqualTo("O valor informado não é compatível com o tipo esperado.");
+        assertThat(problem.getDetail()).doesNotContain("Invalid UUID");
+    }
+
+    @Test
+    void deveMapearParametroObrigatorioAusentePara400() {
+        ProblemDetail problem = handler.handleMissingServletRequestParameter(
+                new MissingServletRequestParameterException("data", "LocalDate"));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problem.getTitle()).isEqualTo("Parâmetro obrigatório ausente");
+        assertThat(problem.getDetail()).isEqualTo("Um parâmetro obrigatório não foi informado.");
+    }
 
     @Test
     void deveMapearUkUsuarioEmailPara409() {

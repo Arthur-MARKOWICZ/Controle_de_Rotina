@@ -151,7 +151,55 @@ class ApiProblemDetailIT {
     }
 
     @Test
-    void t5_capacidadeSemanalAceitaItemUnicoEListaERejeitaInvalido() {
+    void t5_jsonMalformadoDeveRetornarProblemDetail400() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/capacidades/semanal",
+                HttpMethod.POST,
+                new HttpEntity<>("{", headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        JsonNode body = lerJson(response.getBody());
+        assertProblemDetail(body, 400);
+        assertThat(body.path("title").asString()).isEqualTo("Requisição inválida");
+        assertThat(body.path("detail").asString()).isEqualTo("O corpo da requisição está malformado ou ilegível.");
+    }
+
+    @Test
+    void t6_uuidMalformadoNoPathDeveRetornarProblemDetail400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/tarefas/nao-e-uuid",
+                HttpMethod.GET,
+                autenticado(),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        JsonNode body = lerJson(response.getBody());
+        assertProblemDetail(body, 400);
+        assertThat(body.path("title").asString()).isEqualTo("Parâmetro inválido");
+        assertThat(body.path("detail").asString()).isEqualTo("O valor informado não é compatível com o tipo esperado.");
+    }
+
+    @Test
+    void t7_queryObrigatoriaAusenteDeveRetornarProblemDetail400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/planos",
+                HttpMethod.GET,
+                autenticado(),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        JsonNode body = lerJson(response.getBody());
+        assertProblemDetail(body, 400);
+        assertThat(body.path("title").asString()).isEqualTo("Parâmetro obrigatório ausente");
+        assertThat(body.path("detail").asString()).isEqualTo("Um parâmetro obrigatório não foi informado.");
+    }
+
+    @Test
+    void t8_capacidadeSemanalAceitaItemUnicoEListaERejeitaInvalido() {
         ResponseEntity<List> unitario = restTemplate.exchange(
                 "/capacidades/semanal",
                 HttpMethod.POST,
