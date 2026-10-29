@@ -1,4 +1,8 @@
 app:
+  rate-limit:
+    # Desligado nos testes: ITs compartilham o mesmo IP (localhost).
+    enabled: false
+    requests-per-minute: 5
   security:
     jwt:
       secret: controle-rotina-test-secret-key-min-32-chars!

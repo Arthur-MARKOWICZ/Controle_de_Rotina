@@ -26,6 +26,10 @@ server:
   port: 8080
 
 app:
+  rate-limit:
+    # Proteção de abuso em POST /usuarios e POST /auth/login (por IP, janela de 1 min).
+    enabled: true
+    requests-per-minute: 5
   security:
     jwt:
       # Sem literal versionado. Local/dev: application-local.yml. Demais: APP_SECURITY_JWT_SECRET.
@@ -40,3 +44,4 @@ app:
       http-only: true
       secure: true
       same-site: Lax
+

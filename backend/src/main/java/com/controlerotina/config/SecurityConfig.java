@@ -19,11 +19,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.controlerotina.auth.jwt.JwtAuthenticationFilter;
+import com.controlerotina.config.ratelimit.AuthRateLimitFilter;
+import com.controlerotina.config.ratelimit.RateLimitProperties;
 
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, RateLimitProperties.class})
 public class SecurityConfig {
 
     private static final JsonMapper PROBLEM_JSON = JsonMapper.builder().build();
@@ -41,8 +43,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter)
-            throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            AuthRateLimitFilter authRateLimitFilter,
+            JwtAuthenticationFilter jwtAuthenticationFilter
+    ) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -67,6 +72,7 @@ public class SecurityConfig {
                             PROBLEM_JSON.writeValue(response.getOutputStream(), problem);
                         })
                 )
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

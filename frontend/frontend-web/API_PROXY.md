@@ -21,6 +21,29 @@ Sempre que o backend ganhar um **prefixo de rota novo** (ex.: `/execucoes`, `/xp
 > Neste projeto a porta **5173** costuma ser o **container Docker** (nginx), não o Vite.  
 > Reiniciar o PC ou o container sem `--build` **não** aplica `nginx.conf` novo.
 
+## Rate limiting (cadastro e login)
+
+Proteção contra abuso em **`POST /usuarios`** e **`POST /auth/login`** (5 req/min por IP).  
+`POST /auth/refresh` **não** é limitado.
+
+| Camada | Onde | Como |
+|--------|------|------|
+| Nginx (edge) | `nginx.conf` | `limit_req_zone` `auth_abuse` + `limit_req` em `/usuarios` e `= /auth/login`; status `429` |
+| Spring (API) | `app.rate-limit` em `application.yml` | Filtro por IP; cobre acesso direto à porta `8080` |
+
+Propriedades do backend:
+
+```yaml
+app:
+  rate-limit:
+    enabled: true
+    requests-per-minute: 5
+```
+
+Em testes automatizados o filtro fica `enabled: false` (`src/test/resources/application.yml`) para não quebrar ITs que compartilham `localhost`.
+
+Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
+
 ## Prefixos atuais (manter iguais nos dois arquivos)
 
 | Prefixo         | Controllers / uso                          |
