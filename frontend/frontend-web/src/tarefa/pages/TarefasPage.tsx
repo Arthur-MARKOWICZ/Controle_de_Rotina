@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
+import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
 import {
@@ -75,6 +76,7 @@ function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
 
 export function TarefasPage() {
   const toast = useToast()
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [searchParams, setSearchParams] = useSearchParams()
   const filtrosUrl = useMemo(() => lerFiltrosDaUrl(searchParams), [searchParams])
 
@@ -175,6 +177,15 @@ export function TarefasPage() {
   }
 
   async function handleExcluir(id: string) {
+    const confirmado = await confirm({
+      title: 'Excluir tarefa?',
+      message: 'A tarefa será excluída. Você poderá restaurá-la depois.',
+      confirmLabel: 'Excluir',
+    })
+    if (!confirmado) {
+      return
+    }
+
     setErro(null)
     setAcaoId(id)
     try {
@@ -227,6 +238,7 @@ export function TarefasPage() {
 
   return (
     <main className="tarefas-page">
+      {confirmDialog}
       <QuickAddTarefaDialog
         open={quickAddAberto}
         onClose={() => setQuickAddAberto(false)}

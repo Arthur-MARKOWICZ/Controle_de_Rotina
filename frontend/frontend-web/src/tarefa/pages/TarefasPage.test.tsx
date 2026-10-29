@@ -203,7 +203,20 @@ describe('TarefasPage', () => {
     })
   })
 
-  it('T2: excluir mostra Desfazer e restore é chamado', async () => {
+  it('excluir na lista: cancelar confirmação não chama API', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderLista()
+    await screen.findByText('Hoje item')
+
+    await user.click(screen.getByRole('button', { name: /^excluir$/i }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: /excluir tarefa/i })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: /^cancelar$/i }))
+
+    expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+  })
+
+  it('T2: confirmar exclusão mostra Desfazer e restore é chamado', async () => {
     vi.mocked(tarefaApi.excluirTarefa).mockResolvedValue(undefined)
     vi.mocked(tarefaApi.restaurarTarefa).mockResolvedValue({
       ...pagina.content[0],
@@ -220,6 +233,11 @@ describe('TarefasPage', () => {
     await screen.findByText('Hoje item')
 
     await user.click(screen.getByRole('button', { name: /^excluir$/i }))
+    expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: /excluir tarefa/i })).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: /^excluir$/i }))
 
     await waitFor(() => {
       expect(tarefaApi.excluirTarefa).toHaveBeenCalledWith('t-hoje')

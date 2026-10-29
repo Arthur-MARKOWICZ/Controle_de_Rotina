@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
+import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
 import {
   atualizarTarefa,
@@ -41,6 +42,7 @@ export function TarefaFormPage() {
   const { id } = useParams<{ id: string }>()
   const modo: 'criar' | 'editar' = id ? 'editar' : 'criar'
   const navigate = useNavigate()
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [values, setValues] = useState<TarefaFormValues>(VAZIO)
   const [deletada, setDeletada] = useState(false)
@@ -151,11 +153,20 @@ export function TarefaFormPage() {
     if (!id || deletada) {
       return
     }
+    const confirmado = await confirm({
+      title: 'Excluir tarefa?',
+      message: 'A tarefa será excluída. Você poderá restaurá-la nesta tela.',
+      confirmLabel: 'Excluir',
+    })
+    if (!confirmado) {
+      return
+    }
+
     setErro(null)
     setExcluindo(true)
     try {
       await excluirTarefa(id)
-      navigate('/tarefas', { replace: true })
+      setDeletada(true)
     } catch (error) {
       if (error instanceof ApiError) {
         setErro(error.message)
@@ -207,6 +218,7 @@ export function TarefaFormPage() {
 
   return (
     <main className="auth-page">
+      {confirmDialog}
       <section className="auth-panel card tarefa-form-panel">
         <h1>{modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'}</h1>
         <p className="auth-subtitle">

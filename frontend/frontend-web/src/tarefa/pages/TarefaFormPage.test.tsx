@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -178,7 +178,36 @@ describe('TarefaFormPage', () => {
     expect(await screen.findByText('Lista de tarefas')).toBeInTheDocument()
   })
 
-  it('exclui tarefa ativa e volta à lista', async () => {
+  it('excluir no formulário: cancelar confirmação não chama API', async () => {
+    vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({
+      id: 't-1',
+      titulo: 'Estudar',
+      descricao: 'Spring',
+      prioridade: 'ALTA',
+      prazo: '2030-06-01T15:00:00Z',
+      status: 'PENDENTE',
+      duracaoMinutos: 240,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    })
+
+    const user = userEvent.setup()
+    renderEditar()
+
+    expect(await screen.findByDisplayValue('Estudar')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /excluir tarefa/i }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: /excluir tarefa/i })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: /^cancelar$/i }))
+
+    expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /excluir tarefa/i })).toBeInTheDocument()
+    expect(screen.queryByText('Lista de tarefas')).not.toBeInTheDocument()
+  })
+
+  it('confirma exclusão e permanece na tela com status excluída', async () => {
     vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({
       id: 't-1',
       titulo: 'Estudar',
@@ -199,11 +228,17 @@ describe('TarefaFormPage', () => {
 
     expect(await screen.findByDisplayValue('Estudar')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /excluir tarefa/i }))
+    expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+
+    const dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^excluir$/i }))
 
     await waitFor(() => {
       expect(tarefaApi.excluirTarefa).toHaveBeenCalledWith('t-1')
     })
-    expect(await screen.findByText('Lista de tarefas')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent(/excluída/i)
+    expect(screen.getByRole('button', { name: /restaurar tarefa/i })).toBeInTheDocument()
+    expect(screen.queryByText('Lista de tarefas')).not.toBeInTheDocument()
   })
 
   it('mostra restaurar quando a tarefa está deletada e restaura', async () => {
