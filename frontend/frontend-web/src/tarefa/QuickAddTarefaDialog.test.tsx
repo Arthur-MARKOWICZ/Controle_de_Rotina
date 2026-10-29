@@ -39,7 +39,7 @@ describe('QuickAddTarefaDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Amanhã' }))
 
-    expect(screen.getByLabelText(/^prazo$/i)).toHaveValue(
+    expect(screen.getByLabelText(/prazo \(opcional\)/i)).toHaveValue(
       fimDoDiaBrtParaDatetimeLocal(2026, 10, 29),
     )
   })
@@ -75,7 +75,7 @@ describe('QuickAddTarefaDialog', () => {
       prioridade: 'MEDIA',
       prazo: '2026-10-28T26:59:00.000Z',
       status: 'PENDENTE',
-      duracaoHoras: 1,
+      duracaoMinutos: 60,
       createdAt: '2026-10-28T12:00:00Z',
       updatedAt: '2026-10-28T12:00:00Z',
       deletedAt: null,
@@ -94,7 +94,7 @@ describe('QuickAddTarefaDialog', () => {
           titulo: 'Ler docs',
           descricao: '',
           prioridade: 'MEDIA',
-          duracaoHoras: 1,
+          duracaoMinutos: 60,
         }),
       )
     })

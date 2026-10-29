@@ -136,7 +136,7 @@ class PlanoAjusteRemoveIT {
     @Test
     void deveRetornar404QuandoBlocoNaoExiste() {
         salvarOverride(2);
-        salvarTarefa("Base", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Base", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -151,7 +151,7 @@ class PlanoAjusteRemoveIT {
     @Test
     void deveRetornar409QuandoPlanoNaoERascunhoCorrente() {
         salvarOverride(2);
-        salvarTarefa("Base", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Base", Prioridade.MEDIA, 60, AGORA);
         Plano v1 = plannerGeracaoService.gerar(usuarioId, DIA_D);
         Plano v2 = plannerGeracaoService.gerar(usuarioId, DIA_D);
         UUID blocoV1 = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(v1.getId()).getFirst().getId();
@@ -181,8 +181,8 @@ class PlanoAjusteRemoveIT {
     @Test
     void deveRemoverBlocoCom204() {
         salvarOverride(3);
-        salvarTarefa("Alta", Prioridade.ALTA, 1, AGORA);
-        salvarTarefa("Baixa", Prioridade.BAIXA, 1, AGORA);
+        salvarTarefa("Alta", Prioridade.ALTA, 60, AGORA);
+        salvarTarefa("Baixa", Prioridade.BAIXA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
         List<BlocoPlano> blocosAntes = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(plano.getId());
         assertThat(blocosAntes).hasSize(2);
@@ -202,9 +202,9 @@ class PlanoAjusteRemoveIT {
     @Test
     void deveLimparConflitoQuandoSomaVoltaACabernaCapacidade() {
         salvarOverride(1);
-        salvarTarefa("Cabe", Prioridade.ALTA, 1, AGORA);
+        salvarTarefa("Cabe", Prioridade.ALTA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
-        Tarefa estoura = salvarTarefa("Estoura", Prioridade.MEDIA, 1, AGORA);
+        Tarefa estoura = salvarTarefa("Estoura", Prioridade.MEDIA, 60, AGORA);
         planoAjusteService.adicionarBloco(usuarioId, plano.getId(), estoura.getId());
 
         List<BlocoPlano> blocos = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(plano.getId());
@@ -246,7 +246,7 @@ class PlanoAjusteRemoveIT {
         ));
     }
 
-    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoHoras, Instant createdAt) {
+    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoMinutos, Instant createdAt) {
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
                 .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
@@ -258,7 +258,7 @@ class PlanoAjusteRemoveIT {
                 prioridade,
                 prazo,
                 StatusTarefa.PENDENTE,
-                duracaoHoras,
+                duracaoMinutos,
                 createdAt,
                 createdAt
         ));

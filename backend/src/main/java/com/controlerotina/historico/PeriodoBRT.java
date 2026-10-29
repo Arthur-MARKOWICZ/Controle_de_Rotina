@@ -8,7 +8,9 @@ import java.time.temporal.TemporalAdjusters;
 
 public final class PeriodoBRT {
 
-    public static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
+    public static final String ZONE_ID = "America/Sao_Paulo";
+
+    public static final ZoneId ZONE = ZoneId.of(ZONE_ID);
 
     private PeriodoBRT() {
     }

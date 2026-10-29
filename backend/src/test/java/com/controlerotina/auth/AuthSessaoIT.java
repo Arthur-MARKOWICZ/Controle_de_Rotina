@@ -6,7 +6,9 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +82,9 @@ class AuthSessaoIT {
         String setCookie = refreshSetCookie(response);
         assertThat(setCookie).contains("refresh_token=");
         assertThat(setCookie).containsIgnoringCase("HttpOnly");
+        assertThat(setCookie).containsIgnoringCase("Path=/auth");
+        assertThat(setCookie).containsIgnoringCase("SameSite=Lax");
+        assertThat(setCookie).doesNotContainIgnoringCase("Secure");
         assertThat(setCookie).doesNotContain("refresh_token=;");
 
         Instant now = Instant.now();
@@ -89,6 +94,8 @@ class AuthSessaoIT {
         assertThat(exp.getEpochSecond() - iat.getEpochSecond()).isEqualTo(15 * 60);
         assertThat(exp).isAfter(now.plusSeconds(14 * 60));
         assertThat(exp).isBefore(now.plusSeconds(16 * 60));
+        assertThat(claims.get("iss")).isEqualTo("controle-rotina");
+        assertThat(claims.get("aud")).isEqualTo("controle-rotina-api");
 
         Integer maxAge = maxAgeSeconds(setCookie);
         assertThat(maxAge).isEqualTo(5 * 24 * 60 * 60);
@@ -121,6 +128,34 @@ class AuthSessaoIT {
     }
 
     @Test
+    void t2_loginEmailInexistenteESenhaErradaDevemRetornarMesmo401Generico() {
+        ResponseEntity<Map> emailInexistente = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", "naoexiste-" + UUID.randomUUID() + "@email.com", "senha", SENHA)),
+                Map.class);
+        ResponseEntity<Map> senhaErrada = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", "Senha@999")),
+                Map.class);
+
+        assertThat(emailInexistente.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(senhaErrada.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(emailInexistente.getHeaders().get(HttpHeaders.SET_COOKIE)).isNullOrEmpty();
+        assertThat(senhaErrada.getHeaders().get(HttpHeaders.SET_COOKIE)).isNullOrEmpty();
+
+        assertThat(emailInexistente.getBody()).isNotNull();
+        assertThat(senhaErrada.getBody()).isNotNull();
+        assertThat(emailInexistente.getBody().get("title"))
+                .isEqualTo(senhaErrada.getBody().get("title"))
+                .isEqualTo("Não autorizado");
+        assertThat(emailInexistente.getBody().get("detail"))
+                .isEqualTo(senhaErrada.getBody().get("detail"))
+                .isEqualTo("Credenciais inválidas.");
+        assertThat(emailInexistente.getBody().get("status"))
+                .isEqualTo(senhaErrada.getBody().get("status"));
+    }
+
+    @Test
     void deveRenovarAccessComRefreshCookieERotacionarRefresh() {
         ResponseEntity<Map> login = restTemplate.postForEntity(
                 "/auth/login",
@@ -144,6 +179,7 @@ class AuthSessaoIT {
 
         String novoCookie = refreshCookieValue(refresh);
         assertThat(novoCookie).isNotEqualTo(cookie);
+        assertThat(refreshSetCookie(refresh)).containsIgnoringCase("Path=/auth");
 
         Integer revogados = jdbcTemplate.queryForObject(
                 """
@@ -159,6 +195,112 @@ class AuthSessaoIT {
         ResponseEntity<Map> response = restTemplate.postForEntity("/auth/refresh", null, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
+    @Test
+    void t1_reusoDeRefreshRevogadoDeveRevogarFamiliaEInvalidarTokenRoubado() {
+        ResponseEntity<Map> login = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA)),
+                Map.class);
+        String refreshAntigo = refreshCookieValue(login);
+
+        HttpHeaders headersAntigo = new HttpHeaders();
+        headersAntigo.add(HttpHeaders.COOKIE, "refresh_token=" + refreshAntigo);
+
+        ResponseEntity<Map> refreshLegitimo = restTemplate.exchange(
+                "/auth/refresh",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headersAntigo),
+                Map.class);
+        assertThat(refreshLegitimo.getStatusCode()).isEqualTo(OK);
+        String refreshNovo = refreshCookieValue(refreshLegitimo);
+
+        ResponseEntity<Map> reuso = restTemplate.exchange(
+                "/auth/refresh",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headersAntigo),
+                Map.class);
+        assertThat(reuso.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(reuso.getBody()).isNotNull();
+        assertThat(reuso.getBody().get("detail").toString()).isEqualTo("Credenciais inválidas.");
+        assertThat(reuso.getBody().get("detail").toString()).doesNotContainIgnoringCase("reutiliz");
+
+        Integer ativos = jdbcTemplate.queryForObject(
+                """
+                select count(*) from refresh_token rt
+                join usuario u on u.id = rt.usuario_id
+                where u.email = ? and rt.revoked_at is null
+                """,
+                Integer.class,
+                email);
+        assertThat(ativos).isZero();
+
+        HttpHeaders headersNovo = new HttpHeaders();
+        headersNovo.add(HttpHeaders.COOKIE, "refresh_token=" + refreshNovo);
+        ResponseEntity<Map> comTokenRoubado = restTemplate.exchange(
+                "/auth/refresh",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headersNovo),
+                Map.class);
+        assertThat(comTokenRoubado.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
+    @Test
+    void t3_aposLimpezaTokensExpiradosOuRevogadosAntigosNaoPermanecem() {
+        ResponseEntity<Map> login = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA)),
+                Map.class);
+        String cookie = refreshCookieValue(login);
+
+        UUID usuarioId = jdbcTemplate.queryForObject(
+                "select id from usuario where email = ?", UUID.class, email);
+        Instant antigo = Instant.now().minus(8, ChronoUnit.DAYS);
+        jdbcTemplate.update(
+                """
+                insert into refresh_token (id, usuario_id, token_hash, expires_at, revoked_at, created_at)
+                values (?, ?, ?, ?, ?, ?)
+                """,
+                UUID.randomUUID(), usuarioId, "a".repeat(64),
+                Timestamp.from(antigo.minus(1, ChronoUnit.DAYS)), null, Timestamp.from(antigo));
+        jdbcTemplate.update(
+                """
+                insert into refresh_token (id, usuario_id, token_hash, expires_at, revoked_at, created_at)
+                values (?, ?, ?, ?, ?, ?)
+                """,
+                UUID.randomUUID(), usuarioId, "b".repeat(64),
+                Timestamp.from(Instant.now().plus(1, ChronoUnit.DAYS)),
+                Timestamp.from(antigo),
+                Timestamp.from(antigo));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.COOKIE, "refresh_token=" + cookie);
+        ResponseEntity<Map> refresh = restTemplate.exchange(
+                "/auth/refresh",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headers),
+                Map.class);
+        assertThat(refresh.getStatusCode()).isEqualTo(OK);
+
+        Integer antigosRestantes = jdbcTemplate.queryForObject(
+                """
+                select count(*) from refresh_token
+                where token_hash in (?, ?)
+                """,
+                Integer.class,
+                "a".repeat(64),
+                "b".repeat(64));
+        assertThat(antigosRestantes).isZero();
+
+        Integer ativosRecentes = jdbcTemplate.queryForObject(
+                """
+                select count(*) from refresh_token
+                where usuario_id = ? and revoked_at is null
+                """,
+                Integer.class,
+                usuarioId);
+        assertThat(ativosRecentes).isEqualTo(1);
     }
 
     @Test
@@ -181,6 +323,7 @@ class AuthSessaoIT {
         assertThat(logout.getStatusCode().is2xxSuccessful()).isTrue();
         String cleared = refreshSetCookie(logout);
         assertThat(cleared).containsIgnoringCase("Max-Age=0");
+        assertThat(cleared).containsIgnoringCase("Path=/auth");
 
         Integer ativos = jdbcTemplate.queryForObject(
                 """
@@ -237,8 +380,13 @@ class AuthSessaoIT {
         assertThat(parts).hasSize(3);
         byte[] decoded = Base64.getUrlDecoder().decode(parts[1]);
         JsonNode node = JSON.readTree(new String(decoded, StandardCharsets.UTF_8));
+        String aud = node.get("aud").isArray()
+                ? node.get("aud").get(0).asText()
+                : node.get("aud").asText();
         return Map.of(
                 "sub", node.get("sub").asText(),
+                "iss", node.get("iss").asText(),
+                "aud", aud,
                 "iat", node.get("iat").asLong(),
                 "exp", node.get("exp").asLong()
         );

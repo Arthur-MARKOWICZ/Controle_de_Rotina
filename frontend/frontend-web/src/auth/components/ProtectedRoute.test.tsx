@@ -42,4 +42,32 @@ describe('ProtectedRoute', () => {
     renderComRota('/')
     expect(screen.getByText('Conteúdo protegido')).toBeInTheDocument()
   })
+
+  it('f1_aposLimpezaDoAccessTokenRedirecionaParaLogin', () => {
+    setAccessToken('jwt-ok')
+    const { rerender } = renderComRota('/')
+    expect(screen.getByText('Conteúdo protegido')).toBeInTheDocument()
+
+    clearAccessToken()
+    rerender(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <p>Conteúdo protegido</p>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/login" element={<p>Tela de login</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    )
+
+    expect(screen.getByText('Tela de login')).toBeInTheDocument()
+    expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument()
+  })
 })

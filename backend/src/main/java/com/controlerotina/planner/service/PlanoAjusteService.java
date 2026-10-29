@@ -83,7 +83,7 @@ public class PlanoAjusteService {
                 .mapToInt(BlocoPlano::getOrdem)
                 .max()
                 .orElse(0) + 1;
-        int duracaoMinutos = tarefa.getDuracaoHoras() * 60;
+        int duracaoMinutos = tarefa.getDuracaoMinutos();
 
         blocoPlanoRepository.save(new BlocoPlano(
                 UUID.randomUUID(),
@@ -138,7 +138,10 @@ public class PlanoAjusteService {
             throw new PlanoNaoAjustavelException();
         }
         Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataOrderByVersaoDesc(plano.getUsuarioId(), plano.getData())
+                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        plano.getUsuarioId(),
+                        plano.getData(),
+                        java.util.List.of(StatusPlano.RASCUNHO, StatusPlano.APROVADO))
                 .orElseThrow(PlanoNaoEncontradoException::new);
         if (!corrente.getId().equals(plano.getId())) {
             throw new PlanoNaoAjustavelException();

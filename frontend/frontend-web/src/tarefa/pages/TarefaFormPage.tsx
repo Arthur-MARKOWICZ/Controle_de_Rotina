@@ -33,7 +33,7 @@ const VAZIO: TarefaFormValues = {
   descricao: '',
   prioridade: '',
   prazo: '',
-  duracaoHoras: '',
+  duracaoMinutos: '',
   status: '',
 }
 
@@ -71,7 +71,7 @@ export function TarefaFormPage() {
           descricao: tarefa.descricao,
           prioridade: tarefa.prioridade,
           prazo: instantParaDatetimeLocal(tarefa.prazo),
-          duracaoHoras: tarefa.duracaoHoras,
+          duracaoMinutos: tarefa.duracaoMinutos,
           status: tarefa.status,
         })
         setDeletada(tarefa.deletada)
@@ -109,7 +109,7 @@ export function TarefaFormPage() {
 
     const prioridade = values.prioridade as Prioridade
     const prazo = datetimeLocalParaInstant(values.prazo)
-    const duracaoHoras = values.duracaoHoras as number
+    const duracaoMinutos = values.duracaoMinutos as number
 
     setEnviando(true)
     try {
@@ -119,7 +119,7 @@ export function TarefaFormPage() {
           descricao: values.descricao.trim(),
           prioridade,
           prazo,
-          duracaoHoras,
+          duracaoMinutos,
         })
       } else if (id) {
         await atualizarTarefa(id, {
@@ -127,7 +127,7 @@ export function TarefaFormPage() {
           descricao: values.descricao.trim(),
           prioridade,
           prazo,
-          duracaoHoras,
+          duracaoMinutos,
           status: values.status as StatusTarefa,
         })
       }
@@ -181,7 +181,7 @@ export function TarefaFormPage() {
         descricao: restaurada.descricao,
         prioridade: restaurada.prioridade,
         prazo: instantParaDatetimeLocal(restaurada.prazo),
-        duracaoHoras: restaurada.duracaoHoras,
+        duracaoMinutos: restaurada.duracaoMinutos,
         status: restaurada.status,
       })
     } catch (error) {
@@ -271,7 +271,7 @@ export function TarefaFormPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="prazo">Prazo</label>
+            <label htmlFor="prazo">Prazo (opcional)</label>
             <input
               id="prazo"
               name="prazo"
@@ -279,23 +279,22 @@ export function TarefaFormPage() {
               value={values.prazo}
               onChange={(e) => setValues((a) => ({ ...a, prazo: e.target.value }))}
               disabled={deletada}
-              required
             />
           </div>
 
           <div className="field">
-            <label htmlFor="duracaoHoras">Duração (horas)</label>
+            <label htmlFor="duracaoMinutos">Duração (minutos)</label>
             <input
-              id="duracaoHoras"
-              name="duracaoHoras"
+              id="duracaoMinutos"
+              name="duracaoMinutos"
               type="number"
-              min={1}
-              step={1}
-              value={values.duracaoHoras}
+              min={15}
+              step={15}
+              value={values.duracaoMinutos}
               onChange={(e) =>
                 setValues((a) => ({
                   ...a,
-                  duracaoHoras: e.target.value === '' ? '' : Number(e.target.value),
+                  duracaoMinutos: e.target.value === '' ? '' : Number(e.target.value),
                 }))
               }
               disabled={deletada}

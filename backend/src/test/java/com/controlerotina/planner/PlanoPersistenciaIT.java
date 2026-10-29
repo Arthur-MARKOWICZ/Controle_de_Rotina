@@ -98,6 +98,7 @@ class PlanoPersistenciaIT {
                 StatusPlano.RASCUNHO,
                 false,
                 "Sem tempo neste dia",
+                null,
                 agora,
                 agora,
                 agora
@@ -130,6 +131,7 @@ class PlanoPersistenciaIT {
                 1,
                 StatusPlano.RASCUNHO,
                 true,
+                null,
                 null,
                 agora,
                 agora,
@@ -167,6 +169,7 @@ class PlanoPersistenciaIT {
                 StatusPlano.RASCUNHO,
                 false,
                 null,
+                null,
                 agora,
                 agora,
                 agora
@@ -179,6 +182,7 @@ class PlanoPersistenciaIT {
                 1,
                 StatusPlano.APROVADO,
                 false,
+                null,
                 null,
                 agora,
                 agora,
@@ -199,6 +203,7 @@ class PlanoPersistenciaIT {
                 1,
                 StatusPlano.RASCUNHO,
                 false,
+                null,
                 null,
                 agora,
                 agora,
@@ -224,7 +229,7 @@ class PlanoPersistenciaIT {
                 Prioridade.MEDIA,
                 agora,
                 StatusTarefa.PENDENTE,
-                1,
+                60,
                 agora,
                 agora
         ));

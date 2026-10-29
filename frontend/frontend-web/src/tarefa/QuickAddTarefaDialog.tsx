@@ -21,7 +21,7 @@ const VAZIO: TarefaFormValues = {
   descricao: '',
   prioridade: 'MEDIA',
   prazo: '',
-  duracaoHoras: 1,
+  duracaoMinutos: 60,
 }
 
 type Props = {
@@ -105,7 +105,7 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
 
     const prioridade = values.prioridade as Prioridade
     const prazo = datetimeLocalParaInstant(values.prazo)
-    const duracaoHoras = values.duracaoHoras as number
+    const duracaoMinutos = values.duracaoMinutos as number
 
     setEnviando(true)
     try {
@@ -114,7 +114,7 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
         descricao: values.descricao.trim(),
         prioridade,
         prazo,
-        duracaoHoras,
+        duracaoMinutos,
       })
       toast.success('Tarefa criada', {
         action: {
@@ -170,27 +170,27 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
         </div>
 
         <div className="field">
-          <label htmlFor="quick-duracao">Duração (horas)</label>
+          <label htmlFor="quick-duracao">Duração (minutos)</label>
           <input
             id="quick-duracao"
-            name="duracaoHoras"
+            name="duracaoMinutos"
             type="number"
-            min={1}
-            step={1}
-            value={values.duracaoHoras}
+            min={15}
+            step={15}
+            value={values.duracaoMinutos}
             onChange={(e) => {
               setValues((a) => ({
                 ...a,
-                duracaoHoras: e.target.value === '' ? '' : Number(e.target.value),
+                duracaoMinutos: e.target.value === '' ? '' : Number(e.target.value),
               }))
-              setErros((a) => ({ ...a, duracaoHoras: undefined }))
+              setErros((a) => ({ ...a, duracaoMinutos: undefined }))
             }}
-            aria-invalid={Boolean(erros.duracaoHoras)}
-            aria-describedby={erros.duracaoHoras ? 'quick-duracao-erro' : undefined}
+            aria-invalid={Boolean(erros.duracaoMinutos)}
+            aria-describedby={erros.duracaoMinutos ? 'quick-duracao-erro' : undefined}
           />
-          {erros.duracaoHoras ? (
+          {erros.duracaoMinutos ? (
             <p id="quick-duracao-erro" className="field-error" role="alert">
-              {erros.duracaoHoras}
+              {erros.duracaoMinutos}
             </p>
           ) : null}
         </div>
@@ -247,7 +247,7 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
         </div>
 
         <div className="field">
-          <label htmlFor="quick-prazo">Prazo</label>
+          <label htmlFor="quick-prazo">Prazo (opcional)</label>
           <input
             id="quick-prazo"
             name="prazo"

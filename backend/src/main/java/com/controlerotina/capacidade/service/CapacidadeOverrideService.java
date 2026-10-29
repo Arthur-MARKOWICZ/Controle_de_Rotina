@@ -8,34 +8,41 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.controlerotina.capacidade.dto.AtualizarCapacidadeOverrideRequest;
 import com.controlerotina.capacidade.dto.CapacidadeOverrideResponse;
 import com.controlerotina.capacidade.dto.CriarCapacidadeOverrideItemRequest;
 import com.controlerotina.capacidade.entity.CapacidadeOverride;
 import com.controlerotina.capacidade.repository.CapacidadeOverrideRepository;
+import com.controlerotina.planner.service.PropostaGeracaoService;
+import com.controlerotina.shared.exception.CapacidadeLoteVazioException;
 import com.controlerotina.shared.exception.CapacidadeOverrideConflitoException;
 import com.controlerotina.shared.exception.CapacidadeOverrideNaoEncontradaException;
+import com.controlerotina.shared.exception.DataDuplicadaNoLoteException;
 
 @Service
 public class CapacidadeOverrideService {
 
     private final CapacidadeOverrideRepository capacidadeOverrideRepository;
+    private final PropostaGeracaoService propostaGeracaoService;
     private final Clock clock;
 
-    public CapacidadeOverrideService(CapacidadeOverrideRepository capacidadeOverrideRepository, Clock clock) {
+    public CapacidadeOverrideService(
+            CapacidadeOverrideRepository capacidadeOverrideRepository,
+            PropostaGeracaoService propostaGeracaoService,
+            Clock clock
+    ) {
         this.capacidadeOverrideRepository = capacidadeOverrideRepository;
+        this.propostaGeracaoService = propostaGeracaoService;
         this.clock = clock;
     }
 
     @Transactional
     public List<CapacidadeOverrideResponse> criar(UUID usuarioId, List<CriarCapacidadeOverrideItemRequest> itens) {
         if (itens == null || itens.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe ao menos uma data.");
+            throw new CapacidadeLoteVazioException("Informe ao menos uma data.");
         }
 
         validarDatasUnicasNoLote(itens);
@@ -59,10 +66,16 @@ public class CapacidadeOverrideService {
                 ))
                 .toList();
 
-        return capacidadeOverrideRepository.saveAll(criados).stream()
+        List<CapacidadeOverrideResponse> respostas = capacidadeOverrideRepository.saveAll(criados).stream()
                 .sorted((a, b) -> a.getData().compareTo(b.getData()))
                 .map(CapacidadeOverrideResponse::from)
                 .toList();
+
+        capacidadeOverrideRepository.flush();
+        for (CriarCapacidadeOverrideItemRequest item : itens) {
+            propostaGeracaoService.gerarSeDiaAprovado(usuarioId, item.data());
+        }
+        return respostas;
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +117,15 @@ public class CapacidadeOverrideService {
             throw new CapacidadeOverrideConflitoException(request.data().toString());
         }
 
+        LocalDate dataAnterior = override.getData();
         override.atualizar(request.data(), request.horas(), clock.instant());
+        capacidadeOverrideRepository.flush();
+
+        propostaGeracaoService.gerarSeDiaAprovado(usuarioId, dataAnterior);
+        if (request.data() != null && !request.data().equals(dataAnterior)) {
+            propostaGeracaoService.gerarSeDiaAprovado(usuarioId, request.data());
+        }
+
         return CapacidadeOverrideResponse.from(override);
     }
 
@@ -114,7 +135,10 @@ public class CapacidadeOverrideService {
         if (!override.isAtivo()) {
             throw new CapacidadeOverrideNaoEncontradaException();
         }
+        LocalDate data = override.getData();
         override.softDelete(clock.instant());
+        capacidadeOverrideRepository.flush();
+        propostaGeracaoService.gerarSeDiaAprovado(usuarioId, data);
     }
 
     @Transactional
@@ -127,6 +151,8 @@ public class CapacidadeOverrideService {
             throw new CapacidadeOverrideConflitoException(override.getData().toString());
         }
         override.restore(clock.instant());
+        capacidadeOverrideRepository.flush();
+        propostaGeracaoService.gerarSeDiaAprovado(usuarioId, override.getData());
         return CapacidadeOverrideResponse.from(override);
     }
 
@@ -139,10 +165,7 @@ public class CapacidadeOverrideService {
         Set<LocalDate> vistas = new HashSet<>();
         for (CriarCapacidadeOverrideItemRequest item : itens) {
             if (!vistas.add(item.data())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Data duplicada no lote: " + item.data()
-                );
+                throw new DataDuplicadaNoLoteException(item.data().toString());
             }
         }
     }

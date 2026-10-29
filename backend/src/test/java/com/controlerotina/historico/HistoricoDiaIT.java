@@ -185,12 +185,12 @@ class HistoricoDiaIT {
         UUID tarefaId = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 tarefaId, dono, "T", "d", Prioridade.MEDIA,
-                AGORA, StatusTarefa.FINALIZADA, 1, AGORA, AGORA
+                AGORA, StatusTarefa.FINALIZADA, 60, AGORA, AGORA
         ));
         UUID planoId = UUID.randomUUID();
         planoRepository.save(new Plano(
                 planoId, dono, data, 1, StatusPlano.APROVADO,
-                false, null, AGORA, AGORA, AGORA
+                false, null, null, AGORA, AGORA, AGORA
         ));
         UUID blocoId = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(

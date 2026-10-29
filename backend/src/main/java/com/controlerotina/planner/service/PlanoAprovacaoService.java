@@ -50,7 +50,10 @@ public class PlanoAprovacaoService {
             throw new PlanoNaoAprovavelException();
         }
         Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataOrderByVersaoDesc(plano.getUsuarioId(), plano.getData())
+                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        plano.getUsuarioId(),
+                        plano.getData(),
+                        java.util.List.of(StatusPlano.RASCUNHO, StatusPlano.APROVADO))
                 .orElseThrow(PlanoNaoEncontradoException::new);
         if (!corrente.getId().equals(plano.getId())) {
             throw new PlanoNaoAprovavelException();

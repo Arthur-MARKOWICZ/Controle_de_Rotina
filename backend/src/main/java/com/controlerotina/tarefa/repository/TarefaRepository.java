@@ -29,26 +29,13 @@ public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecif
             UPDATE Tarefa t
                SET t.status = :novoStatus, t.updatedAt = :agora
              WHERE t.status = :statusAtual
-               AND t.prazo < :agora
+               AND t.prazo < :inicioDoDia
                AND t.deletedAt IS NULL
             """)
     int atualizarStatusQuandoPrazoPassou(
             @Param("statusAtual") StatusTarefa statusAtual,
             @Param("novoStatus") StatusTarefa novoStatus,
-            @Param("agora") Instant agora
-    );
-
-    @Modifying(clearAutomatically = true)
-    @Query("""
-            UPDATE Tarefa t
-               SET t.status = :novoStatus, t.updatedAt = :agora
-             WHERE t.status = :statusAtual
-               AND t.prazo >= :agora
-               AND t.deletedAt IS NULL
-            """)
-    int atualizarStatusQuandoPrazoNaoPassou(
-            @Param("statusAtual") StatusTarefa statusAtual,
-            @Param("novoStatus") StatusTarefa novoStatus,
+            @Param("inicioDoDia") Instant inicioDoDia,
             @Param("agora") Instant agora
     );
 }

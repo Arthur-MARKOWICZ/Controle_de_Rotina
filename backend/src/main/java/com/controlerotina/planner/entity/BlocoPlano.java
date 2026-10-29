@@ -7,16 +7,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(
-        name = "bloco_plano",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_bloco_plano_plano_tarefa",
-                columnNames = {"plano_id", "tarefa_id"}
-        )
-)
+@Table(name = "bloco_plano")
 public class BlocoPlano {
 
     @Id
@@ -87,5 +80,10 @@ public class BlocoPlano {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void atualizarOrdem(int ordem, Instant updatedAt) {
+        this.ordem = ordem;
+        this.updatedAt = updatedAt;
     }
 }

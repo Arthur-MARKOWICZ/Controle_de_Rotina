@@ -4,11 +4,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.controlerotina.config.JwtSecretValidator;
 import com.controlerotina.config.SecurityProperties;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -27,7 +30,12 @@ public class JwtService {
     private final MACSigner signer;
     private final MACVerifier verifier;
 
-    public JwtService(SecurityProperties securityProperties, Clock clock) {
+    public JwtService(
+            SecurityProperties securityProperties,
+            Clock clock,
+            JwtSecretValidator jwtSecretValidator
+    ) {
+        Objects.requireNonNull(jwtSecretValidator, "jwtSecretValidator");
         this.securityProperties = securityProperties;
         this.clock = clock;
         this.secret = securityProperties.jwt().secret().getBytes(StandardCharsets.UTF_8);
@@ -45,6 +53,8 @@ public class JwtService {
 
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .subject(usuarioId.toString())
+                .issuer(securityProperties.jwt().issuer())
+                .audience(securityProperties.jwt().audience())
                 .jwtID(UUID.randomUUID().toString())
                 .issueTime(Date.from(agora))
                 .expirationTime(Date.from(expira))
@@ -72,6 +82,10 @@ public class JwtService {
                 return Optional.empty();
             }
 
+            if (!issuerValido(claims) || !audienceValida(claims)) {
+                return Optional.empty();
+            }
+
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
                 return Optional.empty();
@@ -80,5 +94,17 @@ public class JwtService {
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    private boolean issuerValido(JWTClaimsSet claims) {
+        String esperado = securityProperties.jwt().issuer();
+        String atual = claims.getIssuer();
+        return esperado != null && esperado.equals(atual);
+    }
+
+    private boolean audienceValida(JWTClaimsSet claims) {
+        String esperado = securityProperties.jwt().audience();
+        List<String> atual = claims.getAudience();
+        return esperado != null && atual != null && atual.contains(esperado);
     }
 }

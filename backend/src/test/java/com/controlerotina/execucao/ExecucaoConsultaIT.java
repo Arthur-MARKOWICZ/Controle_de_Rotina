@@ -118,15 +118,15 @@ class ExecucaoConsultaIT {
         assertThat(semPlano.getBody().get("planoAprovado")).isNull();
         assertThat((List<?>) semPlano.getBody().get("itens")).isEmpty();
 
-        UUID tarefaId = salvarTarefa("Tarefa lista", 1);
+        UUID tarefaId = salvarTarefa("Tarefa lista", 60);
         UUID planoId = UUID.randomUUID();
         planoRepository.save(new Plano(
                 planoId, usuarioId, DIA, 1, StatusPlano.APROVADO,
-                false, null, AGORA, AGORA, AGORA
+                false, null, null, AGORA, AGORA, AGORA
         ));
         UUID bloco1 = UUID.randomUUID();
         UUID bloco2 = UUID.randomUUID();
-        UUID tarefa2 = salvarTarefa("Segunda", 1);
+        UUID tarefa2 = salvarTarefa("Segunda", 60);
         blocoPlanoRepository.save(new BlocoPlano(bloco1, planoId, tarefaId, 60, 1, AGORA, AGORA));
         blocoPlanoRepository.save(new BlocoPlano(bloco2, planoId, tarefa2, 30, 2, AGORA, AGORA));
         execucaoRepository.save(new Execucao(
@@ -155,11 +155,11 @@ class ExecucaoConsultaIT {
         assertThat(((Map) itens.get(0).get("tarefaResumo")).get("id")).isEqualTo(tarefaId.toString());
     }
 
-    private UUID salvarTarefa(String titulo, int duracaoHoras) {
+    private UUID salvarTarefa(String titulo, int duracaoMinutos) {
         UUID id = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 id, usuarioId, titulo, "descricao", Prioridade.MEDIA,
-                AGORA, StatusTarefa.PENDENTE, duracaoHoras, AGORA, AGORA
+                AGORA, StatusTarefa.PENDENTE, duracaoMinutos, AGORA, AGORA
         ));
         return id;
     }

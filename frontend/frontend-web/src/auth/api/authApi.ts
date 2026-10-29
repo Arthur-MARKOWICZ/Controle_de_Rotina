@@ -41,7 +41,8 @@ export async function cadastrarUsuario(body: CadastroRequest): Promise<UsuarioRe
   })
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'Não foi possível concluir o cadastro.')
+    const { lerErroApi } = await import('./lerErroApi')
+    throw await lerErroApi(response, 'Não foi possível concluir o cadastro.')
   }
 
   return (await response.json()) as UsuarioResponse
@@ -56,7 +57,8 @@ export async function login(body: LoginRequest): Promise<AccessTokenResponse> {
   })
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'Credenciais inválidas.')
+    const { lerErroApi } = await import('./lerErroApi')
+    throw await lerErroApi(response, 'Credenciais inválidas.')
   }
 
   return (await response.json()) as AccessTokenResponse

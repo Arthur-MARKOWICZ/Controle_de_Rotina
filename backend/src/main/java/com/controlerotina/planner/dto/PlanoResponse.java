@@ -15,12 +15,14 @@ public record PlanoResponse(
         StatusPlano status,
         boolean temConflito,
         String mensagem,
+        UUID propostaId,
+        boolean propostaPendente,
         Instant geradoEm,
         Instant createdAt,
         Instant updatedAt,
         List<BlocoPlanoResponse> blocos
 ) {
-    public static PlanoResponse from(Plano plano, List<BlocoPlanoResponse> blocos) {
+    public static PlanoResponse from(Plano plano, List<BlocoPlanoResponse> blocos, boolean propostaPendente) {
         return new PlanoResponse(
                 plano.getId(),
                 plano.getData(),
@@ -28,6 +30,8 @@ public record PlanoResponse(
                 plano.getStatus(),
                 plano.isTemConflito(),
                 plano.getMensagem(),
+                plano.getPropostaId(),
+                propostaPendente,
                 plano.getGeradoEm(),
                 plano.getCreatedAt(),
                 plano.getUpdatedAt(),

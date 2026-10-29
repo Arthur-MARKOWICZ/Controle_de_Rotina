@@ -3,7 +3,6 @@ package com.controlerotina.execucao.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +10,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +24,7 @@ import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.dto.TarefaResumoResponse;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
@@ -31,6 +32,7 @@ import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.shared.exception.BlocoPlanoNaoEncontradoException;
+import com.controlerotina.shared.exception.ExecucaoBlocoConflitoException;
 import com.controlerotina.shared.exception.ExecucaoJaConcluidaException;
 import com.controlerotina.shared.exception.ExecucaoJaEmAndamentoException;
 import com.controlerotina.shared.exception.ExecucaoNaoEmAndamentoException;
@@ -40,12 +42,11 @@ import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
+import com.controlerotina.xp.XpMotor;
 import com.controlerotina.xp.service.XpConcessaoService;
 
 @Service
 public class ExecucaoService {
-
-    static final ZoneId ZONE_SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
     private static final Set<StatusTarefa> STATUS_PARA_EM_PROGRESSO = Set.of(
             StatusTarefa.PENDENTE,
@@ -84,14 +85,22 @@ public class ExecucaoService {
         var existente = execucaoRepository.findByBlocoPlanoId(bloco.getId());
 
         if (existente.isEmpty()) {
-            Execucao criada = execucaoRepository.save(Execucao.iniciarNova(
-                    UUID.randomUUID(),
-                    usuarioId,
-                    bloco.getId(),
-                    agora
-            ));
-            marcarTarefaEmProgressoSeAplicavel(bloco.getTarefaId(), usuarioId, agora);
-            return new ResultadoInicio(criada, true);
+            try {
+                Execucao criada = execucaoRepository.saveAndFlush(Execucao.iniciarNova(
+                        UUID.randomUUID(),
+                        usuarioId,
+                        bloco.getId(),
+                        agora
+                ));
+                marcarTarefaEmProgressoSeAplicavel(bloco.getTarefaId(), usuarioId, agora);
+                return new ResultadoInicio(criada, true);
+            } catch (DataIntegrityViolationException ex) {
+                // Corrida: unique uk_execucao_bloco_plano — conflito de domínio, sem duplicar.
+                if (violaUniqueExecucaoBloco(ex)) {
+                    throw new ExecucaoBlocoConflitoException();
+                }
+                throw ex;
+            }
         }
 
         Execucao execucao = existente.get();
@@ -111,6 +120,23 @@ public class ExecucaoService {
                 yield new ResultadoInicio(salva, false);
             }
         };
+    }
+
+    private static boolean violaUniqueExecucaoBloco(DataIntegrityViolationException ex) {
+        String mensagem = mensagemCompleta(ex).toLowerCase();
+        return mensagem.contains("uk_execucao_bloco_plano");
+    }
+
+    private static String mensagemCompleta(Throwable ex) {
+        StringBuilder sb = new StringBuilder();
+        Throwable atual = ex;
+        while (atual != null) {
+            if (atual.getMessage() != null) {
+                sb.append(' ').append(atual.getMessage());
+            }
+            atual = atual.getCause();
+        }
+        return sb.toString();
     }
 
     @Transactional
@@ -143,26 +169,49 @@ public class ExecucaoService {
         execucaoRepository.save(execucao);
 
         Tarefa tarefa = atualizarTarefaAposConcluir(bloco.getTarefaId(), usuarioId, agora);
+        int minutosEfetivos = XpMotor.minutosEfetivos(
+                bloco.getDuracaoMinutos(),
+                execucao.getIniciadoEm(),
+                execucao.getConcluidoEm()
+        );
+        int somaEfetivosTarefa = somarMinutosEfetivosConcluidos(bloco.getTarefaId(), usuarioId);
         XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederAoConcluir(
                 usuarioId,
                 execucao.getId(),
-                bloco.getDuracaoMinutos(),
+                minutosEfetivos,
+                somaEfetivosTarefa,
                 tarefa
         );
         return new ResultadoConclusao(execucao, xp);
+    }
+
+    private int somarMinutosEfetivosConcluidos(UUID tarefaId, UUID usuarioId) {
+        List<Object[]> linhas = execucaoRepository.listarConcluidasComDuracaoBlocoPorTarefa(
+                tarefaId,
+                usuarioId,
+                StatusExecucao.CONCLUIDO
+        );
+        int soma = 0;
+        for (Object[] linha : linhas) {
+            Execucao e = (Execucao) linha[0];
+            int duracaoBloco = ((Number) linha[1]).intValue();
+            soma += XpMotor.minutosEfetivos(duracaoBloco, e.getIniciadoEm(), e.getConcluidoEm());
+        }
+        return soma;
     }
 
     @Transactional(readOnly = true)
     public ExecucoesDoDiaResponse listar(UUID usuarioId, LocalDate data) {
         LocalDate dataConsulta = data != null
                 ? data
-                : LocalDate.now(clock.withZone(ZONE_SAO_PAULO));
+                : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
 
         Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataOrderByVersaoDesc(usuarioId, dataConsulta)
+                .findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+                        usuarioId, dataConsulta, StatusPlano.APROVADO)
                 .orElse(null);
 
-        if (corrente == null || corrente.getStatus() != StatusPlano.APROVADO) {
+        if (corrente == null) {
             return new ExecucoesDoDiaResponse(null, List.of());
         }
 
@@ -215,7 +264,7 @@ public class ExecucaoService {
                 usuarioId,
                 StatusExecucao.CONCLUIDO
         );
-        int minutosNecessarios = tarefa.getDuracaoHoras() * 60;
+        int minutosNecessarios = tarefa.getDuracaoMinutos();
 
         if (minutosConcluidos >= minutosNecessarios) {
             tarefa.atualizar(null, null, null, null, StatusTarefa.FINALIZADA, null, agora);
@@ -257,11 +306,12 @@ public class ExecucaoService {
             throw new PlanoNaoExecutavelException();
         }
 
-        Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataOrderByVersaoDesc(plano.getUsuarioId(), plano.getData())
+        Plano vigente = planoRepository
+                .findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+                        plano.getUsuarioId(), plano.getData(), StatusPlano.APROVADO)
                 .orElseThrow(PlanoNaoExecutavelException::new);
 
-        if (!corrente.getId().equals(plano.getId())) {
+        if (!vigente.getId().equals(plano.getId())) {
             throw new PlanoNaoExecutavelException();
         }
     }

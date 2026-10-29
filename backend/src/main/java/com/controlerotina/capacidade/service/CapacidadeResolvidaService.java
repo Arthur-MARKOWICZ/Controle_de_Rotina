@@ -9,10 +9,8 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.controlerotina.capacidade.dto.CapacidadeResolvidaResponse;
 import com.controlerotina.capacidade.entity.CapacidadeOverride;
@@ -21,6 +19,7 @@ import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.capacidade.entity.OrigemCapacidade;
 import com.controlerotina.capacidade.repository.CapacidadeOverrideRepository;
 import com.controlerotina.capacidade.repository.CapacidadeSemanalRepository;
+import com.controlerotina.shared.exception.IntervaloCapacidadeInvalidoException;
 
 @Service
 public class CapacidadeResolvidaService {
@@ -41,14 +40,13 @@ public class CapacidadeResolvidaService {
     @Transactional(readOnly = true)
     public List<CapacidadeResolvidaResponse> resolver(UUID usuarioId, LocalDate dataDe, LocalDate dataAte) {
         if (dataDe == null || dataAte == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataDe e dataAte são obrigatórios.");
+            throw new IntervaloCapacidadeInvalidoException("dataDe e dataAte são obrigatórios.");
         }
         if (dataAte.isBefore(dataDe)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataAte deve ser maior ou igual a dataDe.");
+            throw new IntervaloCapacidadeInvalidoException("dataAte deve ser maior ou igual a dataDe.");
         }
         if (ChronoUnit.DAYS.between(dataDe, dataAte) + 1 > INTERVALO_MAXIMO_DIAS) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw new IntervaloCapacidadeInvalidoException(
                     "Intervalo máximo permitido é de " + INTERVALO_MAXIMO_DIAS + " dias."
             );
         }

@@ -14,7 +14,7 @@ function tarefa(parcial: Partial<TarefaResponse> & { id: string; prazo: string }
     descricao: '',
     prioridade: 'MEDIA',
     status: 'PENDENTE',
-    duracaoHoras: 1,
+    duracaoMinutos: 60,
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-01T00:00:00Z',
     deletedAt: null,

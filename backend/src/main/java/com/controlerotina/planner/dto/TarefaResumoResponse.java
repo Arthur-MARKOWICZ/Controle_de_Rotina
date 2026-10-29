@@ -12,7 +12,7 @@ public record TarefaResumoResponse(
         String titulo,
         Prioridade prioridade,
         StatusTarefa status,
-        int duracaoHoras,
+        int duracaoMinutos,
         Instant prazo
 ) {
     public static TarefaResumoResponse from(Tarefa tarefa) {
@@ -21,7 +21,7 @@ public record TarefaResumoResponse(
                 tarefa.getTitulo(),
                 tarefa.getPrioridade(),
                 tarefa.getStatus(),
-                tarefa.getDuracaoHoras(),
+                tarefa.getDuracaoMinutos(),
                 tarefa.getPrazo()
         );
     }

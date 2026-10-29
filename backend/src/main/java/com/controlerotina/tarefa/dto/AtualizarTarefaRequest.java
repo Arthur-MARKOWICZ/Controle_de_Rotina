@@ -4,8 +4,8 @@ import java.time.Instant;
 
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
+import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 public record AtualizarTarefaRequest(
@@ -21,8 +21,8 @@ public record AtualizarTarefaRequest(
 
         StatusTarefa status,
 
-        @Min(1)
-        Integer duracaoHoras
+        @DuracaoMinutosValida
+        Integer duracaoMinutos
 ) {
     public AtualizarTarefaRequest {
         if (titulo != null) {

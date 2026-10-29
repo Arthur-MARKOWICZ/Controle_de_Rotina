@@ -1,4 +1,4 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export type CapacidadeOverrideResponse = {
@@ -25,18 +25,6 @@ export type CriarCapacidadeOverrideItem = {
 export type AtualizarCapacidadeOverrideRequest = {
   data?: string
   horas?: number
-}
-
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = await readApiJson<{ detail?: string; title?: string }>(response)
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return error
-    }
-    return new ApiError(response.status, fallback)
-  }
 }
 
 export function buildCapacidadesOverrideQuery(
@@ -66,7 +54,7 @@ export async function listarCapacidadesOverride(
 ): Promise<CapacidadeOverrideResponse[]> {
   const response = await apiFetch(buildCapacidadesOverrideQuery(filtro))
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar os overrides.')
+    throw await lerErroApi(response, 'Não foi possível carregar os overrides.')
   }
   return readApiJson<CapacidadeOverrideResponse[]>(response)
 }
@@ -80,7 +68,7 @@ export async function criarCapacidadeOverride(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível criar o override.')
+    throw await lerErroApi(response, 'Não foi possível criar o override.')
   }
   return readApiJson<CapacidadeOverrideResponse[]>(response)
 }
@@ -95,7 +83,7 @@ export async function atualizarCapacidadeOverride(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível atualizar o override.')
+    throw await lerErroApi(response, 'Não foi possível atualizar o override.')
   }
   return readApiJson<CapacidadeOverrideResponse>(response)
 }
@@ -103,7 +91,7 @@ export async function atualizarCapacidadeOverride(
 export async function excluirCapacidadeOverride(id: string): Promise<void> {
   const response = await apiFetch(`/capacidades/overrides/${id}`, { method: 'DELETE' })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível excluir o override.')
+    throw await lerErroApi(response, 'Não foi possível excluir o override.')
   }
 }
 
@@ -114,7 +102,7 @@ export async function restaurarCapacidadeOverride(
     method: 'POST',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível restaurar o override.')
+    throw await lerErroApi(response, 'Não foi possível restaurar o override.')
   }
   return readApiJson<CapacidadeOverrideResponse>(response)
 }

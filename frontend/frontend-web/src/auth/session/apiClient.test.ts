@@ -61,4 +61,31 @@ describe('apiFetch', () => {
     expect(response.status).toBe(401)
     expect(getAccessToken()).toBeNull()
   })
+
+  it('f1_reusoDeRefreshFalhaCom401GenericoELimpaSessaoSemMensagemDeReuso', async () => {
+    setAccessToken('access-expirado')
+    const detalheRefresh = JSON.stringify({
+      title: 'Não autorizado',
+      detail: 'Credenciais inválidas.',
+      status: 401,
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(detalheRefresh, {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await apiFetch('/protegido')
+
+    expect(response.status).toBe(401)
+    expect(getAccessToken()).toBeNull()
+    expect(fetchMock.mock.calls[1][0]).toBe('/auth/refresh')
+    expect(detalheRefresh.toLowerCase()).not.toContain('reutiliz')
+    expect(detalheRefresh).toContain('Credenciais inválidas.')
+  })
 })

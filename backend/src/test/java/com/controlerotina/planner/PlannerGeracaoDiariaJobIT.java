@@ -196,7 +196,7 @@ class PlannerGeracaoDiariaJobIT {
                 Prioridade.MEDIA,
                 prazo,
                 StatusTarefa.PENDENTE,
-                1,
+                60,
                 AGORA,
                 AGORA
         ));

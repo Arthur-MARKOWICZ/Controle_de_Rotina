@@ -1,4 +1,4 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export type DiaSemana =
@@ -34,18 +34,6 @@ export type AtualizarCapacidadeSemanalRequest = {
   horas?: number
 }
 
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = await readApiJson<{ detail?: string; title?: string }>(response)
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return error
-    }
-    return new ApiError(response.status, fallback)
-  }
-}
-
 export function buildCapacidadesSemanaisQuery(
   filtro: ListarCapacidadesSemanaisParams = {},
 ): string {
@@ -67,7 +55,7 @@ export async function listarCapacidadesSemanais(
 ): Promise<CapacidadeSemanalResponse[]> {
   const response = await apiFetch(buildCapacidadesSemanaisQuery(filtro))
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar as capacidades.')
+    throw await lerErroApi(response, 'Não foi possível carregar as capacidades.')
   }
   return readApiJson<CapacidadeSemanalResponse[]>(response)
 }
@@ -81,7 +69,7 @@ export async function criarCapacidadeSemanal(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível criar a capacidade.')
+    throw await lerErroApi(response, 'Não foi possível criar a capacidade.')
   }
   return readApiJson<CapacidadeSemanalResponse[]>(response)
 }
@@ -96,7 +84,7 @@ export async function atualizarCapacidadeSemanal(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível atualizar a capacidade.')
+    throw await lerErroApi(response, 'Não foi possível atualizar a capacidade.')
   }
   return readApiJson<CapacidadeSemanalResponse>(response)
 }
@@ -104,7 +92,7 @@ export async function atualizarCapacidadeSemanal(
 export async function excluirCapacidadeSemanal(id: string): Promise<void> {
   const response = await apiFetch(`/capacidades/semanal/${id}`, { method: 'DELETE' })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível excluir a capacidade.')
+    throw await lerErroApi(response, 'Não foi possível excluir a capacidade.')
   }
 }
 
@@ -115,7 +103,7 @@ export async function restaurarCapacidadeSemanal(
     method: 'POST',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível restaurar a capacidade.')
+    throw await lerErroApi(response, 'Não foi possível restaurar a capacidade.')
   }
   return readApiJson<CapacidadeSemanalResponse>(response)
 }

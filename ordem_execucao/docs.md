@@ -96,15 +96,62 @@ layout → design-system → estados
 
 ---
 
-## Próximo passo agora
+## Pós-MVP — endurecimento (issues [#14](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/14)–[#19](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/19))
 
-Fila de domínio MVP: histórico e XP (ledger + enrich HTTP/UI) feitos.
+Contrato de erro, segurança de sessão, concorrência, testes de núcleo e jobs resilientes. Rodar **antes** do épico de regras do planner (#20).
 
-Fila UI/UX do MVP (**#2–#13**): **concluída**.
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 20 | [`api-problem-detail.md`](../plans/negocio/api-problem-detail.md) | [#14](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/14) | feito | MVP domínio | Base de 409/validação para o resto |
+| 21 | [`seguranca-jwt-cookie.md`](../plans/negocio/seguranca-jwt-cookie.md) | [#15](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/15) | feito | usuario | Segredo/cookie/`iss`/`aud` |
+| 22 | [`seguranca-refresh-token.md`](../plans/negocio/seguranca-refresh-token.md) | [#16](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/16) | feito | #15 | Reuso de refresh + limpeza |
+| 23 | [`concorrencia-escritas.md`](../plans/negocio/concorrencia-escritas.md) | [#17](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/17) | feito | #14 | Corridas cadastro/plano/execução/XP |
+| 24 | [`testes-nucleo-unitario.md`](../plans/negocio/testes-nucleo-unitario.md) | [#18](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/18) | feito | xp, jwt (#15 ideal) | Unitários sem Testcontainers |
+| 25 | [`job-geracao-atraso.md`](../plans/negocio/job-geracao-atraso.md) | [#19](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/19) | feito | planner, #17 ideal | Jobs paginados + lock + fuso |
+
+```text
+problem-detail → jwt-cookie → refresh-token
+              ↘ concorrencia → testes-nucleo
+                            ↘ job-geracao-atraso
+```
 
 ---
 
-## Fora desta fila (MVP)
+## Pós-MVP — regras do planner (épico [#20](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/20))
+
+Índice do épico (não executável sozinho): [`planner-regras-epico.md`](../plans/negocio/planner-regras-epico.md).  
+Ordem = subtarefas #21–#28 (igual à issue pai).
+
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 26 | [`planner-saldo-restante.md`](../plans/negocio/planner-saldo-restante.md) | [#21](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/21) | feito | planner, execução | Senão o horizonte multiplica trabalho já feito |
+| 27 | [`planner-janela-multidia.md`](../plans/negocio/planner-janela-multidia.md) | [#22](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/22) | feito | #21, capacidade | Distribuição pelos dias |
+| 28 | [`planner-conflito-prazo.md`](../plans/negocio/planner-conflito-prazo.md) | [#23](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/23) | feito | #22 | Aviso “não cabe até o prazo” |
+| 29 | [`tarefa-duracao-minutos.md`](../plans/negocio/tarefa-duracao-minutos.md) | [#24](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/24) | feito | tarefa, #22 ideal | Minutos + teto/piso de bloco |
+| 30 | [`tarefa-atraso-automatico.md`](../plans/negocio/tarefa-atraso-automatico.md) | [#25](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/25) | feito | tarefa, #19 ideal | Status ATRASADA no job diário |
+| 31 | [`planner-replanejamento.md`](../plans/negocio/planner-replanejamento.md) | [#26](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/26) | feito | #22, execução | Proposta com aceite do usuário |
+| 32 | [`tarefa-sem-prazo.md`](../plans/negocio/tarefa-sem-prazo.md) | [#27](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/27) | feito | tarefa, #22 | Prazo opcional + score/alocação |
+| 33 | [`xp-tempo-efetivo.md`](../plans/negocio/xp-tempo-efetivo.md) | [#28](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/28) | feito | xp, execução | XP sem premiar estimativa inflada |
+
+```text
+saldo → janela-multidia → conflito-prazo → duracao-minutos
+                      ↘ atraso-automatico
+                      ↘ replanejamento
+                      ↘ tarefa-sem-prazo → xp-tempo-efetivo
+```
+
+---
+
+## Próximo passo agora
+
+Fila MVP (domínio + UI #2–#13): **concluída**.  
+Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
+
+Não há próximo slice de negócio nesta fila. Novos planos ficam fora da ordem atual (ver “Fora desta fila”) ou em épico futuro.
+
+---
+
+## Fora desta fila
 
 Não abrir plano só por estes itens, a menos que o núcleo de planejamento já esteja sólido:
 

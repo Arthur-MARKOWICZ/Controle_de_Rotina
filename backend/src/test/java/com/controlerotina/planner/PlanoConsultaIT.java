@@ -134,8 +134,8 @@ class PlanoConsultaIT {
     @Test
     void deveRetornarVersaoCorrenteComBlocosOrdenadosEDadosMinimosDaTarefa() {
         salvarOverride(3);
-        Tarefa baixa = salvarTarefa("Baixa", Prioridade.BAIXA, 1, AGORA);
-        Tarefa alta = salvarTarefa("Alta", Prioridade.ALTA, 1, AGORA.plusSeconds(5));
+        Tarefa baixa = salvarTarefa("Baixa", Prioridade.BAIXA, 60, AGORA);
+        Tarefa alta = salvarTarefa("Alta", Prioridade.ALTA, 60, AGORA.plusSeconds(5));
         plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -164,7 +164,7 @@ class PlanoConsultaIT {
         assertThat(tarefa0.get("titulo")).isEqualTo("Alta");
         assertThat(tarefa0.get("prioridade")).isEqualTo("ALTA");
         assertThat(tarefa0.get("status")).isEqualTo("PENDENTE");
-        assertThat(tarefa0.get("duracaoHoras")).isEqualTo(1);
+        assertThat(tarefa0.get("duracaoMinutos")).isEqualTo(60);
         assertThat(tarefa0.get("prazo")).isNotNull();
 
         @SuppressWarnings("unchecked")
@@ -176,7 +176,7 @@ class PlanoConsultaIT {
     @Test
     void deveRetornarVersaoEspecificaQuandoInformada() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano v1 = plannerGeracaoService.gerar(usuarioId, DIA_D);
         Plano v2 = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
@@ -202,7 +202,7 @@ class PlanoConsultaIT {
     @Test
     void deveRetornar404ParaVersaoInexistenteOuPlanoDeOutroUsuario() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> versaoInexistente = restTemplate.exchange(
@@ -245,7 +245,7 @@ class PlanoConsultaIT {
     @Test
     void deveRetornarPlanoPorIdComBlocosParaODono() {
         salvarOverride(2);
-        Tarefa tarefa = salvarTarefa("Por id", Prioridade.MEDIA, 1, AGORA);
+        Tarefa tarefa = salvarTarefa("Por id", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -276,7 +276,7 @@ class PlanoConsultaIT {
     @Test
     void deveRetornar404AoBuscarPorIdInexistenteOuDeOutroUsuario() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> inexistente = restTemplate.exchange(
@@ -319,7 +319,7 @@ class PlanoConsultaIT {
         ));
     }
 
-    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoHoras, Instant createdAt) {
+    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoMinutos, Instant createdAt) {
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
                 .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
@@ -331,7 +331,7 @@ class PlanoConsultaIT {
                 prioridade,
                 prazo,
                 StatusTarefa.PENDENTE,
-                duracaoHoras,
+                duracaoMinutos,
                 createdAt,
                 createdAt
         ));

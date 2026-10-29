@@ -94,7 +94,7 @@ export function PerfilPage() {
       if (error instanceof ApiError && error.status === 401) {
         setErro('Senha atual incorreta.')
       } else if (error instanceof ApiError && error.status === 409) {
-        setErro('Este email já está cadastrado.')
+        setErro(error.message || 'Este email já está cadastrado.')
       } else {
         setErro('Não foi possível atualizar o perfil. Tente novamente.')
       }

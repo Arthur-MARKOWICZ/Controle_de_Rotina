@@ -3,12 +3,13 @@ package com.controlerotina.config;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,12 +20,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.controlerotina.auth.jwt.JwtAuthenticationFilter;
 
+import tools.jackson.databind.json.JsonMapper;
+
 @Configuration
 @EnableConfigurationProperties(SecurityProperties.class)
 public class SecurityConfig {
 
-    private static final byte[] UNAUTHORIZED_JSON =
-            "{\"detail\":\"Não autenticado.\"}".getBytes(StandardCharsets.UTF_8);
+    private static final JsonMapper PROBLEM_JSON = JsonMapper.builder().build();
 
     @Bean
     Clock clock() {
@@ -56,10 +58,13 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
+                            ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+                            problem.setTitle("Não autorizado");
+                            problem.setDetail("Não autenticado.");
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.getOutputStream().write(UNAUTHORIZED_JSON);
+                            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                            PROBLEM_JSON.writeValue(response.getOutputStream(), problem);
                         })
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

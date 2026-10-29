@@ -30,15 +30,15 @@ public class Tarefa {
     @Column(nullable = false, length = 20)
     private Prioridade prioridade;
 
-    @Column(nullable = false)
+    @Column
     private Instant prazo;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StatusTarefa status;
 
-    @Column(name = "duracao_horas", nullable = false)
-    private int duracaoHoras;
+    @Column(name = "duracao_minutos", nullable = false)
+    private int duracaoMinutos;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -60,7 +60,7 @@ public class Tarefa {
             Prioridade prioridade,
             Instant prazo,
             StatusTarefa status,
-            int duracaoHoras,
+            int duracaoMinutos,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -71,7 +71,7 @@ public class Tarefa {
         this.prioridade = prioridade;
         this.prazo = prazo;
         this.status = status;
-        this.duracaoHoras = duracaoHoras;
+        this.duracaoMinutos = duracaoMinutos;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -104,8 +104,8 @@ public class Tarefa {
         return status;
     }
 
-    public int getDuracaoHoras() {
-        return duracaoHoras;
+    public int getDuracaoMinutos() {
+        return duracaoMinutos;
     }
 
     public Instant getCreatedAt() {
@@ -126,7 +126,7 @@ public class Tarefa {
             Prioridade prioridade,
             Instant prazo,
             StatusTarefa status,
-            Integer duracaoHoras,
+            Integer duracaoMinutos,
             Instant updatedAt
     ) {
         if (titulo != null) {
@@ -144,8 +144,8 @@ public class Tarefa {
         if (status != null) {
             this.status = status;
         }
-        if (duracaoHoras != null) {
-            this.duracaoHoras = duracaoHoras;
+        if (duracaoMinutos != null) {
+            this.duracaoMinutos = duracaoMinutos;
         }
         this.updatedAt = updatedAt;
     }

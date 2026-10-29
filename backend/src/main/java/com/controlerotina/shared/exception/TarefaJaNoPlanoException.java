@@ -7,10 +7,14 @@ import org.springframework.web.ErrorResponseException;
 
 public class TarefaJaNoPlanoException extends ErrorResponseException {
 
-    public TarefaJaNoPlanoException(UUID tarefaId) {
+    public TarefaJaNoPlanoException() {
         super(HttpStatus.CONFLICT);
         getBody().setTitle("Tarefa já no plano");
         getBody().setDetail("A tarefa já possui um bloco nesta versão do plano.");
+    }
+
+    public TarefaJaNoPlanoException(UUID tarefaId) {
+        this();
         getBody().setProperty("tarefaId", tarefaId.toString());
     }
 }

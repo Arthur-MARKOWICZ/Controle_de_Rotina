@@ -94,7 +94,7 @@ class ExecucaoPersistenciaIT {
                 Prioridade.MEDIA,
                 agora,
                 StatusTarefa.PENDENTE,
-                1,
+                60,
                 agora,
                 agora
         ));
@@ -107,6 +107,7 @@ class ExecucaoPersistenciaIT {
                 1,
                 StatusPlano.APROVADO,
                 false,
+                null,
                 null,
                 agora,
                 agora,

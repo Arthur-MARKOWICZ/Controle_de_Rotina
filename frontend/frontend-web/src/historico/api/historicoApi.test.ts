@@ -8,10 +8,14 @@ import {
   consultarHistoricoSemana,
 } from './historicoApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-  readApiJson: vi.fn(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+    readApiJson: vi.fn(),
+  }
+})
 
 describe('historicoApi', () => {
   beforeEach(() => {

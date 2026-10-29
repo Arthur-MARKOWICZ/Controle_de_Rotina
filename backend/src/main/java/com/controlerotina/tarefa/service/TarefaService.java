@@ -2,19 +2,19 @@ package com.controlerotina.tarefa.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.controlerotina.historico.PeriodoBRT;
+import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.shared.exception.AtrasadaComPrazoFuturoException;
+import com.controlerotina.shared.exception.CampoTextoTarefaInvalidoException;
 import com.controlerotina.shared.exception.PrazoNoPassadoException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
@@ -30,17 +30,23 @@ import com.controlerotina.tarefa.repository.TarefaSpecs;
 public class TarefaService {
 
     private final TarefaRepository tarefaRepository;
+    private final PropostaGeracaoService propostaGeracaoService;
     private final Clock clock;
 
-    public TarefaService(TarefaRepository tarefaRepository, Clock clock) {
+    public TarefaService(
+            TarefaRepository tarefaRepository,
+            PropostaGeracaoService propostaGeracaoService,
+            Clock clock
+    ) {
         this.tarefaRepository = tarefaRepository;
+        this.propostaGeracaoService = propostaGeracaoService;
         this.clock = clock;
     }
 
     @Transactional
     public TarefaResponse criar(UUID usuarioId, CriarTarefaRequest request) {
         Instant agora = clock.instant();
-        if (request.prazo().isBefore(agora)) {
+        if (request.prazo() != null && request.prazo().isBefore(agora)) {
             throw new PrazoNoPassadoException();
         }
 
@@ -52,12 +58,15 @@ public class TarefaService {
                 request.prioridade(),
                 request.prazo(),
                 StatusTarefa.PENDENTE,
-                request.duracaoHoras(),
+                request.duracaoMinutos(),
                 agora,
                 agora
         );
 
-        return TarefaResponse.from(tarefaRepository.save(tarefa));
+        Tarefa salva = tarefaRepository.save(tarefa);
+        tarefaRepository.flush();
+        propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
+        return TarefaResponse.from(salva);
     }
 
     @Transactional(readOnly = true)
@@ -95,12 +104,15 @@ public class TarefaService {
             throw new PrazoNoPassadoException();
         }
 
-        boolean prazoMovidoParaFuturo = request.prazo() != null && !prazoFinal.isBefore(agora);
+        boolean prazoMovidoParaFuturo = request.prazo() != null
+                && prazoFinal != null
+                && !prazoFinal.isBefore(agora);
         if (prazoMovidoParaFuturo && request.status() == null && statusFinal == StatusTarefa.ATRASADA) {
             statusFinal = StatusTarefa.PENDENTE;
         }
 
-        if (statusFinal == StatusTarefa.ATRASADA && !prazoFinal.isBefore(agora)) {
+        if (statusFinal == StatusTarefa.ATRASADA
+                && (prazoFinal == null || !prazoFinal.isBefore(agora))) {
             throw new AtrasadaComPrazoFuturoException();
         }
 
@@ -114,7 +126,7 @@ public class TarefaService {
                 request.prioridade(),
                 request.prazo(),
                 statusParaGravar,
-                request.duracaoHoras(),
+                request.duracaoMinutos(),
                 agora
         );
 
@@ -148,18 +160,21 @@ public class TarefaService {
         return TarefaResponse.from(tarefa);
     }
 
-    @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES, initialDelay = 30)
     @Transactional
     public void processarAtrasos() {
         Instant agora = clock.instant();
+        LocalDate hoje = LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
+        Instant inicioDoDia = PeriodoBRT.intervaloDia(hoje).inicioInclusivo();
         tarefaRepository.atualizarStatusQuandoPrazoPassou(
                 StatusTarefa.PENDENTE,
                 StatusTarefa.ATRASADA,
+                inicioDoDia,
                 agora
         );
-        tarefaRepository.atualizarStatusQuandoPrazoNaoPassou(
+        tarefaRepository.atualizarStatusQuandoPrazoPassou(
+                StatusTarefa.EM_PROGRESSO,
                 StatusTarefa.ATRASADA,
-                StatusTarefa.PENDENTE,
+                inicioDoDia,
                 agora
         );
     }
@@ -171,10 +186,10 @@ public class TarefaService {
 
     private static void validarCamposTexto(AtualizarTarefaRequest request) {
         if (request.titulo() != null && request.titulo().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Título não pode ser vazio.");
+            throw new CampoTextoTarefaInvalidoException("Título não pode ser vazio.");
         }
         if (request.descricao() != null && request.descricao().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Descrição não pode ser vazia.");
+            throw new CampoTextoTarefaInvalidoException("Descrição não pode ser vazia.");
         }
     }
 }
