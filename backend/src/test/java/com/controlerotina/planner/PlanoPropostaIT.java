@@ -206,6 +206,78 @@ class PlanoPropostaIT {
     }
 
     @Test
+    void t4AprovarRascunhoDePropostaPreservaConcluidosEDefineVigenteUnico() {
+        // BE-010 / Opção B: /aprovar em rascunho de proposta deve equivaler ao aceite
+        // (preservar concluídos + um APROVADO vigente). Vermelho até BE-001.
+        capacidadeOverrideRepository.save(new CapacidadeOverride(
+                UUID.randomUUID(), usuarioId, DIA_D, 4, true, AGORA, AGORA));
+        Tarefa t1 = salvarTarefa("Concluida", Prioridade.ALTA, 60, AGORA);
+        Tarefa t2 = salvarTarefa("Pendente", Prioridade.MEDIA, 60, AGORA);
+        Plano aprovado = plannerGeracaoService.gerar(usuarioId, DIA_D);
+        assertThat(restTemplate.exchange(
+                "/planos/" + aprovado.getId() + "/aprovar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        List<BlocoPlano> blocosAprovados = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(aprovado.getId());
+        BlocoPlano blocoConcluido = blocosAprovados.stream()
+                .filter(b -> b.getTarefaId().equals(t1.getId()))
+                .findFirst()
+                .orElseThrow();
+        execucaoRepository.save(new Execucao(
+                UUID.randomUUID(),
+                usuarioId,
+                blocoConcluido.getId(),
+                StatusExecucao.CONCLUIDO,
+                AGORA,
+                AGORA,
+                null,
+                AGORA,
+                AGORA
+        ));
+
+        Plano rascunhoProposta = plannerGeracaoService.gerarProposta(usuarioId, DIA_D);
+        assertThat(rascunhoProposta.getPropostaId()).isNotNull();
+        assertThat(rascunhoProposta.getStatus()).isEqualTo(StatusPlano.RASCUNHO);
+
+        ResponseEntity<Map> aprovar = restTemplate.exchange(
+                "/planos/" + rascunhoProposta.getId() + "/aprovar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+        assertThat(aprovar.getStatusCode()).isEqualTo(OK);
+        assertThat(aprovar.getBody().get("status")).isEqualTo("APROVADO");
+        assertThat(aprovar.getBody().get("propostaPendente")).isEqualTo(false);
+
+        UUID novoPlanoId = UUID.fromString(aprovar.getBody().get("id").toString());
+        assertThat(novoPlanoId).isEqualTo(rascunhoProposta.getId());
+
+        Plano vigente = planoRepository
+                .findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+                        usuarioId, DIA_D, StatusPlano.APROVADO)
+                .orElseThrow();
+        assertThat(vigente.getId()).isEqualTo(novoPlanoId);
+        assertThat(vigente.getVersao()).isGreaterThan(aprovado.getVersao());
+
+        List<BlocoPlano> blocosNovos = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(novoPlanoId);
+        assertThat(blocosNovos).anyMatch(b -> b.getTarefaId().equals(t1.getId()));
+        assertThat(blocosNovos).anyMatch(b -> b.getTarefaId().equals(t2.getId()));
+
+        BlocoPlano blocoT1Novo = blocosNovos.stream()
+                .filter(b -> b.getTarefaId().equals(t1.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(blocoT1Novo.getId()).isNotEqualTo(blocoConcluido.getId());
+        assertThat(execucaoRepository.findByBlocoPlanoId(blocoT1Novo.getId()))
+                .isPresent()
+                .get()
+                .extracting(Execucao::getStatus)
+                .isEqualTo(StatusExecucao.CONCLUIDO);
+        assertThat(execucaoRepository.findByBlocoPlanoId(blocoConcluido.getId())).isEmpty();
+    }
+
+    @Test
     void t3DescartarDeixaVigenteIgual() {
         CapacidadeOverride override = capacidadeOverrideRepository.save(new CapacidadeOverride(
                 UUID.randomUUID(), usuarioId, DIA_D, 4, true, AGORA, AGORA));
