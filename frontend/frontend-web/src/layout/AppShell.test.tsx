@@ -39,6 +39,7 @@ function renderShell(path: string) {
             }
           />
           <Route path="/tarefas" element={<p>página tarefas</p>} />
+          <Route path="/calendario" element={<p>página calendário</p>} />
           <Route path="/capacidade" element={<p>página capacidade</p>} />
           <Route path="/historico" element={<p>página histórico</p>} />
           <Route path="/perfil" element={<p>página perfil</p>} />
@@ -63,11 +64,12 @@ describe('AppShell', () => {
     document.title = ''
   })
 
-  it('renderiza links Hoje, Tarefas, Capacidade e Histórico', () => {
+  it('renderiza links Hoje, Tarefas, Calendário, Capacidade e Histórico', () => {
     renderShell('/')
 
     expect(screen.getAllByRole('link', { name: 'Hoje' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Tarefas' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Calendário' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Capacidade' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Histórico' }).length).toBeGreaterThan(0)
     expect(screen.getByText('página hoje')).toBeInTheDocument()

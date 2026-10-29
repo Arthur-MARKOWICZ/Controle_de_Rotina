@@ -41,6 +41,13 @@ public interface PlanoRepository extends JpaRepository<Plano, UUID> {
 
     boolean existsByUsuarioIdAndDataAndStatus(UUID usuarioId, LocalDate data, StatusPlano status);
 
+    List<Plano> findByUsuarioIdAndStatusAndDataBetweenOrderByDataAscVersaoDesc(
+            UUID usuarioId,
+            StatusPlano status,
+            LocalDate dataDe,
+            LocalDate dataAte
+    );
+
     @Query("""
             SELECT COALESCE(MAX(p.versao), 0)
               FROM Plano p

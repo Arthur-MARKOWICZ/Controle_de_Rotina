@@ -23,11 +23,28 @@ const backendProxy = {
   changeOrigin: true,
 }
 
+/**
+ * SPA e API compartilham /calendario.
+ * Navegação do browser (Accept: text/html) → index.html;
+ * fetch da API (Accept: application/json) → proxy no backend.
+ */
+const calendarioProxy = {
+  ...backendProxy,
+  bypass(req: { headers: { accept?: string } }) {
+    if (req.headers.accept?.includes('text/html')) {
+      return '/index.html'
+    }
+  },
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: Object.fromEntries(API_PROXY_PREFIXES.map((path) => [path, backendProxy])),
+    proxy: {
+      ...Object.fromEntries(API_PROXY_PREFIXES.map((path) => [path, backendProxy])),
+      '/calendario': calendarioProxy,
+    },
   },
   test: {
     environment: 'jsdom',

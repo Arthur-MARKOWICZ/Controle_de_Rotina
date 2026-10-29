@@ -5,6 +5,7 @@ import { CadastroPage } from './auth/pages/CadastroPage'
 import { LoginPage } from './auth/pages/LoginPage'
 import { PerfilPage } from './auth/pages/PerfilPage'
 import { AuthProvider } from './auth/session/AuthContext'
+import { CalendarioPage } from './calendario/pages/CalendarioPage'
 import { CapacidadePage } from './capacidade/pages/CapacidadePage'
 import { HistoricoPage } from './historico/pages/HistoricoPage'
 import { AppShell } from './layout/AppShell'
@@ -35,6 +36,7 @@ export default function App() {
               <Route path="/tarefas" element={<TarefasPage />} />
               <Route path="/tarefas/nova" element={<TarefaFormPage />} />
               <Route path="/tarefas/:id" element={<TarefaFormPage />} />
+              <Route path="/calendario" element={<CalendarioPage />} />
               <Route path="/capacidade" element={<CapacidadePage />} />
               <Route path="/historico" element={<HistoricoPage />} />
             </Route>

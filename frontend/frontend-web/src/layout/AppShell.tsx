@@ -12,6 +12,7 @@ import { useAtalhosTeclado } from './useAtalhosTeclado'
 const NAV_PRINCIPAL: { to: string; label: string; end?: boolean }[] = [
   { to: '/', label: 'Hoje', end: true },
   { to: '/tarefas', label: 'Tarefas' },
+  { to: '/calendario', label: 'Calendário' },
   { to: '/capacidade', label: 'Capacidade' },
   { to: '/historico', label: 'Histórico' },
 ]

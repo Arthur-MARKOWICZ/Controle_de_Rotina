@@ -142,12 +142,26 @@ saldo → janela-multidia → conflito-prazo → duracao-minutos
 
 ---
 
+## Pós-MVP — calendário (issue [#38](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/38))
+
+Leitura agregada do horizonte multi-dia (semana + mês), só plano aprovado + lente de prazos.
+
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 34 | [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) | [#38](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/38) | pendente | planner (+ janela), capacidade, tarefa, shell/nav | Auditar onde caíram blocos e quando vencem prazos |
+
+```text
+núcleo MVP + regras planner → calendario (#38)
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
 
-Não há próximo slice de negócio nesta fila. Novos planos ficam fora da ordem atual (ver “Fora desta fila”) ou em épico futuro.
+**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38).
 
 ---
 
@@ -155,7 +169,7 @@ Não há próximo slice de negócio nesta fila. Novos planos ficam fora da ordem
 
 Não abrir plano só por estes itens, a menos que o núcleo de planejamento já esteja sólido:
 
-- calendário completo, notificações avançadas, IA no planner;
+- sync de calendário externo (Google/Outlook), notificações avançadas, IA no planner;
 - recuperação de senha / confirmação de e-mail;
 - equipes, rede social, hábitos complexos, RPG completo.
 
