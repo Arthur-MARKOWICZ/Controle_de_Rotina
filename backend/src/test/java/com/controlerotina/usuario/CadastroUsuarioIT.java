@@ -5,8 +5,14 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -86,6 +93,43 @@ class CadastroUsuarioIT {
         ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(segundo), Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+    }
+
+    @Test
+    void t1_doisCadastrosSimultaneosMesmoEmail_um201Outro409() throws Exception {
+        String email = "corrida-cadastro-" + UUID.randomUUID() + "@email.com";
+        var body = Map.of(
+                "nome", "Corrida",
+                "email", email,
+                "senha", "Senha@123"
+        );
+
+        CountDownLatch liberar = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<ResponseEntity<Map>> f1 = pool.submit(() -> {
+                liberar.await();
+                return restTemplate.postForEntity("/usuarios", json(body), Map.class);
+            });
+            Future<ResponseEntity<Map>> f2 = pool.submit(() -> {
+                liberar.await();
+                return restTemplate.postForEntity("/usuarios", json(body), Map.class);
+            });
+
+            liberar.countDown();
+            ResponseEntity<Map> r1 = f1.get(30, TimeUnit.SECONDS);
+            ResponseEntity<Map> r2 = f2.get(30, TimeUnit.SECONDS);
+
+            List<HttpStatusCode> statuses = List.of(r1.getStatusCode(), r2.getStatusCode());
+            assertThat(statuses).containsExactlyInAnyOrder(CREATED, CONFLICT);
+            assertThat(jdbcTemplate.queryForObject(
+                    "select count(*) from usuario where email = ?",
+                    Integer.class,
+                    email
+            )).isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

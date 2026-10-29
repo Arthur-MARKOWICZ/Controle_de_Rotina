@@ -10,6 +10,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +34,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import com.controlerotina.tarefa.service.TarefaService;
+import com.controlerotina.historico.PeriodoBRT;
+import com.controlerotina.tarefa.job.TarefaAtrasoJob;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
@@ -53,7 +55,7 @@ class TarefaIT {
     JdbcTemplate jdbcTemplate;
 
     @Autowired
-    TarefaService tarefaService;
+    TarefaAtrasoJob tarefaAtrasoJob;
 
     private String accessToken;
     private UUID usuarioId;
@@ -89,6 +91,39 @@ class TarefaIT {
     }
 
     @Test
+    void t1_deveCriarTarefaSemPrazoCom201() {
+        Map<String, Object> body = tarefaValida();
+        body.remove("prazo");
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("prazo")).isNull();
+        assertThat(response.getBody().get("status")).isEqualTo("PENDENTE");
+    }
+
+    @Test
+    void t3_jobNaoMarcaAtrasadaQuandoPrazoNulo() {
+        Map<String, Object> body = tarefaValida();
+        body.remove("prazo");
+        ResponseEntity<Map> criada = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+        UUID id = UUID.fromString(criada.getBody().get("id").toString());
+
+        tarefaAtrasoJob.processarAtrasos();
+
+        assertThat(statusDaTarefa(id)).isEqualTo("PENDENTE");
+    }
+
+    @Test
     void deveCriarTarefaComStatusPendenteERetornar201() {
         Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
 
@@ -105,7 +140,7 @@ class TarefaIT {
         assertThat(response.getBody().get("descricao")).isEqualTo("Revisar JPA e testes");
         assertThat(response.getBody().get("prioridade")).isEqualTo("ALTA");
         assertThat(response.getBody().get("status")).isEqualTo("PENDENTE");
-        assertThat(response.getBody().get("duracaoHoras")).isEqualTo(3);
+        assertThat(response.getBody().get("duracaoMinutos")).isEqualTo(180);
         assertThat(response.getBody().get("deletada")).isEqualTo(false);
         assertThat(response.getBody().get("deletedAt")).isNull();
         assertThat(response.getBody().get("createdAt")).isNotNull();
@@ -133,9 +168,38 @@ class TarefaIT {
     }
 
     @Test
-    void deveRejeitarDuracaoMenorQueUmCom400() {
+    void t1_deveAceitarDuracao90Minutos() {
         Map<String, Object> body = tarefaValida();
-        body.put("duracaoHoras", 0);
+        body.put("duracaoMinutos", 90);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        assertThat(response.getBody().get("duracaoMinutos")).isEqualTo(90);
+    }
+
+    @Test
+    void t1_deveRejeitarDuracao10MinutosCom400() {
+        Map<String, Object> body = tarefaValida();
+        body.put("duracaoMinutos", 10);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
+    void deveRejeitarDuracaoInvalidaCom400() {
+        Map<String, Object> body = tarefaValida();
+        body.put("duracaoMinutos", 0);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas",
@@ -191,7 +255,7 @@ class TarefaIT {
     }
 
     @Test
-    void t2_deveRejeitarPostSemTituloOuSemPrazoCom400() {
+    void t2_deveRejeitarPostSemTituloCom400() {
         Map<String, Object> semTitulo = tarefaValida();
         semTitulo.remove("titulo");
 
@@ -201,16 +265,6 @@ class TarefaIT {
                 autenticadoJson(semTitulo),
                 Map.class);
         assertThat(semTituloResp.getStatusCode()).isEqualTo(BAD_REQUEST);
-
-        Map<String, Object> semPrazo = tarefaValida();
-        semPrazo.remove("prazo");
-
-        ResponseEntity<Map> semPrazoResp = restTemplate.exchange(
-                "/tarefas",
-                HttpMethod.POST,
-                autenticadoJson(semPrazo),
-                Map.class);
-        assertThat(semPrazoResp.getStatusCode()).isEqualTo(BAD_REQUEST);
     }
 
     @Test
@@ -236,7 +290,7 @@ class TarefaIT {
 
     @Test
     void deveListarSomenteTarefasDoUsuarioAutenticado() {
-        criarTarefaAutenticada("Minha tarefa", Instant.now().plus(1, ChronoUnit.DAYS), "MEDIA", 2);
+        criarTarefaAutenticada("Minha tarefa", Instant.now().plus(1, ChronoUnit.DAYS), "MEDIA", 120);
 
         String outroEmail = "outro-" + UUID.randomUUID() + "@email.com";
         restTemplate.postForEntity(
@@ -254,7 +308,7 @@ class TarefaIT {
         restTemplate.exchange(
                 "/tarefas",
                 HttpMethod.POST,
-                new HttpEntity<>(tarefaValida("Tarefa alheia", Instant.now().plus(1, ChronoUnit.DAYS), "BAIXA", 1), headers),
+                new HttpEntity<>(tarefaValida("Tarefa alheia", Instant.now().plus(1, ChronoUnit.DAYS), "BAIXA", 60), headers),
                 Map.class);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -272,8 +326,8 @@ class TarefaIT {
     @Test
     void deveOrdenarPorPrazoAscPorPadrao() {
         Instant agora = Instant.now();
-        criarTarefaAutenticada("Depois", agora.plus(3, ChronoUnit.DAYS), "BAIXA", 1);
-        criarTarefaAutenticada("Antes", agora.plus(1, ChronoUnit.DAYS), "ALTA", 1);
+        criarTarefaAutenticada("Depois", agora.plus(3, ChronoUnit.DAYS), "BAIXA", 60);
+        criarTarefaAutenticada("Antes", agora.plus(1, ChronoUnit.DAYS), "ALTA", 60);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas",
@@ -288,8 +342,8 @@ class TarefaIT {
     @Test
     void deveOrdenarPorDuracaoDescQuandoSolicitado() {
         Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
-        criarTarefaAutenticada("Curta", prazo, "MEDIA", 1);
-        criarTarefaAutenticada("Longa", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 5);
+        criarTarefaAutenticada("Curta", prazo, "MEDIA", 60);
+        criarTarefaAutenticada("Longa", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 300);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas?sort=duracao,desc",
@@ -304,8 +358,8 @@ class TarefaIT {
     @Test
     void deveFiltrarPorStatusEPrioridadeMultiValor() {
         Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
-        UUID idAlta = criarTarefaAutenticada("Alta", prazo, "ALTA", 1);
-        criarTarefaAutenticada("Baixa", prazo.plus(1, ChronoUnit.HOURS), "BAIXA", 1);
+        UUID idAlta = criarTarefaAutenticada("Alta", prazo, "ALTA", 60);
+        criarTarefaAutenticada("Baixa", prazo.plus(1, ChronoUnit.HOURS), "BAIXA", 60);
         jdbcTemplate.update("update tarefa set status = 'EM_PROGRESSO' where id = ?", idAlta);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -322,8 +376,8 @@ class TarefaIT {
     @Test
     void deveFiltrarPorIntervaloDePrazo() {
         Instant base = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
-        criarTarefaAutenticada("Fora", base.plus(10, ChronoUnit.DAYS), "MEDIA", 1);
-        criarTarefaAutenticada("Dentro", base.plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        criarTarefaAutenticada("Fora", base.plus(10, ChronoUnit.DAYS), "MEDIA", 60);
+        criarTarefaAutenticada("Dentro", base.plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 
         String prazoDe = base.plus(1, ChronoUnit.DAYS).toString();
         String prazoAte = base.plus(3, ChronoUnit.DAYS).toString();
@@ -342,7 +396,7 @@ class TarefaIT {
     void devePaginarComSizeDefaultEMaximo() {
         Instant prazo = Instant.now().plus(1, ChronoUnit.DAYS);
         for (int i = 0; i < 21; i++) {
-            criarTarefaAutenticada("T" + i, prazo.plus(i, ChronoUnit.HOURS), "MEDIA", 1);
+            criarTarefaAutenticada("T" + i, prazo.plus(i, ChronoUnit.HOURS), "MEDIA", 60);
         }
 
         ResponseEntity<Map> page0 = restTemplate.exchange(
@@ -365,8 +419,8 @@ class TarefaIT {
     @Test
     void deveExcluirSoftDeletadasDaListagemPadraoEPermitirFiltros() {
         Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
-        UUID ativaId = criarTarefaAutenticada("Ativa", prazo, "MEDIA", 1);
-        UUID deletadaId = criarTarefaAutenticada("Deletada", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 1);
+        UUID ativaId = criarTarefaAutenticada("Ativa", prazo, "MEDIA", 60);
+        UUID deletadaId = criarTarefaAutenticada("Deletada", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 60);
         jdbcTemplate.update(
                 "update tarefa set deleted_at = ? where id = ?",
                 Timestamp.from(Instant.now()),
@@ -402,7 +456,7 @@ class TarefaIT {
 
     @Test
     void deveBuscarTarefaPorIdInclusiveSoftDeletada() {
-        UUID id = criarTarefaAutenticada("Detalhe", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 2);
+        UUID id = criarTarefaAutenticada("Detalhe", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 120);
 
         ResponseEntity<Map> ativa = restTemplate.exchange(
                 "/tarefas/" + id,
@@ -430,7 +484,7 @@ class TarefaIT {
 
     @Test
     void deveRetornar404AoBuscarTarefaDeOutroUsuarioOuInexistente() {
-        UUID id = criarTarefaAutenticada("Alheia", Instant.now().plus(1, ChronoUnit.DAYS), "BAIXA", 1);
+        UUID id = criarTarefaAutenticada("Alheia", Instant.now().plus(1, ChronoUnit.DAYS), "BAIXA", 60);
         String outroToken = tokenDeNovoUsuario();
 
         ResponseEntity<Map> alheia = restTemplate.exchange(
@@ -450,7 +504,7 @@ class TarefaIT {
 
     @Test
     void deveAtualizarParcialmenteComPatch() {
-        UUID id = criarTarefaAutenticada("Original", Instant.now().plus(3, ChronoUnit.DAYS), "BAIXA", 1);
+        UUID id = criarTarefaAutenticada("Original", Instant.now().plus(3, ChronoUnit.DAYS), "BAIXA", 60);
         Instant novoPrazo = Instant.now().plus(5, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -460,14 +514,14 @@ class TarefaIT {
                         "titulo", "Atualizada",
                         "status", "EM_PROGRESSO",
                         "prazo", novoPrazo.toString(),
-                        "duracaoHoras", 4
+                        "duracaoMinutos", 240
                 )),
                 Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(OK);
         assertThat(response.getBody().get("titulo")).isEqualTo("Atualizada");
         assertThat(response.getBody().get("status")).isEqualTo("EM_PROGRESSO");
-        assertThat(response.getBody().get("duracaoHoras")).isEqualTo(4);
+        assertThat(response.getBody().get("duracaoMinutos")).isEqualTo(240);
         assertThat(response.getBody().get("prioridade")).isEqualTo("BAIXA");
         assertThat(response.getBody().get("descricao")).isEqualTo("Revisar JPA e testes");
         assertThat(Instant.parse(response.getBody().get("prazo").toString())).isEqualTo(novoPrazo);
@@ -475,7 +529,7 @@ class TarefaIT {
 
     @Test
     void deveRejeitarPatchComPrazoNoPassado() {
-        UUID id = criarTarefaAutenticada("Prazo", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID id = criarTarefaAutenticada("Prazo", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas/" + id,
@@ -488,7 +542,7 @@ class TarefaIT {
 
     @Test
     void deveRejeitarStatusAtrasadaComPrazoFuturo() {
-        UUID id = criarTarefaAutenticada("Futura", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID id = criarTarefaAutenticada("Futura", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas/" + id,
@@ -501,7 +555,7 @@ class TarefaIT {
 
     @Test
     void deveVoltarParaPendenteQuandoAtrasadaGanhaPrazoFuturo() {
-        UUID id = criarTarefaAutenticada("Atrasada", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID id = criarTarefaAutenticada("Atrasada", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
         jdbcTemplate.update(
                 "update tarefa set status = 'ATRASADA', prazo = ? where id = ?",
                 Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)),
@@ -521,7 +575,7 @@ class TarefaIT {
 
     @Test
     void deveFazerSoftDeleteENaoRestaurarViaPatch() {
-        UUID id = criarTarefaAutenticada("Apagar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID id = criarTarefaAutenticada("Apagar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/tarefas/" + id,
@@ -550,7 +604,7 @@ class TarefaIT {
 
     @Test
     void deveRetornar404AoDeletarJaDeletadaOuDeOutroUsuario() {
-        UUID id = criarTarefaAutenticada("Dupla", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID id = criarTarefaAutenticada("Dupla", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
         assertThat(restTemplate.exchange(
                 "/tarefas/" + id,
                 HttpMethod.DELETE,
@@ -563,7 +617,7 @@ class TarefaIT {
                 autenticado(),
                 Void.class).getStatusCode()).isEqualTo(NOT_FOUND);
 
-        UUID outra = criarTarefaAutenticada("Outra", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+        UUID outra = criarTarefaAutenticada("Outra", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
         assertThat(restTemplate.exchange(
                 "/tarefas/" + outra,
                 HttpMethod.DELETE,
@@ -573,7 +627,7 @@ class TarefaIT {
 
     @Test
     void deveRestaurarTarefaSoftDeletada() {
-        UUID id = criarTarefaAutenticada("Restaurar", Instant.now().plus(2, ChronoUnit.DAYS), "ALTA", 2);
+        UUID id = criarTarefaAutenticada("Restaurar", Instant.now().plus(2, ChronoUnit.DAYS), "ALTA", 120);
         assertThat(restTemplate.exchange(
                 "/tarefas/" + id,
                 HttpMethod.DELETE,
@@ -598,64 +652,79 @@ class TarefaIT {
     }
 
     @Test
-    void deveMarcarPendenteComoAtrasadaQuandoPrazoPassou() {
-        UUID id = criarTarefaAutenticada("Atrasar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+    void deveMarcarPendenteComoAtrasadaQuandoPrazoAntesDoInicioDoDia() {
+        UUID id = criarTarefaAutenticada("Atrasar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
         jdbcTemplate.update(
                 "update tarefa set prazo = ? where id = ?",
-                Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)),
+                Timestamp.from(prazoAntesDoInicioDoDia()),
                 id);
 
-        tarefaService.processarAtrasos();
+        tarefaAtrasoJob.processarAtrasos();
 
         assertThat(statusDaTarefa(id)).isEqualTo("ATRASADA");
     }
 
     @Test
-    void deveVoltarAtrasadaParaPendenteQuandoPrazoNoFuturo() {
-        UUID id = criarTarefaAutenticada("Recuperar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+    void naoDeveReverterAtrasadaParaPendenteQuandoPrazoNoFuturo() {
+        UUID id = criarTarefaAutenticada("Recuperar", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
         jdbcTemplate.update(
                 "update tarefa set status = 'ATRASADA' where id = ?",
                 id);
 
-        tarefaService.processarAtrasos();
+        tarefaAtrasoJob.processarAtrasos();
 
-        assertThat(statusDaTarefa(id)).isEqualTo("PENDENTE");
+        assertThat(statusDaTarefa(id)).isEqualTo("ATRASADA");
     }
 
     @Test
-    void naoDeveAlterarOutrosStatusNemSoftDeletadaNoJobDeAtraso() {
-        UUID emProgresso = criarTarefaAutenticada("Prog", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
-        UUID finalizada = criarTarefaAutenticada("Fim", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
-        UUID cancelada = criarTarefaAutenticada("Canc", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
-        UUID deletada = criarTarefaAutenticada("Del", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
-        UUID pendenteFutura = criarTarefaAutenticada("Futura", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 1);
+    void naoDeveAlterarFinalizadaCanceladaNemSoftDeletadaNoJobDeAtraso() {
+        UUID emProgresso = criarTarefaAutenticada("Prog", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID finalizada = criarTarefaAutenticada("Fim", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID cancelada = criarTarefaAutenticada("Canc", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID deletada = criarTarefaAutenticada("Del", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID pendenteFutura = criarTarefaAutenticada("Futura", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID pendenteHoje = criarTarefaAutenticada("Hoje", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 
-        Instant prazoPassado = Instant.now().minus(1, ChronoUnit.HOURS);
+        Instant prazoOntem = prazoAntesDoInicioDoDia();
+        Instant prazoHojeAposMeiaNoite = PeriodoBRT.intervaloDia(LocalDate.now(PeriodoBRT.ZONE))
+                .inicioInclusivo()
+                .plus(1, ChronoUnit.HOURS);
+
         jdbcTemplate.update(
                 "update tarefa set status = 'EM_PROGRESSO', prazo = ? where id = ?",
-                Timestamp.from(prazoPassado),
+                Timestamp.from(prazoOntem),
                 emProgresso);
         jdbcTemplate.update(
                 "update tarefa set status = 'FINALIZADA', prazo = ? where id = ?",
-                Timestamp.from(prazoPassado),
+                Timestamp.from(prazoOntem),
                 finalizada);
         jdbcTemplate.update(
                 "update tarefa set status = 'CANCELADA', prazo = ? where id = ?",
-                Timestamp.from(prazoPassado),
+                Timestamp.from(prazoOntem),
                 cancelada);
         jdbcTemplate.update(
                 "update tarefa set prazo = ?, deleted_at = ? where id = ?",
-                Timestamp.from(prazoPassado),
+                Timestamp.from(prazoOntem),
                 Timestamp.from(Instant.now()),
                 deletada);
+        jdbcTemplate.update(
+                "update tarefa set prazo = ? where id = ?",
+                Timestamp.from(prazoHojeAposMeiaNoite),
+                pendenteHoje);
 
-        tarefaService.processarAtrasos();
+        tarefaAtrasoJob.processarAtrasos();
 
-        assertThat(statusDaTarefa(emProgresso)).isEqualTo("EM_PROGRESSO");
+        assertThat(statusDaTarefa(emProgresso)).isEqualTo("ATRASADA");
         assertThat(statusDaTarefa(finalizada)).isEqualTo("FINALIZADA");
         assertThat(statusDaTarefa(cancelada)).isEqualTo("CANCELADA");
         assertThat(statusDaTarefa(deletada)).isEqualTo("PENDENTE");
         assertThat(statusDaTarefa(pendenteFutura)).isEqualTo("PENDENTE");
+        assertThat(statusDaTarefa(pendenteHoje)).isEqualTo("PENDENTE");
+    }
+
+    private static Instant prazoAntesDoInicioDoDia() {
+        return PeriodoBRT.intervaloDia(LocalDate.now(PeriodoBRT.ZONE)).inicioInclusivo()
+                .minus(1, ChronoUnit.HOURS);
     }
 
     private String statusDaTarefa(UUID id) {
@@ -680,11 +749,11 @@ class TarefaIT {
         return new HttpEntity<>(headers);
     }
 
-    private UUID criarTarefaAutenticada(String titulo, Instant prazo, String prioridade, int duracaoHoras) {
+    private UUID criarTarefaAutenticada(String titulo, Instant prazo, String prioridade, int duracaoMinutos) {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tarefas",
                 HttpMethod.POST,
-                autenticadoJson(tarefaValida(titulo, prazo, prioridade, duracaoHoras)),
+                autenticadoJson(tarefaValida(titulo, prazo, prioridade, duracaoMinutos)),
                 Map.class);
         assertThat(response.getStatusCode()).isEqualTo(CREATED);
         return UUID.fromString(response.getBody().get("id").toString());
@@ -701,16 +770,16 @@ class TarefaIT {
     }
 
     private Map<String, Object> tarefaValida(Instant prazo) {
-        return tarefaValida("Estudar Spring", prazo, "ALTA", 3);
+        return tarefaValida("Estudar Spring", prazo, "ALTA", 180);
     }
 
-    private Map<String, Object> tarefaValida(String titulo, Instant prazo, String prioridade, int duracaoHoras) {
+    private Map<String, Object> tarefaValida(String titulo, Instant prazo, String prioridade, int duracaoMinutos) {
         Map<String, Object> body = new HashMap<>();
         body.put("titulo", titulo);
         body.put("descricao", "Revisar JPA e testes");
         body.put("prioridade", prioridade);
         body.put("prazo", prazo.toString());
-        body.put("duracaoHoras", duracaoHoras);
+        body.put("duracaoMinutos", duracaoMinutos);
         return body;
     }
 

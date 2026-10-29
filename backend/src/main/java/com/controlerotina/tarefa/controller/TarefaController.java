@@ -21,8 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.controlerotina.shared.exception.OrdenacaoInvalidaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
 import com.controlerotina.tarefa.dto.TarefaFiltro;
@@ -139,9 +139,9 @@ public class TarefaController {
     private static Sort.Order mapearOrder(Sort.Order order) {
         String propriedade = order.getProperty();
         if (!SORTS_PERMITIDOS.contains(propriedade)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ordenação inválida: " + propriedade);
+            throw new OrdenacaoInvalidaException(propriedade);
         }
-        String campo = "duracao".equals(propriedade) ? "duracaoHoras" : propriedade;
+        String campo = "duracao".equals(propriedade) ? "duracaoMinutos" : propriedade;
         return new Sort.Order(order.getDirection(), campo);
     }
 }

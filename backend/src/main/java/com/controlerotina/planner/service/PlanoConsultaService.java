@@ -15,6 +15,7 @@ import com.controlerotina.planner.dto.BlocoPlanoResponse;
 import com.controlerotina.planner.dto.PlanoResponse;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
+import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
@@ -23,6 +24,11 @@ import com.controlerotina.tarefa.repository.TarefaRepository;
 
 @Service
 public class PlanoConsultaService {
+
+    private static final List<StatusPlano> STATUS_CORRENTE = List.of(
+            StatusPlano.RASCUNHO,
+            StatusPlano.APROVADO
+    );
 
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
@@ -41,8 +47,10 @@ public class PlanoConsultaService {
     @Transactional(readOnly = true)
     public Optional<PlanoResponse> buscarPorData(UUID usuarioId, LocalDate data, Integer versao) {
         Optional<Plano> plano = versao == null
-                ? planoRepository.findFirstByUsuarioIdAndDataOrderByVersaoDesc(usuarioId, data)
-                : planoRepository.findByUsuarioIdAndDataAndVersao(usuarioId, data, versao);
+                ? planoRepository.findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        usuarioId, data, STATUS_CORRENTE)
+                : planoRepository.findByUsuarioIdAndDataAndVersao(usuarioId, data, versao)
+                        .filter(p -> p.getStatus() != StatusPlano.DESCARTADO);
 
         return plano.map(this::montarResposta);
     }
@@ -50,6 +58,7 @@ public class PlanoConsultaService {
     @Transactional(readOnly = true)
     public Optional<PlanoResponse> buscarPorId(UUID usuarioId, UUID id) {
         return planoRepository.findByIdAndUsuarioId(id, usuarioId)
+                .filter(p -> p.getStatus() != StatusPlano.DESCARTADO)
                 .map(this::montarResposta);
     }
 
@@ -70,6 +79,11 @@ public class PlanoConsultaService {
                 })
                 .toList();
 
-        return PlanoResponse.from(plano, blocosResponse);
+        boolean propostaPendente = plano.getStatus() == StatusPlano.RASCUNHO
+                && plano.getPropostaId() != null
+                && planoRepository.existsByUsuarioIdAndDataAndStatus(
+                        plano.getUsuarioId(), plano.getData(), StatusPlano.APROVADO);
+
+        return PlanoResponse.from(plano, blocosResponse, propostaPendente);
     }
 }

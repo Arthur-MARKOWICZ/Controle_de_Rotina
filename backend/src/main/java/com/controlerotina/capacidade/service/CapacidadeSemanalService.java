@@ -8,10 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.controlerotina.capacidade.dto.AtualizarCapacidadeSemanalRequest;
 import com.controlerotina.capacidade.dto.CapacidadeSemanalResponse;
@@ -19,24 +17,33 @@ import com.controlerotina.capacidade.dto.CriarCapacidadeSemanalItemRequest;
 import com.controlerotina.capacidade.entity.CapacidadeSemanal;
 import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.capacidade.repository.CapacidadeSemanalRepository;
+import com.controlerotina.planner.service.PropostaGeracaoService;
+import com.controlerotina.shared.exception.CapacidadeLoteVazioException;
 import com.controlerotina.shared.exception.CapacidadeSemanalConflitoException;
 import com.controlerotina.shared.exception.CapacidadeSemanalNaoEncontradaException;
+import com.controlerotina.shared.exception.DiaSemanaDuplicadoNoLoteException;
 
 @Service
 public class CapacidadeSemanalService {
 
     private final CapacidadeSemanalRepository capacidadeSemanalRepository;
+    private final PropostaGeracaoService propostaGeracaoService;
     private final Clock clock;
 
-    public CapacidadeSemanalService(CapacidadeSemanalRepository capacidadeSemanalRepository, Clock clock) {
+    public CapacidadeSemanalService(
+            CapacidadeSemanalRepository capacidadeSemanalRepository,
+            PropostaGeracaoService propostaGeracaoService,
+            Clock clock
+    ) {
         this.capacidadeSemanalRepository = capacidadeSemanalRepository;
+        this.propostaGeracaoService = propostaGeracaoService;
         this.clock = clock;
     }
 
     @Transactional
     public List<CapacidadeSemanalResponse> criar(UUID usuarioId, List<CriarCapacidadeSemanalItemRequest> itens) {
         if (itens == null || itens.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe ao menos um dia da semana.");
+            throw new CapacidadeLoteVazioException("Informe ao menos um dia da semana.");
         }
 
         validarDiasUnicosNoLote(itens);
@@ -60,10 +67,15 @@ public class CapacidadeSemanalService {
                 ))
                 .toList();
 
-        return capacidadeSemanalRepository.saveAll(criadas).stream()
+        List<CapacidadeSemanalResponse> respostas = capacidadeSemanalRepository.saveAll(criadas).stream()
                 .sorted(porOrdemDoEnum())
                 .map(CapacidadeSemanalResponse::from)
                 .toList();
+        capacidadeSemanalRepository.flush();
+        for (CriarCapacidadeSemanalItemRequest item : itens) {
+            propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, item.diaSemana());
+        }
+        return respostas;
     }
 
     @Transactional(readOnly = true)
@@ -99,7 +111,13 @@ public class CapacidadeSemanalService {
             throw new CapacidadeSemanalConflitoException(request.diaSemana().name());
         }
 
+        DiaSemana diaAnterior = capacidade.getDiaSemana();
         capacidade.atualizar(request.diaSemana(), request.horas(), clock.instant());
+        capacidadeSemanalRepository.flush();
+        propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, diaAnterior);
+        if (request.diaSemana() != null && request.diaSemana() != diaAnterior) {
+            propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, request.diaSemana());
+        }
         return CapacidadeSemanalResponse.from(capacidade);
     }
 
@@ -109,7 +127,10 @@ public class CapacidadeSemanalService {
         if (!capacidade.isAtivo()) {
             throw new CapacidadeSemanalNaoEncontradaException();
         }
+        DiaSemana dia = capacidade.getDiaSemana();
         capacidade.softDelete(clock.instant());
+        capacidadeSemanalRepository.flush();
+        propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, dia);
     }
 
     @Transactional
@@ -123,6 +144,8 @@ public class CapacidadeSemanalService {
             throw new CapacidadeSemanalConflitoException(capacidade.getDiaSemana().name());
         }
         capacidade.restore(clock.instant());
+        capacidadeSemanalRepository.flush();
+        propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, capacidade.getDiaSemana());
         return CapacidadeSemanalResponse.from(capacidade);
     }
 
@@ -135,10 +158,7 @@ public class CapacidadeSemanalService {
         Set<DiaSemana> vistos = new HashSet<>();
         for (CriarCapacidadeSemanalItemRequest item : itens) {
             if (!vistos.add(item.diaSemana())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Dia da semana duplicado no lote: " + item.diaSemana()
-                );
+                throw new DiaSemanaDuplicadoNoLoteException(item.diaSemana().name());
             }
         }
     }

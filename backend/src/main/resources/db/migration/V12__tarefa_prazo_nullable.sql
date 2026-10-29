@@ -1,0 +1,2 @@
+ALTER TABLE tarefa
+    ALTER COLUMN prazo DROP NOT NULL;

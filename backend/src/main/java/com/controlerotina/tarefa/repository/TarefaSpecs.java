@@ -58,12 +58,12 @@ public final class TarefaSpecs {
                 return cb.conjunction();
             }
             if (de != null && ate != null) {
-                return cb.between(root.get("duracaoHoras"), de, ate);
+                return cb.between(root.get("duracaoMinutos"), de, ate);
             }
             if (de != null) {
-                return cb.greaterThanOrEqualTo(root.get("duracaoHoras"), de);
+                return cb.greaterThanOrEqualTo(root.get("duracaoMinutos"), de);
             }
-            return cb.lessThanOrEqualTo(root.get("duracaoHoras"), ate);
+            return cb.lessThanOrEqualTo(root.get("duracaoMinutos"), ate);
         };
     }
 

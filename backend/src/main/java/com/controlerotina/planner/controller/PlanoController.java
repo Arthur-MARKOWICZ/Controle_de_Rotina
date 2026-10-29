@@ -23,6 +23,7 @@ import com.controlerotina.planner.service.PlannerGeracaoService;
 import com.controlerotina.planner.service.PlanoAjusteService;
 import com.controlerotina.planner.service.PlanoAprovacaoService;
 import com.controlerotina.planner.service.PlanoConsultaService;
+import com.controlerotina.planner.service.PropostaService;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
 
 import jakarta.validation.Valid;
@@ -35,17 +36,20 @@ public class PlanoController {
     private final PlannerGeracaoService plannerGeracaoService;
     private final PlanoAjusteService planoAjusteService;
     private final PlanoAprovacaoService planoAprovacaoService;
+    private final PropostaService propostaService;
 
     public PlanoController(
             PlanoConsultaService planoConsultaService,
             PlannerGeracaoService plannerGeracaoService,
             PlanoAjusteService planoAjusteService,
-            PlanoAprovacaoService planoAprovacaoService
+            PlanoAprovacaoService planoAprovacaoService,
+            PropostaService propostaService
     ) {
         this.planoConsultaService = planoConsultaService;
         this.plannerGeracaoService = plannerGeracaoService;
         this.planoAjusteService = planoAjusteService;
         this.planoAprovacaoService = planoAprovacaoService;
+        this.propostaService = propostaService;
     }
 
     @GetMapping
@@ -106,5 +110,22 @@ public class PlanoController {
             @PathVariable UUID id
     ) {
         return planoAprovacaoService.aprovar(usuarioId, id);
+    }
+
+    @PostMapping("/propostas/{propostaId}/aceitar")
+    public PlanoResponse aceitarProposta(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID propostaId
+    ) {
+        return propostaService.aceitar(usuarioId, propostaId);
+    }
+
+    @PostMapping("/propostas/{propostaId}/descartar")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void descartarProposta(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID propostaId
+    ) {
+        propostaService.descartar(usuarioId, propostaId);
     }
 }

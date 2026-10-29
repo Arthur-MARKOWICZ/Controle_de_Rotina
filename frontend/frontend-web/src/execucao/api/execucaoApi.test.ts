@@ -9,10 +9,13 @@ import {
   listarExecucoes,
 } from './execucaoApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-  readApiJson: async (response: Response) => response.json(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 describe('execucaoApi', () => {
   beforeEach(() => {

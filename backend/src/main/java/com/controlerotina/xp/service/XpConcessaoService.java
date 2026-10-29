@@ -6,9 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlerotina.shared.exception.XpEventoDuplicadoException;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.usuario.entity.Usuario;
@@ -39,13 +41,16 @@ public class XpConcessaoService {
     public ResultadoConcessao concederAoConcluir(
             UUID usuarioId,
             UUID execucaoId,
-            int duracaoMinutosBloco,
+            int minutosEfetivosBloco,
+            int somaMinutosEfetivosTarefa,
             Tarefa tarefa
     ) {
+        // Lock da linha do usuário antes de checar eventos/somar: serializa concessões concorrentes.
+        Usuario usuario = usuarioRepository.findByIdForUpdate(usuarioId).orElseThrow();
         List<XpEvento> novos = new ArrayList<>();
         Instant agora = clock.instant();
 
-        int xpBloco = XpMotor.xpBloco(duracaoMinutosBloco, tarefa.getPrioridade());
+        int xpBloco = XpMotor.xpBloco(minutosEfetivosBloco, tarefa.getPrioridade());
         if (xpBloco > 0 && !xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId)) {
             novos.add(new XpEvento(
                     UUID.randomUUID(),
@@ -59,7 +64,7 @@ public class XpConcessaoService {
 
         if (tarefa.getStatus() == StatusTarefa.FINALIZADA
                 && !xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.TAREFA_FINALIZADA, tarefa.getId())) {
-            int bonus = XpMotor.bonusTarefa(tarefa.getDuracaoHoras(), tarefa.getPrioridade());
+            int bonus = XpMotor.bonusTarefa(somaMinutosEfetivosTarefa, tarefa.getPrioridade());
             if (bonus > 0) {
                 novos.add(new XpEvento(
                         UUID.randomUUID(),
@@ -73,22 +78,46 @@ public class XpConcessaoService {
         }
 
         if (novos.isEmpty()) {
-            Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
             int xpTotal = usuario.getXpTotal();
             XpMotor.ProgressoXp progresso = XpMotor.progresso(xpTotal);
             return new ResultadoConcessao(0, List.of(), xpTotal, progresso);
         }
 
-        xpEventoRepository.saveAll(novos);
+        try {
+            xpEventoRepository.saveAll(novos);
+            xpEventoRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            // Rede de segurança: unique uk_xp_evento_tipo_origem → não duplica (409).
+            if (violaUniqueXpEvento(ex)) {
+                throw new XpEventoDuplicadoException();
+            }
+            throw ex;
+        }
 
         int ganho = novos.stream().mapToInt(XpEvento::getQuantidade).sum();
-        Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
         int xpTotal = usuario.getXpTotal() + ganho;
         XpMotor.ProgressoXp progresso = XpMotor.progresso(xpTotal);
         usuario.atualizarProgressoXp(xpTotal, progresso.nivel(), agora);
         usuarioRepository.save(usuario);
 
         return new ResultadoConcessao(ganho, List.copyOf(novos), xpTotal, progresso);
+    }
+
+    private static boolean violaUniqueXpEvento(DataIntegrityViolationException ex) {
+        String mensagem = mensagemCompleta(ex).toLowerCase();
+        return mensagem.contains("uk_xp_evento_tipo_origem");
+    }
+
+    private static String mensagemCompleta(Throwable ex) {
+        StringBuilder sb = new StringBuilder();
+        Throwable atual = ex;
+        while (atual != null) {
+            if (atual.getMessage() != null) {
+                sb.append(' ').append(atual.getMessage());
+            }
+            atual = atual.getCause();
+        }
+        return sb.toString();
     }
 
     public record ResultadoConcessao(

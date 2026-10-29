@@ -1,0 +1,8 @@
+# Perfil local/dev apenas — não usar em deploy.
+# Subir com: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+app:
+  security:
+    jwt:
+      secret: controle-rotina-dev-secret-key-min-32-chars!!
+    refresh-cookie:
+      secure: false

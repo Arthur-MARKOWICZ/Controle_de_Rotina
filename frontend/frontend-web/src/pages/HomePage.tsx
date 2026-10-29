@@ -36,10 +36,13 @@ import { OnboardingChecklist } from '../home/OnboardingChecklist'
 import { escolherBlocoMenorPrioridade } from '../home/justificativa'
 import { labelStatusPlano } from '../home/labels'
 import {
+  aceitarProposta,
   adicionarBloco,
   aprovarPlano,
   buscarPlano,
+  descartarProposta,
   gerarPlano,
+  listarDatasDaProposta,
   removerBloco,
   type BlocoPlanoResponse,
   type PlanoResponse,
@@ -69,8 +72,12 @@ function capacidadeDoDia(
 }
 
 function mensagemErro(error: unknown, fallback: string): string {
-  if (error instanceof ApiError || error instanceof Error) {
-    return error.message
+  // 409 (e demais erros) já vêm com detail/title do ProblemDetail via lerErroApi.
+  if (error instanceof ApiError) {
+    return error.message || fallback
+  }
+  if (error instanceof Error) {
+    return error.message || fallback
   }
   return fallback
 }
@@ -93,6 +100,7 @@ export function HomePage() {
   const [erro, setErro] = useState<string | null>(null)
   const [acaoErro, setAcaoErro] = useState<string | null>(null)
   const [aprovando, setAprovando] = useState(false)
+  const [resolvendoProposta, setResolvendoProposta] = useState(false)
   const [removendoBlocoId, setRemovendoBlocoId] = useState<string | null>(null)
   const [acaoBlocoId, setAcaoBlocoId] = useState<string | null>(null)
   const [elegiveis, setElegiveis] = useState<TarefaResponse[]>([])
@@ -110,10 +118,45 @@ export function HomePage() {
   const [ajustarCapacidadeAberto, setAjustarCapacidadeAberto] = useState(false)
   const [salvandoCapacidadeHoje, setSalvandoCapacidadeHoje] = useState(false)
   const [ctaGerarAposCapacidade, setCtaGerarAposCapacidade] = useState(false)
+  const [dataSelecionada, setDataSelecionada] = useState(() => dataHojeIso())
+  const [datasProposta, setDatasProposta] = useState<string[]>([])
 
   const ehRascunho = plano?.status === 'RASCUNHO'
   const ehAprovado = plano?.status === 'APROVADO'
-  const podeGerar = !plano || ehRascunho
+  const propostaPendente = Boolean(plano?.propostaPendente && plano.propostaId)
+  const podeGerar = !plano || (ehRascunho && !propostaPendente)
+  const dataHoje = dataHojeIso()
+
+  async function carregarDia(data: string, cancelado?: () => boolean) {
+    const [planoDia, resolvidas] = await Promise.all([
+      buscarPlano({ data }),
+      consultarCapacidadeResolvida({ dataDe: data, dataAte: data }),
+    ])
+    if (cancelado?.()) {
+      return
+    }
+    setPlano(planoDia)
+    setCapacidade(capacidadeDoDia(resolvidas, data))
+    setDataSelecionada(data)
+
+    if (planoDia?.propostaId) {
+      const datas = await listarDatasDaProposta(dataHoje, planoDia.propostaId)
+      if (!cancelado?.()) {
+        setDatasProposta(datas)
+      }
+    } else if (!cancelado?.()) {
+      setDatasProposta([])
+    }
+
+    if (planoDia?.status === 'APROVADO') {
+      const execucoes = await listarExecucoes(data)
+      if (!cancelado?.()) {
+        setItensExecucao(execucoes.itens)
+      }
+    } else if (!cancelado?.()) {
+      setItensExecucao([])
+    }
+  }
 
   useEffect(() => {
     let cancelado = false
@@ -123,24 +166,7 @@ export function HomePage() {
       setCarregando(true)
       setErro(null)
       try {
-        const [planoDia, resolvidas] = await Promise.all([
-          buscarPlano({ data }),
-          consultarCapacidadeResolvida({ dataDe: data, dataAte: data }),
-        ])
-        if (cancelado) {
-          return
-        }
-        setPlano(planoDia)
-        setCapacidade(capacidadeDoDia(resolvidas, data))
-
-        if (planoDia?.status === 'APROVADO') {
-          const execucoes = await listarExecucoes(data)
-          if (!cancelado) {
-            setItensExecucao(execucoes.itens)
-          }
-        } else if (!cancelado) {
-          setItensExecucao([])
-        }
+        await carregarDia(data, () => cancelado)
       } catch (error) {
         if (cancelado) {
           return
@@ -148,6 +174,7 @@ export function HomePage() {
         setErro(mensagemErro(error, 'Não foi possível carregar o plano.'))
         setPlano(null)
         setItensExecucao([])
+        setDatasProposta([])
       } finally {
         if (!cancelado) {
           setCarregando(false)
@@ -233,7 +260,8 @@ export function HomePage() {
     setAcaoErro(null)
     setErro(null)
     try {
-      const gerado = await gerarPlano(dataHojeIso())
+      const inicio = dataHojeIso()
+      const gerado = await gerarPlano(inicio)
       if (anterior) {
         setSnapshotAnterior(anterior)
         const tarefaIdsNovos = new Set(gerado.blocos.map((bloco) => bloco.tarefa.id))
@@ -249,12 +277,39 @@ export function HomePage() {
         setTitulosRemovidosDiff([])
       }
       setPlano(gerado)
+      setDataSelecionada(gerado.data)
       setItensExecucao([])
       setCtaGerarAposCapacidade(false)
+      if (gerado.propostaId) {
+        setDatasProposta(await listarDatasDaProposta(inicio, gerado.propostaId))
+        const resolvidas = await consultarCapacidadeResolvida({
+          dataDe: gerado.data,
+          dataAte: gerado.data,
+        })
+        setCapacidade(capacidadeDoDia(resolvidas, gerado.data))
+      } else {
+        setDatasProposta([])
+      }
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível gerar o plano.'))
     } finally {
       setGerando(false)
+    }
+  }
+
+  async function handleSelecionarDiaProposta(data: string) {
+    if (data === dataSelecionada) {
+      return
+    }
+    setCarregando(true)
+    setAcaoErro(null)
+    setErro(null)
+    try {
+      await carregarDia(data)
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível carregar o dia da proposta.'))
+    } finally {
+      setCarregando(false)
     }
   }
 
@@ -272,8 +327,13 @@ export function HomePage() {
       }
       const resolvidas = await consultarCapacidadeResolvida({ dataDe: data, dataAte: data })
       setCapacidade(capacidadeDoDia(resolvidas, data))
+      const planoAtualizado = await buscarPlano({ data })
+      setPlano(planoAtualizado)
+      if (planoAtualizado?.propostaId) {
+        setDatasProposta(await listarDatasDaProposta(dataHoje, planoAtualizado.propostaId))
+      }
       setAjustarCapacidadeAberto(false)
-      setCtaGerarAposCapacidade(true)
+      setCtaGerarAposCapacidade(!planoAtualizado?.propostaPendente)
     } catch (error) {
       setAcaoErro(mensagemErro(error, 'Não foi possível ajustar a capacidade de hoje.'))
     } finally {
@@ -281,8 +341,67 @@ export function HomePage() {
     }
   }
 
+  async function handleAceitarProposta() {
+    if (!plano?.propostaId || !propostaPendente) {
+      return
+    }
+    const confirmado = await confirm({
+      title: 'Aceitar proposta?',
+      message:
+        'O plano aprovado vigente será substituído pela proposta. Blocos já concluídos permanecem.',
+      confirmLabel: 'Aceitar',
+    })
+    if (!confirmado) {
+      return
+    }
+    setResolvendoProposta(true)
+    setAcaoErro(null)
+    try {
+      const atualizado = await aceitarProposta(plano.propostaId)
+      setPlano(atualizado)
+      setSnapshotAnterior(null)
+      setTitulosRemovidosDiff([])
+      if (atualizado.propostaId) {
+        setDatasProposta(await listarDatasDaProposta(dataHoje, atualizado.propostaId))
+      } else {
+        setDatasProposta([])
+      }
+      await recarregarExecucoes(atualizado.data)
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível aceitar a proposta.'))
+    } finally {
+      setResolvendoProposta(false)
+    }
+  }
+
+  async function handleDescartarProposta() {
+    if (!plano?.propostaId || !propostaPendente) {
+      return
+    }
+    const confirmado = await confirm({
+      title: 'Descartar proposta?',
+      message: 'O plano aprovado vigente permanece como está. A proposta será descartada.',
+      confirmLabel: 'Descartar',
+    })
+    if (!confirmado) {
+      return
+    }
+    setResolvendoProposta(true)
+    setAcaoErro(null)
+    try {
+      await descartarProposta(plano.propostaId)
+      await carregarDia(plano.data)
+      setSnapshotAnterior(null)
+      setTitulosRemovidosDiff([])
+    } catch (error) {
+      setAcaoErro(mensagemErro(error, 'Não foi possível descartar a proposta.'))
+    } finally {
+      setResolvendoProposta(false)
+    }
+  }
+
   async function handleAprovar() {
-    if (!plano || !ehRascunho) {
+    if (!plano || !ehRascunho || propostaPendente) {
       return
     }
     const usadosMin = minutosUsados(plano.blocos)
@@ -459,13 +578,38 @@ export function HomePage() {
       />
       <section className="plano-dia card" aria-labelledby="plano-dia-titulo">
         <div className="plano-dia-cabecalho">
-          <h2 id="plano-dia-titulo">Plano de hoje</h2>
+          <h2 id="plano-dia-titulo">
+            {dataSelecionada === dataHoje ? 'Plano de hoje' : `Plano de ${dataSelecionada}`}
+          </h2>
           {plano ? (
             <span className={`badge status-plano-${plano.status.toLowerCase()}`}>
               {labelStatusPlano(plano.status)}
             </span>
           ) : null}
         </div>
+
+        {datasProposta.length > 1 ? (
+          <nav className="proposta-dias" aria-label="Dias da proposta">
+            <p className="proposta-dias__hint">Proposta multi-dia — escolha o dia para revisar</p>
+            <div className="proposta-dias__lista">
+              {datasProposta.map((data) => (
+                <button
+                  key={data}
+                  type="button"
+                  className={
+                    data === dataSelecionada
+                      ? 'btn btn--secondary btn--sm proposta-dias__dia proposta-dias__dia--ativo'
+                      : 'btn btn--ghost btn--sm proposta-dias__dia'
+                  }
+                  aria-current={data === dataSelecionada ? 'date' : undefined}
+                  onClick={() => void handleSelecionarDiaProposta(data)}
+                >
+                  {data === dataHoje ? 'Hoje' : data.slice(5)}
+                </button>
+              ))}
+            </div>
+          </nav>
+        ) : null}
 
         {diaCompleto ? (
           <p className="plano-dia-completo" role="status">
@@ -553,13 +697,33 @@ export function HomePage() {
                     type="button"
                     className="btn btn--secondary"
                     onClick={() => void handleGerar()}
-                    disabled={gerando || aprovando}
+                    disabled={gerando || aprovando || resolvendoProposta}
                     aria-busy={gerando}
                   >
                     {gerando ? 'Gerando…' : plano ? 'Gerar nova versão' : 'Gerar plano'}
                   </button>
                 ) : null}
-                {ehRascunho ? (
+                {propostaPendente ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void handleAceitarProposta()}
+                      disabled={resolvendoProposta || gerando}
+                      aria-busy={resolvendoProposta}
+                    >
+                      {resolvendoProposta ? 'Aceitando…' : 'Aceitar proposta'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => void handleDescartarProposta()}
+                      disabled={resolvendoProposta || gerando}
+                    >
+                      Descartar
+                    </button>
+                  </>
+                ) : ehRascunho ? (
                   <button
                     type="button"
                     className="btn btn--primary"

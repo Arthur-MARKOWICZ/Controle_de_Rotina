@@ -147,4 +147,9 @@ public class Execucao {
         this.concluidoEm = agora;
         this.updatedAt = agora;
     }
+
+    public void reatribuirBloco(UUID novoBlocoPlanoId, Instant agora) {
+        this.blocoPlanoId = novoBlocoPlanoId;
+        this.updatedAt = agora;
+    }
 }

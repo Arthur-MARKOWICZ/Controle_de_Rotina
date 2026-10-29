@@ -15,7 +15,7 @@ type AdicionarTarefaFormProps = {
 }
 
 function textoBusca(tarefa: TarefaResponse): string {
-  return `${tarefa.titulo} ${tarefa.prazo} ${tarefa.duracaoHoras} ${labelPrioridade(tarefa.prioridade)}`.toLowerCase()
+  return `${tarefa.titulo} ${tarefa.prazo} ${tarefa.duracaoMinutos} ${labelPrioridade(tarefa.prioridade)}`.toLowerCase()
 }
 
 export function AdicionarTarefaForm({
@@ -82,7 +82,7 @@ export function AdicionarTarefaForm({
                       <span className="plano-adicionar-opcao__meta">
                         {formatarPrazoRelativo(tarefa.prazo)}
                         {' · '}
-                        {formatarCapacidadeMinutos(tarefa.duracaoHoras * 60)}
+                        {formatarCapacidadeMinutos(tarefa.duracaoMinutos)}
                         {' · '}
                         {labelPrioridade(tarefa.prioridade)}
                       </span>

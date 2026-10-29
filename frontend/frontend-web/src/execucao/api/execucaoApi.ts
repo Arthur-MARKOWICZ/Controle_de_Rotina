@@ -1,4 +1,4 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
 import type { XpConclusao } from '../../xp/types'
@@ -10,7 +10,7 @@ export type TarefaResumoExecucao = {
   titulo: string
   prioridade: Prioridade
   status: StatusTarefa
-  duracaoHoras: number
+  duracaoMinutos: number
 }
 
 export type BlocoExecucaoResponse = {
@@ -46,18 +46,6 @@ export type ExecucoesDoDiaResponse = {
   itens: ItemExecucaoResponse[]
 }
 
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = await readApiJson<{ detail?: string; title?: string }>(response)
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return error
-    }
-    return new ApiError(response.status, fallback)
-  }
-}
-
 export function buildExecucoesQuery(data?: string): string {
   if (!data) {
     return '/execucoes'
@@ -70,7 +58,7 @@ export function buildExecucoesQuery(data?: string): string {
 export async function listarExecucoes(data?: string): Promise<ExecucoesDoDiaResponse> {
   const response = await apiFetch(buildExecucoesQuery(data))
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar as execuções.')
+    throw await lerErroApi(response, 'Não foi possível carregar as execuções.')
   }
   return readApiJson<ExecucoesDoDiaResponse>(response)
 }
@@ -82,7 +70,7 @@ export async function iniciarExecucao(blocoId: string): Promise<ExecucaoResponse
     body: JSON.stringify({ blocoId }),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível iniciar a execução.')
+    throw await lerErroApi(response, 'Não foi possível iniciar a execução.')
   }
   return readApiJson<ExecucaoResponse>(response)
 }
@@ -92,7 +80,7 @@ export async function concluirExecucao(id: string): Promise<ExecucaoResponse> {
     method: 'POST',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível concluir a execução.')
+    throw await lerErroApi(response, 'Não foi possível concluir a execução.')
   }
   return readApiJson<ExecucaoResponse>(response)
 }
@@ -102,7 +90,7 @@ export async function abortarExecucao(id: string): Promise<ExecucaoResponse> {
     method: 'POST',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível abortar a execução.')
+    throw await lerErroApi(response, 'Não foi possível abortar a execução.')
   }
   return readApiJson<ExecucaoResponse>(response)
 }

@@ -12,7 +12,7 @@ export type TarefaFormValues = {
   descricao: string
   prioridade: Prioridade | ''
   prazo: string
-  duracaoHoras: number | ''
+  duracaoMinutos: number | ''
   status?: StatusTarefa | ''
 }
 
@@ -21,7 +21,7 @@ export type TarefaFormErros = {
   descricao?: string
   prioridade?: string
   prazo?: string
-  duracaoHoras?: string
+  duracaoMinutos?: string
   status?: string
 }
 
@@ -54,9 +54,7 @@ export function validarTarefaFormCampos(
     erros.prioridade = 'Selecione a prioridade.'
   }
 
-  if (!values.prazo) {
-    erros.prazo = 'Informe o prazo.'
-  } else {
+  if (values.prazo) {
     const prazoDate = new Date(values.prazo)
     if (Number.isNaN(prazoDate.getTime())) {
       erros.prazo = 'Informe um prazo válido.'
@@ -65,10 +63,14 @@ export function validarTarefaFormCampos(
     }
   }
 
-  if (values.duracaoHoras === '' || values.duracaoHoras == null) {
-    erros.duracaoHoras = 'Informe a duração em horas.'
-  } else if (!Number.isInteger(values.duracaoHoras) || values.duracaoHoras < 1) {
-    erros.duracaoHoras = 'A duração deve ser um número inteiro de horas, mínimo 1.'
+  if (values.duracaoMinutos === '' || values.duracaoMinutos == null) {
+    erros.duracaoMinutos = 'Informe a duração em minutos.'
+  } else if (
+    !Number.isInteger(values.duracaoMinutos) ||
+    values.duracaoMinutos < 15 ||
+    values.duracaoMinutos % 15 !== 0
+  ) {
+    erros.duracaoMinutos = 'A duração deve ser no mínimo 15 minutos e múltiplo de 15.'
   }
 
   if (modo === 'editar') {

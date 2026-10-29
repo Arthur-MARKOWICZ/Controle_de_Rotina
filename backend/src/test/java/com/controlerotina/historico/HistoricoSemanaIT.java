@@ -152,12 +152,12 @@ class HistoricoSemanaIT {
         UUID tarefaId = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 tarefaId, usuarioId, "T", "d", Prioridade.MEDIA,
-                concluidoEm, StatusTarefa.EM_PROGRESSO, 2, concluidoEm, concluidoEm
+                concluidoEm, StatusTarefa.EM_PROGRESSO, 120, concluidoEm, concluidoEm
         ));
         UUID planoId = UUID.randomUUID();
         planoRepository.save(new Plano(
                 planoId, usuarioId, dataPlano, 1, StatusPlano.APROVADO,
-                false, null, concluidoEm, concluidoEm, concluidoEm
+                false, null, null, concluidoEm, concluidoEm, concluidoEm
         ));
         UUID blocoId = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(

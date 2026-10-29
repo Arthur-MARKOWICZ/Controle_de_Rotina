@@ -1,6 +1,8 @@
 package com.controlerotina.planner.repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +20,24 @@ public interface PlanoRepository extends JpaRepository<Plano, UUID> {
     Optional<Plano> findByUsuarioIdAndDataAndVersao(UUID usuarioId, LocalDate data, int versao);
 
     Optional<Plano> findFirstByUsuarioIdAndDataOrderByVersaoDesc(UUID usuarioId, LocalDate data);
+
+    Optional<Plano> findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+            UUID usuarioId,
+            LocalDate data,
+            Collection<StatusPlano> status
+    );
+
+    Optional<Plano> findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+            UUID usuarioId,
+            LocalDate data,
+            StatusPlano status
+    );
+
+    List<Plano> findByUsuarioIdAndPropostaIdAndStatus(
+            UUID usuarioId,
+            UUID propostaId,
+            StatusPlano status
+    );
 
     boolean existsByUsuarioIdAndDataAndStatus(UUID usuarioId, LocalDate data, StatusPlano status);
 

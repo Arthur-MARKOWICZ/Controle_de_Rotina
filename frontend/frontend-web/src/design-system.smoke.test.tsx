@@ -36,8 +36,11 @@ vi.mock('./planner/api/planoApi', () => ({
   buscarPlano: vi.fn(),
   gerarPlano: vi.fn(),
   aprovarPlano: vi.fn(),
+  aceitarProposta: vi.fn(),
+  descartarProposta: vi.fn(),
   adicionarBloco: vi.fn(),
   removerBloco: vi.fn(),
+  listarDatasDaProposta: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('./capacidade/api/capacidadeResolvidaApi', () => ({
@@ -132,6 +135,8 @@ describe('design system smoke (T1)', () => {
       status: 'RASCUNHO',
       temConflito: false,
       mensagem: null,
+      propostaId: null,
+      propostaPendente: false,
       geradoEm: '2026-10-20T09:00:00Z',
       createdAt: '2026-10-20T09:00:00Z',
       updatedAt: '2026-10-20T09:00:00Z',

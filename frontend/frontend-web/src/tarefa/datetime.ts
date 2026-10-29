@@ -1,5 +1,8 @@
 /** Converte Instant ISO da API para valor de input datetime-local (hora local). */
-export function instantParaDatetimeLocal(iso: string): string {
+export function instantParaDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) {
+    return ''
+  }
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) {
     return ''
@@ -8,13 +11,19 @@ export function instantParaDatetimeLocal(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-/** Converte valor de datetime-local para Instant ISO enviado à API. */
-export function datetimeLocalParaInstant(local: string): string {
+/** Converte valor de datetime-local para Instant ISO enviado à API; vazio → null. */
+export function datetimeLocalParaInstant(local: string): string | null {
+  if (!local.trim()) {
+    return null
+  }
   const date = new Date(local)
   return date.toISOString()
 }
 
-export function formatarDataHora(iso: string): string {
+export function formatarDataHora(iso: string | null | undefined): string {
+  if (!iso) {
+    return 'Sem prazo'
+  }
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) {
     return iso

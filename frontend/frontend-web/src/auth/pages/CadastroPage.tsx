@@ -51,7 +51,7 @@ export function CadastroPage() {
       navigate('/login', { replace: true })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        setErro('Este email já está cadastrado.')
+        setErro(error.message || 'Este email já está cadastrado.')
       } else {
         setErro('Não foi possível concluir o cadastro. Tente novamente.')
       }

@@ -5,10 +5,14 @@ import org.springframework.web.ErrorResponseException;
 
 public class CapacidadeOverrideConflitoException extends ErrorResponseException {
 
-    public CapacidadeOverrideConflitoException(String data) {
+    public CapacidadeOverrideConflitoException() {
         super(HttpStatus.CONFLICT);
         getBody().setTitle("Capacidade override já existe");
         getBody().setDetail("Já existe capacidade ativa para a data informada.");
+    }
+
+    public CapacidadeOverrideConflitoException(String data) {
+        this();
         getBody().setProperty("data", data);
     }
 }

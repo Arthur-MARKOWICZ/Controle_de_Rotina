@@ -100,12 +100,12 @@ class ExecucaoAbortarIT {
         UUID tarefaId = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 tarefaId, usuarioId, "Tarefa abortar", "desc", Prioridade.MEDIA,
-                AGORA, StatusTarefa.PENDENTE, 1, AGORA, AGORA
+                AGORA, StatusTarefa.PENDENTE, 60, AGORA, AGORA
         ));
         UUID planoId = UUID.randomUUID();
         planoRepository.save(new Plano(
                 planoId, usuarioId, DIA, 1, StatusPlano.APROVADO,
-                false, null, AGORA, AGORA, AGORA
+                false, null, null, AGORA, AGORA, AGORA
         ));
         blocoId = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(

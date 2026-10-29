@@ -329,7 +329,7 @@ export function TarefasPage() {
               />
             </label>
             <label className="field">
-              Duração de (h)
+              Duração de (min)
               <input
                 type="number"
                 min={1}
@@ -340,7 +340,7 @@ export function TarefasPage() {
               />
             </label>
             <label className="field">
-              Duração até (h)
+              Duração até (min)
               <input
                 type="number"
                 min={1}
@@ -471,11 +471,14 @@ export function TarefasPage() {
                               ) : null}
                             </div>
                             <p className="tarefa-card__prazo">
-                              <time dateTime={tarefa.prazo} title={prazoAbsoluto}>
+                              <time
+                                dateTime={tarefa.prazo ?? undefined}
+                                title={prazoAbsoluto}
+                              >
                                 {prazoRelativo}
                               </time>
                               <span className="tarefa-card__duracao">
-                                · {tarefa.duracaoHoras}h
+                                · {tarefa.duracaoMinutos} min
                               </span>
                             </p>
                           </div>

@@ -1,4 +1,4 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch } from '../../auth/session/apiClient'
 import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
 
@@ -7,9 +7,9 @@ export type TarefaResponse = {
   titulo: string
   descricao: string
   prioridade: Prioridade
-  prazo: string
+  prazo: string | null
   status: StatusTarefa
-  duracaoHoras: number
+  duracaoMinutos: number
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -50,26 +50,17 @@ export type CriarTarefaRequest = {
   titulo: string
   descricao: string
   prioridade: Prioridade
-  prazo: string
-  duracaoHoras: number
+  prazo: string | null
+  duracaoMinutos: number
 }
 
 export type AtualizarTarefaRequest = {
   titulo?: string
   descricao?: string
   prioridade?: Prioridade
-  prazo?: string
+  prazo?: string | null
   status?: StatusTarefa
-  duracaoHoras?: number
-}
-
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = (await response.json()) as { detail?: string; title?: string }
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch {
-    return new ApiError(response.status, fallback)
-  }
+  duracaoMinutos?: number
 }
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {
@@ -115,7 +106,7 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
 export async function listarTarefas(filtro: ListarTarefasParams = {}): Promise<PageTarefa> {
   const response = await apiFetch(buildTarefasQuery(filtro))
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar as tarefas.')
+    throw await lerErroApi(response, 'Não foi possível carregar as tarefas.')
   }
   return (await response.json()) as PageTarefa
 }
@@ -127,7 +118,7 @@ export async function criarTarefa(body: CriarTarefaRequest): Promise<TarefaRespo
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível criar a tarefa.')
+    throw await lerErroApi(response, 'Não foi possível criar a tarefa.')
   }
   return (await response.json()) as TarefaResponse
 }
@@ -135,7 +126,7 @@ export async function criarTarefa(body: CriarTarefaRequest): Promise<TarefaRespo
 export async function buscarTarefa(id: string): Promise<TarefaResponse> {
   const response = await apiFetch(`/tarefas/${id}`)
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar a tarefa.')
+    throw await lerErroApi(response, 'Não foi possível carregar a tarefa.')
   }
   return (await response.json()) as TarefaResponse
 }
@@ -150,7 +141,7 @@ export async function atualizarTarefa(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível atualizar a tarefa.')
+    throw await lerErroApi(response, 'Não foi possível atualizar a tarefa.')
   }
   return (await response.json()) as TarefaResponse
 }
@@ -158,14 +149,14 @@ export async function atualizarTarefa(
 export async function excluirTarefa(id: string): Promise<void> {
   const response = await apiFetch(`/tarefas/${id}`, { method: 'DELETE' })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível excluir a tarefa.')
+    throw await lerErroApi(response, 'Não foi possível excluir a tarefa.')
   }
 }
 
 export async function restaurarTarefa(id: string): Promise<TarefaResponse> {
   const response = await apiFetch(`/tarefas/${id}/restore`, { method: 'POST' })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível restaurar a tarefa.')
+    throw await lerErroApi(response, 'Não foi possível restaurar a tarefa.')
   }
   return (await response.json()) as TarefaResponse
 }

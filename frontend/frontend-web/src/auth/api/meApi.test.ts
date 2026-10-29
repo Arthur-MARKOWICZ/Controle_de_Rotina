@@ -4,9 +4,13 @@ import { ApiError } from './authApi'
 import { atualizarMe, buscarMe } from './meApi'
 import * as apiClient from '../session/apiClient'
 
-vi.mock('../session/apiClient', () => ({
-  apiFetch: vi.fn(),
-}))
+vi.mock('../session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 describe('meApi', () => {
   beforeEach(() => {
@@ -76,9 +80,22 @@ describe('meApi', () => {
     expect(me.nome).toBe('Ana Nova')
   })
 
-  it('propaga ApiError quando a API falha', async () => {
-    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 401 }))
+  it('propaga ApiError com detail do ProblemDetail quando a API falha', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          title: 'Não autorizado',
+          detail: 'Senha atual incorreta.',
+          status: 401,
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/problem+json' } },
+      ),
+    )
 
+    await expect(atualizarMe({ senhaAtual: 'errada' })).rejects.toMatchObject({
+      status: 401,
+      message: 'Senha atual incorreta.',
+    })
     await expect(atualizarMe({ senhaAtual: 'errada' })).rejects.toBeInstanceOf(ApiError)
   })
 })

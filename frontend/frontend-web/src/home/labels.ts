@@ -19,6 +19,7 @@ export const STATUS_TAREFA_LABEL: Record<StatusTarefa, string> = {
 export const STATUS_PLANO_LABEL: Record<StatusPlano, string> = {
   RASCUNHO: 'Rascunho',
   APROVADO: 'Aprovado',
+  DESCARTADO: 'Descartado',
 }
 
 export const STATUS_EXECUCAO_LABEL: Record<StatusExecucao, string> = {

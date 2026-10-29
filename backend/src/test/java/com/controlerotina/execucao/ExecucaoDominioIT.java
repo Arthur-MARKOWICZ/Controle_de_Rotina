@@ -106,7 +106,7 @@ class ExecucaoDominioIT {
                 Prioridade.MEDIA,
                 AGORA,
                 StatusTarefa.PENDENTE,
-                1,
+                60,
                 AGORA,
                 AGORA
         ));
@@ -119,6 +119,7 @@ class ExecucaoDominioIT {
                 1,
                 StatusPlano.APROVADO,
                 false,
+                null,
                 null,
                 AGORA,
                 AGORA,
@@ -151,7 +152,7 @@ class ExecucaoDominioIT {
                 .isInstanceOf(ExecucaoJaConcluidaException.class);
 
         UUID blocoAbortavel = UUID.randomUUID();
-        UUID tarefa2 = salvarTarefa("Tarefa abortavel", StatusTarefa.PENDENTE, 1);
+        UUID tarefa2 = salvarTarefa("Tarefa abortavel", StatusTarefa.PENDENTE, 60);
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoAbortavel, planoId, tarefa2, 30, 2, AGORA, AGORA
         ));
@@ -171,7 +172,7 @@ class ExecucaoDominioIT {
         assertThat(tarefaRepository.findById(tarefaId).orElseThrow().getStatus())
                 .isEqualTo(StatusTarefa.EM_PROGRESSO);
 
-        UUID tarefaAtrasada = salvarTarefa("Atrasada", StatusTarefa.ATRASADA, 1);
+        UUID tarefaAtrasada = salvarTarefa("Atrasada", StatusTarefa.ATRASADA, 60);
         UUID blocoAtrasada = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoAtrasada, planoId, tarefaAtrasada, 30, 2, AGORA, AGORA
@@ -180,7 +181,7 @@ class ExecucaoDominioIT {
         assertThat(tarefaRepository.findById(tarefaAtrasada).orElseThrow().getStatus())
                 .isEqualTo(StatusTarefa.EM_PROGRESSO);
 
-        UUID tarefaFinalizada = salvarTarefa("Finalizada", StatusTarefa.FINALIZADA, 1);
+        UUID tarefaFinalizada = salvarTarefa("Finalizada", StatusTarefa.FINALIZADA, 60);
         UUID blocoFinalizada = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoFinalizada, planoId, tarefaFinalizada, 30, 3, AGORA, AGORA
@@ -189,7 +190,7 @@ class ExecucaoDominioIT {
         assertThat(tarefaRepository.findById(tarefaFinalizada).orElseThrow().getStatus())
                 .isEqualTo(StatusTarefa.FINALIZADA);
 
-        UUID tarefaCancelada = salvarTarefa("Cancelada", StatusTarefa.CANCELADA, 1);
+        UUID tarefaCancelada = salvarTarefa("Cancelada", StatusTarefa.CANCELADA, 60);
         UUID blocoCancelada = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoCancelada, planoId, tarefaCancelada, 30, 4, AGORA, AGORA
@@ -198,7 +199,7 @@ class ExecucaoDominioIT {
         assertThat(tarefaRepository.findById(tarefaCancelada).orElseThrow().getStatus())
                 .isEqualTo(StatusTarefa.CANCELADA);
 
-        UUID tarefaJaProgresso = salvarTarefa("Ja progresso", StatusTarefa.EM_PROGRESSO, 1);
+        UUID tarefaJaProgresso = salvarTarefa("Ja progresso", StatusTarefa.EM_PROGRESSO, 60);
         UUID blocoProgresso = UUID.randomUUID();
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoProgresso, planoId, tarefaJaProgresso, 30, 5, AGORA, AGORA
@@ -211,7 +212,7 @@ class ExecucaoDominioIT {
     @Test
     void t3_concluirSomaDuracoesEFinalizaSomenteQuandoCompleto() {
         Tarefa tarefaLonga = tarefaRepository.findById(tarefaId).orElseThrow();
-        tarefaLonga.atualizar(null, null, null, null, null, 2, AGORA);
+        tarefaLonga.atualizar(null, null, null, null, null, 120, AGORA);
         tarefaRepository.save(tarefaLonga);
 
         UUID planoDia2 = UUID.randomUUID();
@@ -222,6 +223,7 @@ class ExecucaoDominioIT {
                 1,
                 StatusPlano.APROVADO,
                 false,
+                null,
                 null,
                 AGORA,
                 AGORA,
@@ -277,12 +279,13 @@ class ExecucaoDominioIT {
                 StatusPlano.RASCUNHO,
                 false,
                 null,
+                null,
                 AGORA,
                 AGORA,
                 AGORA
         ));
         UUID blocoRascunho = UUID.randomUUID();
-        UUID tarefaRascunho = salvarTarefa("Rascunho", StatusTarefa.PENDENTE, 1);
+        UUID tarefaRascunho = salvarTarefa("Rascunho", StatusTarefa.PENDENTE, 60);
         blocoPlanoRepository.save(new BlocoPlano(
                 blocoRascunho, rascunho.getId(), tarefaRascunho, 30, 1, AGORA, AGORA
         ));
@@ -294,7 +297,7 @@ class ExecucaoDominioIT {
                 .isInstanceOf(PlanoNaoExecutavelException.class);
     }
 
-    private UUID salvarTarefa(String titulo, StatusTarefa status, int duracaoHoras) {
+    private UUID salvarTarefa(String titulo, StatusTarefa status, int duracaoMinutos) {
         UUID id = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 id,
@@ -304,7 +307,7 @@ class ExecucaoDominioIT {
                 Prioridade.MEDIA,
                 AGORA,
                 status,
-                duracaoHoras,
+                duracaoMinutos,
                 AGORA,
                 AGORA
         ));

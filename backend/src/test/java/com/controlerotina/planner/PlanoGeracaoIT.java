@@ -10,9 +10,16 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +31,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -129,8 +138,8 @@ class PlanoGeracaoIT {
     @Test
     void deveGerarPlanoCom201EBlocos() {
         salvarOverride(3);
-        Tarefa baixa = salvarTarefa("Baixa", Prioridade.BAIXA, 1, AGORA);
-        Tarefa alta = salvarTarefa("Alta", Prioridade.ALTA, 1, AGORA.plusSeconds(5));
+        Tarefa baixa = salvarTarefa("Baixa", Prioridade.BAIXA, 60, AGORA);
+        Tarefa alta = salvarTarefa("Alta", Prioridade.ALTA, 60, AGORA.plusSeconds(5));
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/planos/gerar?data=" + DIA_D,
@@ -165,7 +174,7 @@ class PlanoGeracaoIT {
     @Test
     void deveIncrementarVersaoQuandoJaExisteRascunho() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -182,7 +191,7 @@ class PlanoGeracaoIT {
     @Test
     void deveRetornar409QuandoJaExistePlanoAprovado() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano rascunho = plannerGeracaoService.gerar(usuarioId, DIA_D);
         jdbcTemplate.update(
                 "update plano set status = ? where id = ?",
@@ -200,6 +209,61 @@ class PlanoGeracaoIT {
         assertThat(planoRepository.findMaxVersaoByUsuarioIdAndData(usuarioId, DIA_D)).isEqualTo(1);
     }
 
+    @Test
+    void t4_duasGeracoesSimultaneas_versoesDistintasOu409Nunca500() throws Exception {
+        salvarOverride(3);
+        salvarTarefa("Tarefa corrida", Prioridade.MEDIA, 60, AGORA);
+
+        CountDownLatch liberar = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<ResponseEntity<Map>> f1 = pool.submit(() -> {
+                liberar.await();
+                return restTemplate.exchange(
+                        "/planos/gerar?data=" + DIA_D,
+                        HttpMethod.POST,
+                        autenticado(),
+                        Map.class);
+            });
+            Future<ResponseEntity<Map>> f2 = pool.submit(() -> {
+                liberar.await();
+                return restTemplate.exchange(
+                        "/planos/gerar?data=" + DIA_D,
+                        HttpMethod.POST,
+                        autenticado(),
+                        Map.class);
+            });
+
+            liberar.countDown();
+            ResponseEntity<Map> r1 = f1.get(30, TimeUnit.SECONDS);
+            ResponseEntity<Map> r2 = f2.get(30, TimeUnit.SECONDS);
+
+            List<HttpStatusCode> statuses = List.of(r1.getStatusCode(), r2.getStatusCode());
+            assertThat(statuses).doesNotContain(HttpStatus.INTERNAL_SERVER_ERROR);
+            assertThat(statuses).allMatch(s -> s.equals(CREATED) || s.equals(CONFLICT));
+            assertThat(statuses).contains(CREATED);
+
+            Integer quantidade = jdbcTemplate.queryForObject(
+                    "select count(*) from plano where usuario_id = ? and data = ?",
+                    Integer.class,
+                    usuarioId,
+                    DIA_D
+            );
+            assertThat(quantidade).isBetween(1, 2);
+
+            List<Integer> versoes = jdbcTemplate.queryForList(
+                    "select versao from plano where usuario_id = ? and data = ? order by versao",
+                    Integer.class,
+                    usuarioId,
+                    DIA_D
+            );
+            Set<Integer> unicas = new HashSet<>(versoes);
+            assertThat(unicas).hasSize(versoes.size());
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
     private void salvarOverride(int horas) {
         capacidadeOverrideRepository.save(new CapacidadeOverride(
                 UUID.randomUUID(),
@@ -212,7 +276,7 @@ class PlanoGeracaoIT {
         ));
     }
 
-    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoHoras, Instant createdAt) {
+    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoMinutos, Instant createdAt) {
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
                 .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
@@ -224,7 +288,7 @@ class PlanoGeracaoIT {
                 prioridade,
                 prazo,
                 StatusTarefa.PENDENTE,
-                duracaoHoras,
+                duracaoMinutos,
                 createdAt,
                 createdAt
         ));

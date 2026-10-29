@@ -233,7 +233,7 @@ class CapacidadeSemanalIT {
 
     @Test
     void deveRetornar401AoListarSemToken() {
-        ResponseEntity<List> response = restTemplate.getForEntity("/capacidades/semanal", List.class);
+        ResponseEntity<Map> response = restTemplate.getForEntity("/capacidades/semanal", Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
     }

@@ -1,16 +1,16 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
 
-export type StatusPlano = 'RASCUNHO' | 'APROVADO'
+export type StatusPlano = 'RASCUNHO' | 'APROVADO' | 'DESCARTADO'
 
 export type TarefaResumoResponse = {
   id: string
   titulo: string
   prioridade: Prioridade
   status: StatusTarefa
-  duracaoHoras: number
-  prazo: string
+  duracaoMinutos: number
+  prazo: string | null
 }
 
 export type BlocoPlanoResponse = {
@@ -27,6 +27,8 @@ export type PlanoResponse = {
   status: StatusPlano
   temConflito: boolean
   mensagem: string | null
+  propostaId: string | null
+  propostaPendente: boolean
   geradoEm: string
   createdAt: string
   updatedAt: string
@@ -36,18 +38,6 @@ export type PlanoResponse = {
 export type BuscarPlanoParams = {
   data: string
   versao?: number
-}
-
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = await readApiJson<{ detail?: string; title?: string }>(response)
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return error
-    }
-    return new ApiError(response.status, fallback)
-  }
 }
 
 export function buildPlanoQuery(params: BuscarPlanoParams): string {
@@ -65,7 +55,7 @@ export async function buscarPlano(params: BuscarPlanoParams): Promise<PlanoRespo
     return null
   }
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar o plano.')
+    throw await lerErroApi(response, 'Não foi possível carregar o plano.')
   }
   return readApiJson<PlanoResponse>(response)
 }
@@ -77,17 +67,51 @@ export async function gerarPlano(data: string): Promise<PlanoResponse> {
     method: 'POST',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível gerar o plano.')
+    throw await lerErroApi(response, 'Não foi possível gerar o plano.')
   }
   return readApiJson<PlanoResponse>(response)
+}
+
+/** Datas ISO (YYYY-MM-DD) com plano da mesma proposta, a partir de `inicio` (até 14 dias). */
+export async function listarDatasDaProposta(
+  inicio: string,
+  propostaId: string,
+  dias = 14,
+): Promise<string[]> {
+  const datas: string[] = []
+  const [y, m, d] = inicio.split('-').map(Number)
+  for (let i = 0; i < dias; i++) {
+    const utc = new Date(Date.UTC(y, m - 1, d + i))
+    const data = utc.toISOString().slice(0, 10)
+    const plano = await buscarPlano({ data })
+    if (plano?.propostaId === propostaId) {
+      datas.push(data)
+    }
+  }
+  return datas
 }
 
 export async function aprovarPlano(planoId: string): Promise<PlanoResponse> {
   const response = await apiFetch(`/planos/${planoId}/aprovar`, { method: 'POST' })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível aprovar o plano.')
+    throw await lerErroApi(response, 'Não foi possível aprovar o plano.')
   }
   return readApiJson<PlanoResponse>(response)
+}
+
+export async function aceitarProposta(propostaId: string): Promise<PlanoResponse> {
+  const response = await apiFetch(`/planos/propostas/${propostaId}/aceitar`, { method: 'POST' })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível aceitar a proposta.')
+  }
+  return readApiJson<PlanoResponse>(response)
+}
+
+export async function descartarProposta(propostaId: string): Promise<void> {
+  const response = await apiFetch(`/planos/propostas/${propostaId}/descartar`, { method: 'POST' })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível descartar a proposta.')
+  }
 }
 
 export async function adicionarBloco(
@@ -100,7 +124,7 @@ export async function adicionarBloco(
     body: JSON.stringify({ tarefaId }),
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível adicionar a tarefa ao plano.')
+    throw await lerErroApi(response, 'Não foi possível adicionar a tarefa ao plano.')
   }
   return readApiJson<PlanoResponse>(response)
 }
@@ -110,6 +134,6 @@ export async function removerBloco(planoId: string, blocoId: string): Promise<vo
     method: 'DELETE',
   })
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível remover o bloco.')
+    throw await lerErroApi(response, 'Não foi possível remover o bloco.')
   }
 }

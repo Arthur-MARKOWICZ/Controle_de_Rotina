@@ -474,9 +474,9 @@ class CapacidadeOverrideIT {
 
     @Test
     void deveRetornar401AoConsultarResolvidaSemToken() {
-        ResponseEntity<List> response = restTemplate.getForEntity(
+        ResponseEntity<Map> response = restTemplate.getForEntity(
                 "/capacidades/resolvida?dataDe=2026-10-08&dataAte=2026-10-08",
-                List.class);
+                Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
     }

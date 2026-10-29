@@ -3,8 +3,8 @@ package com.controlerotina.tarefa.dto;
 import java.time.Instant;
 
 import com.controlerotina.tarefa.entity.Prioridade;
+import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -20,12 +20,11 @@ public record CriarTarefaRequest(
         @NotNull
         Prioridade prioridade,
 
-        @NotNull
         Instant prazo,
 
         @NotNull
-        @Min(1)
-        Integer duracaoHoras
+        @DuracaoMinutosValida
+        Integer duracaoMinutos
 ) {
     public CriarTarefaRequest {
         if (titulo != null) {

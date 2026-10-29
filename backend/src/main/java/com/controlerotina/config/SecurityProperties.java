@@ -12,7 +12,9 @@ public record SecurityProperties(
     public record Jwt(
             String secret,
             Duration accessTokenTtl,
-            Duration refreshTokenTtl
+            Duration refreshTokenTtl,
+            String issuer,
+            String audience
     ) {
     }
 

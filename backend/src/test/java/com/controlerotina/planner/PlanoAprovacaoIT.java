@@ -123,7 +123,7 @@ class PlanoAprovacaoIT {
     @Test
     void deveAprovarRascunhoCorrenteCom200() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -142,7 +142,7 @@ class PlanoAprovacaoIT {
     @Test
     void deveRetornar409AoAprovarNovamente() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         assertThat(restTemplate.exchange(
@@ -163,7 +163,7 @@ class PlanoAprovacaoIT {
     @Test
     void deveRetornar409AoAprovarVersaoQueNaoECorrente() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano v1 = plannerGeracaoService.gerar(usuarioId, DIA_D);
         plannerGeracaoService.gerar(usuarioId, DIA_D);
 
@@ -179,7 +179,7 @@ class PlanoAprovacaoIT {
     @Test
     void deveBloquearNovaGeracaoAposAprovacao() {
         salvarOverride(2);
-        salvarTarefa("Tarefa", Prioridade.MEDIA, 1, AGORA);
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         assertThat(restTemplate.exchange(
@@ -209,7 +209,7 @@ class PlanoAprovacaoIT {
         ));
     }
 
-    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoHoras, Instant createdAt) {
+    private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoMinutos, Instant createdAt) {
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
                 .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
@@ -221,7 +221,7 @@ class PlanoAprovacaoIT {
                 prioridade,
                 prazo,
                 StatusTarefa.PENDENTE,
-                duracaoHoras,
+                duracaoMinutos,
                 createdAt,
                 createdAt
         ));

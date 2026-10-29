@@ -32,7 +32,7 @@ class ScoreV1Test {
                 prioridade,
                 StatusTarefa.PENDENTE,
                 Instant.parse("2026-11-01T15:00:00Z"),
-                5
+                300
         );
 
         int score = ScoreV1.calcular(tarefa, DIA_D);
@@ -56,7 +56,7 @@ class ScoreV1Test {
                 Prioridade.BAIXA,
                 StatusTarefa.PENDENTE,
                 OffsetDateTime.parse(prazoIso).toInstant(),
-                5
+                300
         );
 
         int score = ScoreV1.calcular(tarefa, DIA_D);
@@ -67,8 +67,8 @@ class ScoreV1Test {
     @Test
     void deveSomarBonusQuandoAtrasada() {
         Instant prazoAntesDeD = DIA_D.atStartOfDay(ZONE).minusHours(1).toInstant();
-        Tarefa atrasada = tarefa(Prioridade.BAIXA, StatusTarefa.ATRASADA, prazoAntesDeD, 5);
-        Tarefa pendente = tarefa(Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoAntesDeD, 5);
+        Tarefa atrasada = tarefa(Prioridade.BAIXA, StatusTarefa.ATRASADA, prazoAntesDeD, 300);
+        Tarefa pendente = tarefa(Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoAntesDeD, 300);
 
         assertThat(ScoreV1.calcular(atrasada, DIA_D) - ScoreV1.calcular(pendente, DIA_D))
                 .isEqualTo(40);
@@ -76,15 +76,15 @@ class ScoreV1Test {
 
     @ParameterizedTest
     @CsvSource({
-            "1, 15",
-            "2, 10",
-            "3, 5",
-            "4, 5",
-            "5, 0"
+            "60, 15",
+            "120, 10",
+            "180, 5",
+            "240, 5",
+            "300, 0"
     })
-    void devePontuarDuracaoEmMinutos(int duracaoHoras, int pontosDuracao) {
+    void devePontuarDuracaoEmMinutos(int duracaoMinutos, int pontosDuracao) {
         Instant prazoLonge = Instant.parse("2026-11-30T12:00:00Z");
-        Tarefa tarefa = tarefa(Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoLonge, duracaoHoras);
+        Tarefa tarefa = tarefa(Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoLonge, duracaoMinutos);
 
         int score = ScoreV1.calcular(tarefa, DIA_D);
 
@@ -94,18 +94,32 @@ class ScoreV1Test {
     @Test
     void deveSomarTodosOsFatores() {
         Instant prazoDuranteD = DIA_D.atTime(14, 0).atZone(ZONE).toInstant();
-        Tarefa tarefa = tarefa(Prioridade.ALTA, StatusTarefa.ATRASADA, prazoDuranteD, 1);
+        Tarefa tarefa = tarefa(Prioridade.ALTA, StatusTarefa.ATRASADA, prazoDuranteD, 60);
 
         int score = ScoreV1.calcular(tarefa, DIA_D);
 
         assertThat(score).isEqualTo(100 + 60 + 40 + 15);
     }
 
+    @Test
+    void semPrazoTemUrgenciaZero() {
+        Tarefa semPrazo = tarefa(Prioridade.ALTA, StatusTarefa.PENDENTE, null, 60);
+        Tarefa comPrazoLonge = tarefa(
+                Prioridade.ALTA,
+                StatusTarefa.PENDENTE,
+                Instant.parse("2026-11-30T12:00:00Z"),
+                60
+        );
+
+        assertThat(ScoreV1.calcular(semPrazo, DIA_D)).isEqualTo(100 + 15);
+        assertThat(ScoreV1.calcular(semPrazo, DIA_D)).isEqualTo(ScoreV1.calcular(comPrazoLonge, DIA_D));
+    }
+
     private static Tarefa tarefa(
             Prioridade prioridade,
             StatusTarefa status,
             Instant prazo,
-            int duracaoHoras
+            int duracaoMinutos
     ) {
         Instant agora = Instant.parse("2026-10-01T12:00:00Z");
         return new Tarefa(
@@ -116,7 +130,7 @@ class ScoreV1Test {
                 prioridade,
                 prazo,
                 status,
-                duracaoHoras,
+                duracaoMinutos,
                 agora,
                 agora
         );

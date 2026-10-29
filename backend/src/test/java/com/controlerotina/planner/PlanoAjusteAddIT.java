@@ -141,10 +141,10 @@ class PlanoAjusteAddIT {
     @Test
     void deveRetornar409QuandoPlanoNaoERascunhoCorrente() {
         salvarOverride(2);
-        salvarTarefa("Ja no plano", Prioridade.MEDIA, StatusTarefa.PENDENTE, 1, AGORA);
+        salvarTarefa("Ja no plano", Prioridade.MEDIA, StatusTarefa.PENDENTE, 60, AGORA);
         Plano v1 = plannerGeracaoService.gerar(usuarioId, DIA_D);
         Plano v2 = plannerGeracaoService.gerar(usuarioId, DIA_D);
-        Tarefa extra = salvarTarefa("Extra", Prioridade.BAIXA, StatusTarefa.PENDENTE, 1, AGORA);
+        Tarefa extra = salvarTarefa("Extra", Prioridade.BAIXA, StatusTarefa.PENDENTE, 60, AGORA);
 
         ResponseEntity<Map> versaoAntiga = restTemplate.exchange(
                 "/planos/" + v1.getId() + "/blocos",
@@ -159,7 +159,7 @@ class PlanoAjusteAddIT {
                 v2.getId()
         );
 
-        Tarefa outra = salvarTarefa("Outra", Prioridade.BAIXA, StatusTarefa.PENDENTE, 1, AGORA);
+        Tarefa outra = salvarTarefa("Outra", Prioridade.BAIXA, StatusTarefa.PENDENTE, 60, AGORA);
         ResponseEntity<Map> aprovado = restTemplate.exchange(
                 "/planos/" + v2.getId() + "/blocos",
                 HttpMethod.POST,
@@ -171,9 +171,9 @@ class PlanoAjusteAddIT {
     @Test
     void deveAdicionarBlocoComDuracaoTotalE201() {
         salvarOverride(4);
-        Tarefa noPlano = salvarTarefa("No plano", Prioridade.ALTA, StatusTarefa.PENDENTE, 1, AGORA);
+        Tarefa noPlano = salvarTarefa("No plano", Prioridade.ALTA, StatusTarefa.PENDENTE, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
-        Tarefa nova = salvarTarefa("Nova", Prioridade.MEDIA, StatusTarefa.PENDENTE, 2, AGORA);
+        Tarefa nova = salvarTarefa("Nova", Prioridade.MEDIA, StatusTarefa.PENDENTE, 120, AGORA);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/planos/" + plano.getId() + "/blocos",
@@ -203,9 +203,9 @@ class PlanoAjusteAddIT {
     @Test
     void deveMarcarConflitoQuandoSomaUltrapassaCapacidadeMasPersiste() {
         salvarOverride(1);
-        salvarTarefa("Cabe", Prioridade.ALTA, StatusTarefa.PENDENTE, 1, AGORA);
+        salvarTarefa("Cabe", Prioridade.ALTA, StatusTarefa.PENDENTE, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
-        Tarefa estoura = salvarTarefa("Estoura", Prioridade.MEDIA, StatusTarefa.PENDENTE, 1, AGORA);
+        Tarefa estoura = salvarTarefa("Estoura", Prioridade.MEDIA, StatusTarefa.PENDENTE, 60, AGORA);
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/planos/" + plano.getId() + "/blocos",
@@ -226,7 +226,7 @@ class PlanoAjusteAddIT {
     @Test
     void deveRetornar409QuandoTarefaJaEstaNoPlano() {
         salvarOverride(2);
-        Tarefa tarefa = salvarTarefa("Unica", Prioridade.MEDIA, StatusTarefa.PENDENTE, 1, AGORA);
+        Tarefa tarefa = salvarTarefa("Unica", Prioridade.MEDIA, StatusTarefa.PENDENTE, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -255,8 +255,8 @@ class PlanoAjusteAddIT {
     @Test
     void deveRetornar409QuandoTarefaNaoEElegivel() {
         salvarOverride(3);
-        salvarTarefa("Base", Prioridade.MEDIA, StatusTarefa.PENDENTE, 1, AGORA);
-        Tarefa finalizada = salvarTarefa("Finalizada", Prioridade.ALTA, StatusTarefa.FINALIZADA, 1, AGORA);
+        salvarTarefa("Base", Prioridade.MEDIA, StatusTarefa.PENDENTE, 60, AGORA);
+        Tarefa finalizada = salvarTarefa("Finalizada", Prioridade.ALTA, StatusTarefa.FINALIZADA, 60, AGORA);
         Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -284,7 +284,7 @@ class PlanoAjusteAddIT {
             String titulo,
             Prioridade prioridade,
             StatusTarefa status,
-            int duracaoHoras,
+            int duracaoMinutos,
             Instant createdAt
     ) {
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
@@ -298,7 +298,7 @@ class PlanoAjusteAddIT {
                 prioridade,
                 prazo,
                 status,
-                duracaoHoras,
+                duracaoMinutos,
                 createdAt,
                 createdAt
         ));

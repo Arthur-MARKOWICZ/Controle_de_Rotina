@@ -19,7 +19,7 @@ public final class ScoreV1 {
         return pontosPrioridade(tarefa.getPrioridade())
                 + pontosUrgencia(tarefa, diaD)
                 + pontosBonusAtrasada(tarefa.getStatus())
-                + pontosDuracao(tarefa.getDuracaoHoras() * 60);
+                + pontosDuracao(tarefa.getDuracaoMinutos());
     }
 
     static int pontosPrioridade(Prioridade prioridade) {
@@ -31,6 +31,9 @@ public final class ScoreV1 {
     }
 
     static int pontosUrgencia(Tarefa tarefa, LocalDate diaD) {
+        if (tarefa.getPrazo() == null) {
+            return 0;
+        }
         ZonedDateTime inicioD = diaD.atStartOfDay(ZONE);
         var prazo = tarefa.getPrazo().atZone(ZONE);
 

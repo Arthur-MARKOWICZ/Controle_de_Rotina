@@ -60,7 +60,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'MEDIA',
       prazo: '2030-01-01T12:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 2,
+      duracaoMinutos: 120,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
@@ -75,8 +75,8 @@ describe('TarefaFormPage', () => {
     await user.type(screen.getByLabelText(/^título$/i), 'Estudar')
     await user.type(screen.getByLabelText(/descrição/i), 'Spring Boot')
     await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
-    await user.type(screen.getByLabelText(/^prazo$/i), prazoFuturoLocal())
-    await user.type(screen.getByLabelText(/duração/i), '2')
+    await user.type(screen.getByLabelText(/prazo/i), prazoFuturoLocal())
+    await user.type(screen.getByLabelText(/duração/i), '120')
     await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
 
     await waitFor(() => {
@@ -85,11 +85,32 @@ describe('TarefaFormPage', () => {
           titulo: 'Estudar',
           descricao: 'Spring Boot',
           prioridade: 'MEDIA',
-          duracaoHoras: 2,
+          duracaoMinutos: 120,
         }),
       )
     })
     expect(await screen.findByText('Lista de tarefas')).toBeInTheDocument()
+  })
+
+  it('T4: permite criar tarefa sem prazo', async () => {
+    const user = userEvent.setup()
+    renderCriar()
+
+    await user.type(screen.getByLabelText(/^título$/i), 'Sem prazo')
+    await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
+    await user.type(screen.getByLabelText(/duração/i), '60')
+    await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+
+    await waitFor(() => {
+      expect(tarefaApi.criarTarefa).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titulo: 'Sem prazo',
+          prioridade: 'MEDIA',
+          prazo: null,
+          duracaoMinutos: 60,
+        }),
+      )
+    })
   })
 
   it('mostra erro de validação quando título está vazio', async () => {
@@ -98,8 +119,8 @@ describe('TarefaFormPage', () => {
 
     await user.type(screen.getByLabelText(/descrição/i), 'Algo')
     await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'BAIXA')
-    await user.type(screen.getByLabelText(/^prazo$/i), prazoFuturoLocal())
-    await user.type(screen.getByLabelText(/duração/i), '1')
+    await user.type(screen.getByLabelText(/prazo/i), prazoFuturoLocal())
+    await user.type(screen.getByLabelText(/duração/i), '60')
     await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/título/i)
@@ -114,7 +135,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
@@ -127,7 +148,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'EM_PROGRESSO',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-02T10:00:00Z',
       deletedAt: null,
@@ -165,7 +186,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
@@ -193,7 +214,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: '2026-02-01T10:00:00Z',
@@ -206,7 +227,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-02-02T10:00:00Z',
       deletedAt: null,
@@ -234,7 +255,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
@@ -260,7 +281,7 @@ describe('TarefaFormPage', () => {
       prioridade: 'ALTA',
       prazo: '2030-06-01T15:00:00Z',
       status: 'PENDENTE',
-      duracaoHoras: 4,
+      duracaoMinutos: 240,
       createdAt: '2026-01-01T10:00:00Z',
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,

@@ -12,9 +12,13 @@ import {
   type TarefaResponse,
 } from './tarefaApi'
 
-vi.mock('../../auth/session/apiClient', () => ({
-  apiFetch: vi.fn(),
-}))
+vi.mock('../../auth/session/apiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  }
+})
 
 const tarefa: TarefaResponse = {
   id: 't-1',
@@ -23,7 +27,7 @@ const tarefa: TarefaResponse = {
   prioridade: 'MEDIA',
   prazo: '2030-01-01T12:00:00Z',
   status: 'PENDENTE',
-  duracaoHoras: 2,
+  duracaoMinutos: 120,
   createdAt: '2026-01-01T10:00:00Z',
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
@@ -86,7 +90,7 @@ describe('tarefaApi', () => {
       descricao: 'Spring',
       prioridade: 'MEDIA' as const,
       prazo: '2030-01-01T12:00:00Z',
-      duracaoHoras: 2,
+      duracaoMinutos: 120,
     }
     const criada = await criarTarefa(body)
 
@@ -145,7 +149,7 @@ describe('tarefaApi', () => {
         descricao: 'Y',
         prioridade: 'BAIXA',
         prazo: '2000-01-01T00:00:00Z',
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       })
       expect.fail('deveria ter lançado ApiError')
     } catch (error) {

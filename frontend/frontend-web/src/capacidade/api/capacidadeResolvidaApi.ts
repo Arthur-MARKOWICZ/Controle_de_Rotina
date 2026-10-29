@@ -1,4 +1,4 @@
-import { ApiError } from '../../auth/api/authApi'
+import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export type OrigemCapacidade = 'SEMANAL' | 'OVERRIDE' | 'VAZIO'
@@ -12,18 +12,6 @@ export type CapacidadeResolvidaResponse = {
 export type ConsultarCapacidadeResolvidaParams = {
   dataDe: string
   dataAte: string
-}
-
-async function lerErro(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = await readApiJson<{ detail?: string; title?: string }>(response)
-    return new ApiError(response.status, body.detail || body.title || fallback)
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return error
-    }
-    return new ApiError(response.status, fallback)
-  }
 }
 
 export function buildCapacidadeResolvidaQuery(
@@ -40,7 +28,7 @@ export async function consultarCapacidadeResolvida(
 ): Promise<CapacidadeResolvidaResponse[]> {
   const response = await apiFetch(buildCapacidadeResolvidaQuery(filtro))
   if (!response.ok) {
-    throw await lerErro(response, 'Não foi possível carregar a capacidade resolvida.')
+    throw await lerErroApi(response, 'Não foi possível carregar a capacidade resolvida.')
   }
   return readApiJson<CapacidadeResolvidaResponse[]>(response)
 }

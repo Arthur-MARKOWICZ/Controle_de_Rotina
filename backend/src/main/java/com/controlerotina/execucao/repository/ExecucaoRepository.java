@@ -38,6 +38,20 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
     );
 
     @Query("""
+            SELECT e, b.duracaoMinutos
+              FROM Execucao e, BlocoPlano b
+             WHERE e.blocoPlanoId = b.id
+               AND b.tarefaId = :tarefaId
+               AND e.usuarioId = :usuarioId
+               AND e.status = :status
+            """)
+    List<Object[]> listarConcluidasComDuracaoBlocoPorTarefa(
+            @Param("tarefaId") UUID tarefaId,
+            @Param("usuarioId") UUID usuarioId,
+            @Param("status") StatusExecucao status
+    );
+
+    @Query("""
             SELECT COUNT(e)
               FROM Execucao e
              WHERE e.usuarioId = :usuarioId

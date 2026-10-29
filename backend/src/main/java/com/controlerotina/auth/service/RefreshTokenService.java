@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -22,6 +23,7 @@ import com.controlerotina.shared.exception.CredenciaisInvalidasException;
 public class RefreshTokenService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    static final Duration JANELA_RETENCAO = Duration.ofDays(7);
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final SecurityProperties securityProperties;
@@ -80,12 +82,40 @@ public class RefreshTokenService {
                 });
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = CredenciaisInvalidasException.class)
     public Rotacao rotacionar(String tokenBruto) {
-        RefreshToken atual = exigirAtivo(tokenBruto);
-        atual.revogar(clock.instant());
+        if (tokenBruto == null || tokenBruto.isBlank()) {
+            throw new CredenciaisInvalidasException();
+        }
+
+        RefreshToken atual = refreshTokenRepository.findByTokenHash(hash(tokenBruto))
+                .orElseThrow(CredenciaisInvalidasException::new);
+
+        Instant agora = clock.instant();
+        if (atual.getRevokedAt() != null) {
+            revogarFamilia(atual.getUsuarioId(), agora);
+            throw new CredenciaisInvalidasException();
+        }
+        if (!atual.getExpiresAt().isAfter(agora)) {
+            throw new CredenciaisInvalidasException();
+        }
+
+        atual.revogar(agora);
         String novoToken = emitir(atual.getUsuarioId());
+        limparTokensAntigos();
         return new Rotacao(atual.getUsuarioId(), novoToken);
+    }
+
+    @Transactional
+    public int limparTokensAntigos() {
+        Instant limite = clock.instant().minus(JANELA_RETENCAO);
+        return refreshTokenRepository.deleteExpiradosOuRevogadosAntesDe(limite);
+    }
+
+    private void revogarFamilia(UUID usuarioId, Instant agora) {
+        for (RefreshToken token : refreshTokenRepository.findByUsuarioIdAndRevokedAtIsNull(usuarioId)) {
+            token.revogar(agora);
+        }
     }
 
     public record Rotacao(UUID usuarioId, String novoToken) {

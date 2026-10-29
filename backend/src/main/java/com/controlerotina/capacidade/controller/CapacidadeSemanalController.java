@@ -1,6 +1,5 @@
 package com.controlerotina.capacidade.controller;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,44 +15,31 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.controlerotina.capacidade.dto.AtualizarCapacidadeSemanalRequest;
 import com.controlerotina.capacidade.dto.CapacidadeSemanalResponse;
-import com.controlerotina.capacidade.dto.CriarCapacidadeSemanalItemRequest;
+import com.controlerotina.capacidade.dto.CriarCapacidadeSemanalRequest;
 import com.controlerotina.capacidade.service.CapacidadeSemanalService;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
-import jakarta.validation.Validator;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/capacidades/semanal")
 public class CapacidadeSemanalController {
 
     private final CapacidadeSemanalService capacidadeSemanalService;
-    private final ObjectMapper objectMapper;
-    private final Validator validator;
 
-    public CapacidadeSemanalController(
-            CapacidadeSemanalService capacidadeSemanalService,
-            ObjectMapper objectMapper,
-            Validator validator
-    ) {
+    public CapacidadeSemanalController(CapacidadeSemanalService capacidadeSemanalService) {
         this.capacidadeSemanalService = capacidadeSemanalService;
-        this.objectMapper = objectMapper;
-        this.validator = validator;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public List<CapacidadeSemanalResponse> criar(
             @AuthenticationPrincipal UUID usuarioId,
-            @RequestBody JsonNode body
+            @Valid @RequestBody CriarCapacidadeSemanalRequest request
     ) {
-        return capacidadeSemanalService.criar(usuarioId, parseItens(body));
+        return capacidadeSemanalService.criar(usuarioId, request.itens());
     }
 
     @GetMapping
@@ -97,39 +83,5 @@ public class CapacidadeSemanalController {
             @PathVariable UUID id
     ) {
         return capacidadeSemanalService.restaurar(usuarioId, id);
-    }
-
-    private List<CriarCapacidadeSemanalItemRequest> parseItens(JsonNode body) {
-        if (body == null || body.isNull()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body obrigatório.");
-        }
-
-        List<CriarCapacidadeSemanalItemRequest> itens = new ArrayList<>();
-        if (body.isArray()) {
-            for (JsonNode node : body) {
-                itens.add(converterEValidar(node));
-            }
-        } else if (body.isObject()) {
-            itens.add(converterEValidar(body));
-        } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body inválido.");
-        }
-        return itens;
-    }
-
-    private CriarCapacidadeSemanalItemRequest converterEValidar(JsonNode node) {
-        CriarCapacidadeSemanalItemRequest item;
-        try {
-            item = objectMapper.convertValue(node, CriarCapacidadeSemanalItemRequest.class);
-        } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item de capacidade inválido.");
-        }
-
-        var violations = validator.validate(item);
-        if (!violations.isEmpty()) {
-            ConstraintViolation<CriarCapacidadeSemanalItemRequest> first = violations.iterator().next();
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, first.getMessage());
-        }
-        return item;
     }
 }

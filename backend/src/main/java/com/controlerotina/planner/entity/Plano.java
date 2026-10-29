@@ -44,6 +44,9 @@ public class Plano {
     @Column(length = 500)
     private String mensagem;
 
+    @Column(name = "proposta_id")
+    private UUID propostaId;
+
     @Column(name = "gerado_em", nullable = false)
     private Instant geradoEm;
 
@@ -64,6 +67,7 @@ public class Plano {
             StatusPlano status,
             boolean temConflito,
             String mensagem,
+            UUID propostaId,
             Instant geradoEm,
             Instant createdAt,
             Instant updatedAt
@@ -75,6 +79,7 @@ public class Plano {
         this.status = status;
         this.temConflito = temConflito;
         this.mensagem = mensagem;
+        this.propostaId = propostaId;
         this.geradoEm = geradoEm;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -108,6 +113,10 @@ public class Plano {
         return mensagem;
     }
 
+    public UUID getPropostaId() {
+        return propostaId;
+    }
+
     public Instant getGeradoEm() {
         return geradoEm;
     }
@@ -128,6 +137,11 @@ public class Plano {
 
     public void aprovar(Instant updatedAt) {
         this.status = StatusPlano.APROVADO;
+        this.updatedAt = updatedAt;
+    }
+
+    public void descartar(Instant updatedAt) {
+        this.status = StatusPlano.DESCARTADO;
         this.updatedAt = updatedAt;
     }
 }

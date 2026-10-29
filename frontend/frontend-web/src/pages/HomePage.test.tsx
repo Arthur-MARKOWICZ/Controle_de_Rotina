@@ -21,8 +21,11 @@ vi.mock('../planner/api/planoApi', () => ({
   buscarPlano: vi.fn(),
   gerarPlano: vi.fn(),
   aprovarPlano: vi.fn(),
+  aceitarProposta: vi.fn(),
+  descartarProposta: vi.fn(),
   adicionarBloco: vi.fn(),
   removerBloco: vi.fn(),
+  listarDatasDaProposta: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('../capacidade/api/capacidadeResolvidaApi', () => ({
@@ -68,7 +71,7 @@ const tarefaExtra: TarefaResponse = {
   prioridade: 'MEDIA',
   prazo: '2030-01-01T12:00:00Z',
   status: 'PENDENTE',
-  duracaoHoras: 1,
+  duracaoMinutos: 60,
   createdAt: '2026-01-01T10:00:00Z',
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
@@ -82,6 +85,8 @@ const planoBase: PlanoResponse = {
   status: 'RASCUNHO',
   temConflito: false,
   mensagem: null,
+  propostaId: null,
+  propostaPendente: false,
   geradoEm: '2026-10-20T09:00:00Z',
   createdAt: '2026-10-20T09:00:00Z',
   updatedAt: '2026-10-20T09:00:00Z',
@@ -95,7 +100,7 @@ const planoBase: PlanoResponse = {
         titulo: 'Estudar Spring',
         prioridade: 'ALTA',
         status: 'PENDENTE',
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
         prazo: '2026-10-22T15:00:00Z',
       },
     },
@@ -109,7 +114,7 @@ const itemExecucaoBase: ItemExecucaoResponse = {
     titulo: 'Estudar Spring',
     prioridade: 'ALTA',
     status: 'PENDENTE',
-    duracaoHoras: 1,
+    duracaoMinutos: 60,
   },
   execucao: {
     id: null,
@@ -144,6 +149,8 @@ describe('HomePage — plano do dia', () => {
     vi.mocked(planoApi.buscarPlano).mockReset()
     vi.mocked(planoApi.gerarPlano).mockReset()
     vi.mocked(planoApi.aprovarPlano).mockReset()
+    vi.mocked(planoApi.aceitarProposta).mockReset()
+    vi.mocked(planoApi.descartarProposta).mockReset()
     vi.mocked(planoApi.adicionarBloco).mockReset()
     vi.mocked(planoApi.removerBloco).mockReset()
     vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockReset()
@@ -220,6 +227,23 @@ describe('HomePage — plano do dia', () => {
       expect(banner).toHaveTextContent(
         'Capacidade insuficiente: ao menos uma tarefa foi alocada parcialmente.',
       )
+    })
+
+    it('T5: revisão mostra mensagem de conflito de prazo da API', async () => {
+      const mensagemPrazo =
+        'Não cabe até o prazo: "Relatorio" — 240 min fora (prazo 23/10/2026).'
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        temConflito: true,
+        mensagem: mensagemPrazo,
+      })
+
+      renderHome()
+
+      const banner = await screen.findByRole('status', { name: /conflito/i })
+      expect(banner).toHaveTextContent(mensagemPrazo)
+      expect(banner).toHaveTextContent('Relatorio')
+      expect(banner).toHaveTextContent('240')
     })
 
     it('T2: banner de conflito oferece ações acionáveis', async () => {
@@ -413,7 +437,7 @@ describe('HomePage — plano do dia', () => {
               titulo: 'Ler docs',
               prioridade: 'MEDIA',
               status: 'PENDENTE',
-              duracaoHoras: 1,
+              duracaoMinutos: 60,
               prazo: '2030-01-01T12:00:00Z',
             },
           },
@@ -440,6 +464,23 @@ describe('HomePage — plano do dia', () => {
 
       expect(await screen.findByText(/aprovado/i)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /gerar/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('F1 — proposta pendente', () => {
+    it('T4: CTAs aceitar e descartar visíveis com proposta pendente', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        propostaId: 'prop-1',
+        propostaPendente: true,
+        versao: 2,
+      })
+
+      renderHome()
+
+      expect(await screen.findByRole('button', { name: /aceitar proposta/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^descartar$/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /aprovar plano/i })).not.toBeInTheDocument()
     })
   })
 
@@ -554,7 +595,7 @@ describe('HomePage — plano do dia', () => {
               titulo: 'Ler docs',
               prioridade: 'MEDIA',
               status: 'PENDENTE',
-              duracaoHoras: 1,
+              duracaoMinutos: 60,
               prazo: '2030-01-01T12:00:00Z',
             },
           },

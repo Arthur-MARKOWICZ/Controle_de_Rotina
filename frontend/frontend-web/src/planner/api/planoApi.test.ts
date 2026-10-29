@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../auth/api/authApi'
 import * as apiClient from '../../auth/session/apiClient'
 import {
+  aceitarProposta,
   adicionarBloco,
   aprovarPlano,
   buscarPlano,
+  descartarProposta,
   gerarPlano,
   removerBloco,
   type PlanoResponse,
@@ -26,6 +28,8 @@ const plano: PlanoResponse = {
   status: 'RASCUNHO',
   temConflito: false,
   mensagem: 'Sem tempo neste dia. Nada planejado.',
+  propostaId: null,
+  propostaPendente: false,
   geradoEm: '2026-10-20T09:00:00Z',
   createdAt: '2026-10-20T09:00:00Z',
   updatedAt: '2026-10-20T09:00:00Z',
@@ -129,6 +133,32 @@ describe('planoApi', () => {
       method: 'POST',
     })
     expect(resultado.status).toBe('APROVADO')
+  })
+
+  it('aceita proposta via POST /planos/propostas/{id}/aceitar', async () => {
+    const aceito = { ...plano, status: 'APROVADO' as const, propostaPendente: false }
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify(aceito), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    await aceitarProposta('prop-1')
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/planos/propostas/prop-1/aceitar', {
+      method: 'POST',
+    })
+  })
+
+  it('descarta proposta via POST /planos/propostas/{id}/descartar', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+    await descartarProposta('prop-1')
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/planos/propostas/prop-1/descartar', {
+      method: 'POST',
+    })
   })
 
   it('adiciona bloco via POST /planos/{id}/blocos', async () => {

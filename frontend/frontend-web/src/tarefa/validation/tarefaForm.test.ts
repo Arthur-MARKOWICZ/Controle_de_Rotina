@@ -12,7 +12,7 @@ describe('validarTarefaForm', () => {
         descricao: 'Revisar Spring',
         prioridade: 'MEDIA',
         prazo: futuro,
-        duracaoHoras: 2,
+        duracaoMinutos: 120,
       }),
     ).toBeNull()
   })
@@ -24,7 +24,7 @@ describe('validarTarefaForm', () => {
         descricao: '  ',
         prioridade: 'BAIXA',
         prazo: futuro,
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       }),
     ).toBeNull()
   })
@@ -36,7 +36,7 @@ describe('validarTarefaForm', () => {
         descricao: 'Desc',
         prioridade: 'ALTA',
         prazo: futuro,
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       }),
     ).toMatch(/título/i)
   })
@@ -47,7 +47,7 @@ describe('validarTarefaForm', () => {
       descricao: '',
       prioridade: 'MEDIA',
       prazo: futuro,
-      duracaoHoras: 1,
+      duracaoMinutos: 60,
     })
     expect(erros.titulo).toMatch(/título/i)
     expect(erros.descricao).toBeUndefined()
@@ -60,7 +60,7 @@ describe('validarTarefaForm', () => {
         descricao: 'Desc',
         prioridade: 'ALTA',
         prazo: futuro,
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       }),
     ).toMatch(/120/)
   })
@@ -72,21 +72,42 @@ describe('validarTarefaForm', () => {
         descricao: 'a'.repeat(2001),
         prioridade: 'BAIXA',
         prazo: futuro,
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       }),
     ).toMatch(/2000/)
   })
 
-  it('rejeita duração menor que 1', () => {
+  it('rejeita duração menor que 15 ou não múltipla de 15', () => {
     expect(
       validarTarefaForm({
         titulo: 'Tarefa',
         descricao: 'Desc',
         prioridade: 'MEDIA',
         prazo: futuro,
-        duracaoHoras: 0,
+        duracaoMinutos: 0,
       }),
     ).toMatch(/duração/i)
+    expect(
+      validarTarefaForm({
+        titulo: 'Tarefa',
+        descricao: 'Desc',
+        prioridade: 'MEDIA',
+        prazo: futuro,
+        duracaoMinutos: 10,
+      }),
+    ).toMatch(/15/)
+  })
+
+  it('T5: aceita duração em minutos múltipla de 15', () => {
+    expect(
+      validarTarefaForm({
+        titulo: 'Tarefa',
+        descricao: 'Desc',
+        prioridade: 'MEDIA',
+        prazo: futuro,
+        duracaoMinutos: 90,
+      }),
+    ).toBeNull()
   })
 
   it('rejeita prazo no passado', () => {
@@ -97,9 +118,21 @@ describe('validarTarefaForm', () => {
         descricao: 'Desc',
         prioridade: 'MEDIA',
         prazo: passado,
-        duracaoHoras: 1,
+        duracaoMinutos: 60,
       }),
     ).toMatch(/prazo/i)
+  })
+
+  it('T4: aceita salvar sem prazo', () => {
+    expect(
+      validarTarefaForm({
+        titulo: 'Sem prazo',
+        descricao: '',
+        prioridade: 'MEDIA',
+        prazo: '',
+        duracaoMinutos: 60,
+      }),
+    ).toBeNull()
   })
 
   it('rejeita ATRASADA com prazo futuro no edit', () => {
@@ -110,7 +143,7 @@ describe('validarTarefaForm', () => {
           descricao: 'Desc',
           prioridade: 'MEDIA',
           prazo: futuro,
-          duracaoHoras: 1,
+          duracaoMinutos: 60,
           status: 'ATRASADA',
         },
         { modo: 'editar' },

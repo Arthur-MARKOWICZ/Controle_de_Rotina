@@ -69,8 +69,10 @@ Histórico de progresso
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
+
+O perfil `local` carrega o segredo JWT de desenvolvimento (`application-local.yml`). Fora dele, a API exige `APP_SECURITY_JWT_SECRET` (≥ 32 bytes) e cookie de refresh com `Secure`.
 
 **Frontend:**
 
