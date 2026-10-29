@@ -15,7 +15,8 @@ type BlocoCardProps = {
   tarefaId: string
   duracaoMinutos: number
   prioridade: Prioridade
-  prazo?: string
+  /** API: `string | null`. Não use só `string | undefined` — ver README (null vs undefined). */
+  prazo?: string | null
   mostrarJustificativa?: boolean
   diff?: BlocoDiffMarker | null
   statusExecucao?: StatusExecucao

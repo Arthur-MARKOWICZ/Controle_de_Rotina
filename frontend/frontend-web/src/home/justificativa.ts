@@ -21,8 +21,18 @@ export function diffDiasCivis(deIso: string, ateIso: string): number {
   return Math.round((b - a) / 86_400_000)
 }
 
-/** Texto relativo do prazo a partir de hoje (America/Sao_Paulo). */
-export function formatarPrazoRelativo(prazoIso: string, ref: Date = new Date()): string {
+/**
+ * Texto relativo do prazo a partir de hoje (America/Sao_Paulo).
+ * Aceita `null`: a API serializa ausência como JSON `null` (`string | null`),
+ * não como `undefined` — tipar só `string` ou `string | undefined` quebra o `tsc`.
+ */
+export function formatarPrazoRelativo(
+  prazoIso: string | null,
+  ref: Date = new Date(),
+): string {
+  if (prazoIso == null) {
+    return 'Sem prazo'
+  }
   const hoje = dataHojeIso(ref)
   const prazoDia = dataCivilIso(new Date(prazoIso))
   const dias = diffDiasCivis(hoje, prazoDia)

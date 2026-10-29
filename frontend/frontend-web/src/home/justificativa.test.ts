@@ -16,6 +16,10 @@ describe('justificativa', () => {
     expect(formatarPrazoRelativo('2026-10-19T12:00:00Z', ref)).toBe('Atrasada há 1 dia')
   })
 
+  it('trata prazo ausente da API (null)', () => {
+    expect(formatarPrazoRelativo(null)).toBe('Sem prazo')
+  })
+
   it('monta justificativa com prazo e prioridade', () => {
     expect(formatarJustificativaBloco('2026-10-22T12:00:00Z', 'ALTA', ref)).toBe(
       'Prazo em 2 dias · prioridade alta',
