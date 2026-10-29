@@ -21,6 +21,24 @@ Sempre que o backend ganhar um **prefixo de rota novo** (ex.: `/execucoes`, `/xp
 > Neste projeto a porta **5173** costuma ser o **container Docker** (nginx), não o Vite.  
 > Reiniciar o PC ou o container sem `--build` **não** aplica `nginx.conf` novo.
 
+## Health / readiness (Actuator — não proxyar)
+
+Probe operacional do backend: **`GET /actuator/health`** (e `/actuator/health/liveness`, `/actuator/health/readiness`).
+
+- Consome **direto no backend** (`http://localhost:8080/actuator/health` ou rede interna do Compose/K8s).
+- **Não** entra no proxy Vite/Nginx: orquestração e healthcheck não passam pelo front.
+- Só `health` é exposto; demais endpoints Actuator (`/actuator/env`, etc.) exigem autenticação.
+- Resposta inclui componente `db` (UP/DOWN) via `show-components=always` em `application.properties`; `show-details` fica `never` (sem URL JDBC / paths).
+- Indicadores extras (disk, ssl, …) desligados; ficam `db` + estados de liveness/readiness.
+- No Compose, o serviço `backend` tem `healthcheck` nesse path (imagem runtime com `curl`).
+
+```bash
+# Direto no backend — esperado: 200 e "status":"UP" com Postgres ok
+curl -s "http://localhost:8080/actuator/health"
+# Compose: status do serviço
+docker compose ps backend
+```
+
 ## Rate limiting (cadastro e login)
 
 Proteção contra abuso em **`POST /usuarios`** e **`POST /auth/login`** (5 req/min por IP).  
