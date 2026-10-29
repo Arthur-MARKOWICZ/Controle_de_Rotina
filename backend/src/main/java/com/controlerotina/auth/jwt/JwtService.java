@@ -70,6 +70,10 @@ public class JwtService {
     }
 
     public Optional<UUID> extrairUsuarioId(String token) {
+        return extrairClaims(token).map(AccessClaims::usuarioId);
+    }
+
+    public Optional<AccessClaims> extrairClaims(String token) {
         try {
             SignedJWT jwt = SignedJWT.parse(token);
             if (!jwt.verify(verifier)) {
@@ -78,7 +82,7 @@ public class JwtService {
 
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
             Date expiration = claims.getExpirationTime();
-            if (expiration == null || expiration.toInstant().isBefore(clock.instant())) {
+            if (expiration == null || !expiration.toInstant().isAfter(clock.instant())) {
                 return Optional.empty();
             }
 
@@ -90,10 +94,23 @@ public class JwtService {
             if (subject == null || subject.isBlank()) {
                 return Optional.empty();
             }
-            return Optional.of(UUID.fromString(subject));
+
+            String jti = claims.getJWTID();
+            if (jti == null || jti.isBlank()) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new AccessClaims(
+                    UUID.fromString(subject),
+                    jti,
+                    expiration.toInstant()
+            ));
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    public record AccessClaims(UUID usuarioId, String jti, Instant expiresAt) {
     }
 
     private boolean issuerValido(JWTClaimsSet claims) {

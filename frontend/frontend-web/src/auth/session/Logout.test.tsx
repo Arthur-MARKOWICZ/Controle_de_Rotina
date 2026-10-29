@@ -74,6 +74,7 @@ describe('Logout', () => {
       expect(screen.getByText('Tela de login')).toBeInTheDocument()
     })
     expect(authApi.logout).toHaveBeenCalledOnce()
+    expect(authApi.logout).toHaveBeenCalledWith('jwt-ok')
     expect(getAccessToken()).toBeNull()
   })
 })

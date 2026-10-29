@@ -343,6 +343,42 @@ class AuthSessaoIT {
         assertThat(refreshAposLogout.getStatusCode()).isEqualTo(UNAUTHORIZED);
     }
 
+    @Test
+    void deveRecusarAccessJwtAposLogoutComBearer() {
+        ResponseEntity<Map> login = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA)),
+                Map.class);
+        String accessToken = login.getBody().get("accessToken").toString();
+        String cookie = refreshCookieValue(login);
+
+        HttpHeaders autenticado = new HttpHeaders();
+        autenticado.setBearerAuth(accessToken);
+        ResponseEntity<Map> meAntes = restTemplate.exchange(
+                "/me",
+                HttpMethod.GET,
+                new HttpEntity<>(autenticado),
+                Map.class);
+        assertThat(meAntes.getStatusCode()).isEqualTo(OK);
+
+        HttpHeaders logoutHeaders = new HttpHeaders();
+        logoutHeaders.add(HttpHeaders.COOKIE, "refresh_token=" + cookie);
+        logoutHeaders.setBearerAuth(accessToken);
+        ResponseEntity<Void> logout = restTemplate.exchange(
+                "/auth/logout",
+                HttpMethod.POST,
+                new HttpEntity<>(null, logoutHeaders),
+                Void.class);
+        assertThat(logout.getStatusCode().is2xxSuccessful()).isTrue();
+
+        ResponseEntity<Map> meDepois = restTemplate.exchange(
+                "/me",
+                HttpMethod.GET,
+                new HttpEntity<>(autenticado),
+                Map.class);
+        assertThat(meDepois.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
     private static HttpEntity<Map<String, String>> json(Map<String, String> body) {
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

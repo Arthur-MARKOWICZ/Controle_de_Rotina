@@ -25,17 +25,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final AccessTokenRevogacaoService accessTokenRevogacaoService;
 
     public AuthService(
             UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService
+            RefreshTokenService refreshTokenService,
+            AccessTokenRevogacaoService accessTokenRevogacaoService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.accessTokenRevogacaoService = accessTokenRevogacaoService;
     }
 
     @Transactional
@@ -62,8 +65,14 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String refreshTokenBruto) {
+    public void logout(String refreshTokenBruto, String accessTokenBruto) {
         refreshTokenService.revogar(refreshTokenBruto);
+        if (accessTokenBruto == null || accessTokenBruto.isBlank()) {
+            return;
+        }
+        jwtService.extrairClaims(accessTokenBruto).ifPresent(claims ->
+                accessTokenRevogacaoService.revogar(claims.jti(), claims.expiresAt())
+        );
     }
 
     public record SessaoTokens(AccessTokenResponse access, String refreshToken) {

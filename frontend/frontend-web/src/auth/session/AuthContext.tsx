@@ -34,8 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
+    const current = getAccessToken()
     try {
-      await logoutApi()
+      await logoutApi(current)
     } finally {
       clearAccessToken()
     }

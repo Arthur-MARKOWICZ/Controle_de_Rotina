@@ -37,6 +37,9 @@ class AuthServiceLoginTest {
     @Mock
     RefreshTokenService refreshTokenService;
 
+    @Mock
+    AccessTokenRevogacaoService accessTokenRevogacaoService;
+
     @InjectMocks
     AuthService authService;
 

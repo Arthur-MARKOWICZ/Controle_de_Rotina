@@ -1,6 +1,9 @@
 spring:
   application:
     name: controle-rotina
+  cache:
+    type: simple
+    cache-names: accessTokenRevogados
   datasource:
     url: jdbc:postgresql://localhost:5432/controle_rotina
     username: controle
@@ -24,6 +27,28 @@ spring:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      # show-components=always em application.properties (YAML aninhado não liga no Boot 4).
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    # Probe enxuto: DB + estados de disponibilidade (liveness/readiness).
+    defaults:
+      enabled: false
+    db:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
 
 app:
   rate-limit:

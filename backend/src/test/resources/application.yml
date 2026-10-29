@@ -1,3 +1,8 @@
+spring:
+  cache:
+    type: simple
+    cache-names: accessTokenRevogados
+
 app:
   rate-limit:
     # Desligado nos testes: ITs compartilham o mesmo IP (localhost).

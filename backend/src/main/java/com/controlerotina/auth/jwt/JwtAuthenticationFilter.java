@@ -10,6 +10,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.controlerotina.auth.service.AccessTokenRevogacaoService;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,9 +23,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final AccessTokenRevogacaoService accessTokenRevogacaoService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(
+            JwtService jwtService,
+            AccessTokenRevogacaoService accessTokenRevogacaoService
+    ) {
         this.jwtService = jwtService;
+        this.accessTokenRevogacaoService = accessTokenRevogacaoService;
     }
 
     @Override
@@ -36,9 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.startsWith(BEARER_PREFIX)) {
                 String token = header.substring(BEARER_PREFIX.length()).trim();
-                jwtService.extrairUsuarioId(token).ifPresent(usuarioId -> {
+                jwtService.extrairClaims(token).ifPresent(claims -> {
+                    if (accessTokenRevogacaoService.estaRevogado(claims.jti())) {
+                        return;
+                    }
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            usuarioId,
+                            claims.usuarioId(),
                             null,
                             List.of()
                     );

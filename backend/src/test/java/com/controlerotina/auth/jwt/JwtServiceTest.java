@@ -66,7 +66,26 @@ class JwtServiceTest {
         assertThat(claims.getSubject()).isEqualTo(usuarioId.toString());
         assertThat(claims.getIssuer()).isEqualTo(ISSUER);
         assertThat(claims.getAudience()).containsExactly(AUDIENCE);
+        assertThat(claims.getJWTID()).isNotBlank();
         assertThat(jwtService.extrairUsuarioId(token)).contains(usuarioId);
+        assertThat(jwtService.extrairClaims(token)).isPresent().get()
+                .satisfies(c -> {
+                    assertThat(c.usuarioId()).isEqualTo(usuarioId);
+                    assertThat(c.jti()).isEqualTo(claims.getJWTID());
+                });
+    }
+
+    @Test
+    void deveRejeitarTokenSemJti() throws Exception {
+        String token = assinar(new JWTClaimsSet.Builder()
+                .subject(usuarioId.toString())
+                .issuer(ISSUER)
+                .audience(AUDIENCE)
+                .issueTime(Date.from(AGORA))
+                .expirationTime(Date.from(AGORA.plus(Duration.ofMinutes(15))))
+                .build());
+
+        assertThat(jwtService.extrairClaims(token)).isEmpty();
     }
 
     @Test
@@ -140,6 +159,7 @@ class JwtServiceTest {
     private JWTClaimsSet.Builder claimsBase() {
         return new JWTClaimsSet.Builder()
                 .subject(usuarioId.toString())
+                .jwtID(UUID.randomUUID().toString())
                 .issueTime(Date.from(AGORA))
                 .expirationTime(Date.from(AGORA.plus(Duration.ofMinutes(15))));
     }

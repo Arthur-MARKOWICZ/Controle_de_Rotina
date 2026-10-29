@@ -64,9 +64,14 @@ export async function login(body: LoginRequest): Promise<AccessTokenResponse> {
   return (await response.json()) as AccessTokenResponse
 }
 
-export async function logout(): Promise<void> {
+export async function logout(accessToken: string | null): Promise<void> {
+  const headers = new Headers()
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`)
+  }
   await fetch('/auth/logout', {
     method: 'POST',
     credentials: 'include',
+    headers,
   })
 }
