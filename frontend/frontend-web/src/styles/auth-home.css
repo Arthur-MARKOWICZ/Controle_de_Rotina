@@ -91,6 +91,39 @@
   font-weight: 600;
 }
 
+.theme-options {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.theme-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.theme-option input {
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.theme-option strong {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.theme-option__hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .onboarding-checklist {
   margin: 0 0 var(--space-4);
 }

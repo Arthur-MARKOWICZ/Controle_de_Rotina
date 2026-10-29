@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { InlineAlert } from '../../feedback/InlineAlert'
+import { ThemePreferenceField } from '../../theme/ThemePreferenceField'
 import { ApiError } from '../api/authApi'
 import { atualizarMe, buscarMe } from '../api/meApi'
 import { CampoSenha } from '../components/CampoSenha'
@@ -107,6 +108,8 @@ export function PerfilPage() {
     return (
       <main className="auth-page">
         <section className="auth-panel card" aria-busy="true">
+          <h1>Meu perfil</h1>
+          <ThemePreferenceField />
           <p>Carregando perfil…</p>
         </section>
       </main>
@@ -120,6 +123,8 @@ export function PerfilPage() {
         <p className="auth-subtitle">
           Atualize seus dados. A senha atual é obrigatória para confirmar qualquer alteração.
         </p>
+
+        <ThemePreferenceField />
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <fieldset className="perfil-secao">

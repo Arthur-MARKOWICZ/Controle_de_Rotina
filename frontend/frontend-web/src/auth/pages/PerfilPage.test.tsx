@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ThemeProvider } from '../../theme/ThemeProvider'
+import { THEME_STORAGE_KEY } from '../../theme/themePreference'
 import * as meApi from '../api/meApi'
 import { ApiError } from '../api/authApi'
 import { PerfilPage } from './PerfilPage'
@@ -14,14 +16,18 @@ vi.mock('../api/meApi', () => ({
 
 function renderPerfil() {
   return render(
-    <MemoryRouter>
-      <PerfilPage />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter>
+        <PerfilPage />
+      </MemoryRouter>
+    </ThemeProvider>,
   )
 }
 
 describe('PerfilPage', () => {
   beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
     vi.mocked(meApi.buscarMe).mockReset()
     vi.mocked(meApi.atualizarMe).mockReset()
     vi.mocked(meApi.buscarMe).mockResolvedValue({
@@ -48,6 +54,21 @@ describe('PerfilPage', () => {
 
     expect(screen.getByRole('group', { name: 'Dados' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Alterar senha' })).toBeInTheDocument()
+  })
+
+  it('exibe opções de tema e aplica escuro no documentElement', async () => {
+    const user = userEvent.setup()
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    expect(screen.getByRole('group', { name: 'Aparência' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /sistema/i })).toBeChecked()
+
+    await user.click(screen.getByRole('radio', { name: /escuro/i }))
+
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(screen.getByRole('radio', { name: /escuro/i })).toBeChecked()
   })
 
   it('exige senha atual para salvar', async () => {

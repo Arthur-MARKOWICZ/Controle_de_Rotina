@@ -29,10 +29,17 @@ describe('design system CSS contract (T2)', () => {
     expect(css).not.toMatch(/!important/)
   })
 
-  it('não usa cores hex fora de :root', () => {
+  it('não usa cores hex fora dos blocos de tokens (:root e tema)', () => {
     const css = readAppCss()
-    const afterRoot = css.replace(/:root\s*\{[\s\S]*?\n\}/, '')
-    expect(afterRoot).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    const afterTokens = css
+      .replace(/:root(?:\[data-theme="(?:light|dark)"\])?\s*\{[\s\S]*?\n\}/g, '')
+    expect(afterTokens).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  it('define tokens do tema escuro em :root[data-theme="dark"]', () => {
+    const css = readAppCss()
+    expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{/)
+    expect(css).toMatch(/color-scheme:\s*dark/)
   })
 
   it('define tokens semânticos e classes base em :root', () => {
