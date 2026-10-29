@@ -48,12 +48,27 @@ describe('PerfilPage', () => {
     expect(screen.getByDisplayValue('ana@email.com')).toBeInTheDocument()
   })
 
-  it('T3: renderiza seções Dados e Alterar senha distintas', async () => {
+  it('T3: renderiza seções Dados, Confirmar identidade e Nova senha (opcional)', async () => {
     renderPerfil()
     await screen.findByDisplayValue('Ana Silva')
 
     expect(screen.getByRole('group', { name: 'Dados' })).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Alterar senha' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Confirmar identidade' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Nova senha (opcional)' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Alterar senha' })).not.toBeInTheDocument()
+  })
+
+  it('UX-010: senha atual fica em Confirmar identidade; nova senha na seção opcional', async () => {
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    const identidade = screen.getByRole('group', { name: 'Confirmar identidade' })
+    const novaSenha = screen.getByRole('group', { name: 'Nova senha (opcional)' })
+
+    expect(identidade).toContainElement(screen.getByLabelText(/^senha atual$/i))
+    expect(novaSenha).toContainElement(screen.getByLabelText(/^nova senha$/i))
+    expect(novaSenha).toContainElement(screen.getByLabelText(/confirmar nova senha/i))
+    expect(novaSenha).not.toContainElement(screen.getByLabelText(/^senha atual$/i))
   })
 
   it('exibe opções de tema e aplica escuro no documentElement', async () => {
@@ -110,6 +125,36 @@ describe('PerfilPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/senhas não conferem/i)
     expect(meApi.atualizarMe).not.toHaveBeenCalled()
+  })
+
+  it('envia só dados com senha atual, sem novaSenha', async () => {
+    vi.mocked(meApi.atualizarMe).mockResolvedValue({
+      id: '1',
+      nome: 'Ana Atualizada',
+      email: 'ana@email.com',
+      xpTotal: 0,
+      nivel: 1,
+      xpNoNivel: 0,
+      xpParaProximoNivel: 10,
+    })
+    const user = userEvent.setup()
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    await user.clear(screen.getByLabelText(/^nome$/i))
+    await user.type(screen.getByLabelText(/^nome$/i), 'Ana Atualizada')
+    await user.type(screen.getByLabelText(/^senha atual$/i), 'Senha@123')
+    await user.click(screen.getByRole('button', { name: /salvar/i }))
+
+    await waitFor(() => {
+      expect(meApi.atualizarMe).toHaveBeenCalledWith({
+        senhaAtual: 'Senha@123',
+        nome: 'Ana Atualizada',
+        email: 'ana@email.com',
+      })
+    })
+    expect(vi.mocked(meApi.atualizarMe).mock.calls[0]?.[0]).not.toHaveProperty('novaSenha')
+    expect(await screen.findByRole('status')).toHaveTextContent(/atualizado/i)
   })
 
   it('envia atualização com senha atual e campos alterados', async () => {

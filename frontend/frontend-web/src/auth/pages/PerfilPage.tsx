@@ -157,7 +157,7 @@ export function PerfilPage() {
           </fieldset>
 
           <fieldset className="perfil-secao">
-            <legend>Alterar senha</legend>
+            <legend>Confirmar identidade</legend>
             <CampoSenha
               id="senhaAtual"
               label="Senha atual"
@@ -166,7 +166,10 @@ export function PerfilPage() {
               autoComplete="current-password"
               required
             />
+          </fieldset>
 
+          <fieldset className="perfil-secao">
+            <legend>Nova senha (opcional)</legend>
             <CampoSenha
               id="novaSenha"
               label="Nova senha"
