@@ -1,11 +1,16 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '../../feedback/ToastProvider'
 import * as projetoApi from '../api/projetoApi'
 import { ProjetosPage } from './ProjetosPage'
+
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+}
 
 vi.mock('../api/projetoApi', () => ({
   listarProjetos: vi.fn(),
@@ -34,9 +39,13 @@ function renderLista(path = '/projetos') {
   return render(
     <ToastProvider>
       <MemoryRouter initialEntries={[path]}>
+        <LocationProbe />
         <Routes>
           <Route path="/projetos" element={<ProjetosPage />} />
           <Route path="/projetos/nova" element={<p>página novo projeto</p>} />
+          <Route path="/projetos/:id" element={<p>página editar projeto</p>} />
+          <Route path="/tarefas" element={<p>página tarefas</p>} />
+          <Route path="/capacidade" element={<p>página capacidade</p>} />
         </Routes>
       </MemoryRouter>
     </ToastProvider>,
@@ -131,5 +140,101 @@ describe('ProjetosPage', () => {
     await waitFor(() => {
       expect(projetoApi.reativarProjeto).toHaveBeenCalledWith('p-tcc')
     })
+  })
+
+  it('T3: card expõe Editar e Ver tarefas com projetoId na URL', async () => {
+    renderLista()
+    const card = (await screen.findByText('TCC')).closest('li')
+    expect(card).toBeTruthy()
+
+    const editar = within(card as HTMLElement).getByRole('link', { name: /^editar$/i })
+    expect(editar).toHaveAttribute('href', '/projetos/p-tcc')
+
+    const verTarefas = within(card as HTMLElement).getByRole('link', {
+      name: /ver tarefas/i,
+    })
+    expect(verTarefas).toHaveAttribute('href', '/tarefas?projetoId=p-tcc')
+  })
+
+  it('T4: há caminho para /capacidade a partir da lista', async () => {
+    renderLista()
+    await screen.findByText('TCC')
+
+    expect(screen.getByRole('link', { name: /^capacidade$/i })).toHaveAttribute(
+      'href',
+      '/capacidade',
+    )
+
+    const card = screen.getByText('TCC').closest('li') as HTMLElement
+    expect(
+      within(card).getByRole('link', { name: /reservar tempo/i }),
+    ).toHaveAttribute('href', '/capacidade')
+  })
+
+  it('T5: empty arquivados oferece voltar a Ativos', async () => {
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+    })
+
+    const user = userEvent.setup()
+    renderLista('/projetos?status=ARQUIVADO')
+
+    expect(await screen.findByText(/nenhum projeto arquivado/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^ver ativos$/i }))
+
+    await waitFor(() => {
+      expect(projetoApi.listarProjetos).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'ATIVO' }),
+      )
+    })
+    expect(screen.getByRole('button', { name: 'Ativos' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('T6: com totalPages > 1, muda page na URL e chama API com a página', async () => {
+    const pagina0 = {
+      ...pagina,
+      content: [{ ...pagina.content[0], id: 'p-1', nome: 'Projeto A' }],
+      totalElements: 25,
+      totalPages: 2,
+      number: 0,
+    }
+    const pagina1 = {
+      ...pagina,
+      content: [{ ...pagina.content[0], id: 'p-2', nome: 'Projeto B' }],
+      totalElements: 25,
+      totalPages: 2,
+      number: 1,
+    }
+    vi.mocked(projetoApi.listarProjetos)
+      .mockResolvedValueOnce(pagina0)
+      .mockResolvedValueOnce(pagina1)
+
+    const user = userEvent.setup()
+    renderLista()
+
+    expect(await screen.findByText('Projeto A')).toBeInTheDocument()
+    expect(projetoApi.listarProjetos).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 0, size: 20 }),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^próxima$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/projetos?page=1')
+    })
+    await waitFor(() => {
+      expect(projetoApi.listarProjetos).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, size: 20, status: 'ATIVO' }),
+      )
+    })
+    expect(await screen.findByText('Projeto B')).toBeInTheDocument()
   })
 })

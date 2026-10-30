@@ -168,6 +168,21 @@ Agrupar tarefas, reservar minutos no template semanal (motor em duas fases) e, e
 
 ```text
 calendario (#38) → projetos (#40) → github-link → ui-projetos
+                                                    ↘ ui-projetos-experiencia (#46)
+```
+
+---
+
+## Pós-MVP — polimento UI Projetos (issue [#46](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/46))
+
+Experiência de `/projetos` depois do CRUD mínimo de `ui-projetos.md`: form fora do visual de login, cards acionáveis, paginação, hub leve no detalhe.
+
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 38 | [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) | [#46](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/46) | pendente | `ui-projetos.md` | Polimento só de `/projetos*`; não reabre #40 |
+
+```text
+ui-projetos (#40 UI) → ui-projetos-experiencia (#46)
 ```
 
 ---
@@ -177,8 +192,8 @@ calendario (#38) → projetos (#40) → github-link → ui-projetos
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
 
-**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38).  
-Em seguida na fila: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md).
+**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos (não bloqueia calendário/projetos de domínio).  
+Em seguida na fila de domínio: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md) — se ainda pendente.
 
 ---
 

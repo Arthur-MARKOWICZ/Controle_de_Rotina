@@ -93,7 +93,12 @@
 }
 
 .projeto-card__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 .projetos-empty {
@@ -106,8 +111,26 @@
   background: var(--surface-muted);
 }
 
+.projetos-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.projetos-paginacao .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .projeto-form-panel {
   width: min(100%, 32rem);
+}
+
+.projeto-form {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .projeto-form-acoes {
@@ -115,4 +138,17 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
+}
+
+.projeto-hub__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: 0.35rem;
+}
+
+.projeto-hub__form-titulo {
+  margin: 0 0 var(--space-3);
+  font-size: 1.1rem;
+  font-weight: 600;
 }

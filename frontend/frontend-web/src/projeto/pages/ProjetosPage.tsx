@@ -28,6 +28,10 @@ function lerStatusDaUrl(params: URLSearchParams): StatusProjeto {
   return params.get('status') === 'ARQUIVADO' ? 'ARQUIVADO' : 'ATIVO'
 }
 
+function lerPageDaUrl(params: URLSearchParams): number {
+  return Math.max(0, Number(params.get('page') ?? 0) || 0)
+}
+
 function truncarDescricao(descricao: string | null, max = 120): string | null {
   if (!descricao) {
     return null
@@ -44,6 +48,7 @@ export function ProjetosPage() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [searchParams, setSearchParams] = useSearchParams()
   const status = lerStatusDaUrl(searchParams)
+  const page = lerPageDaUrl(searchParams)
 
   const [resultado, setResultado] = useState<PageProjeto | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -51,14 +56,23 @@ export function ProjetosPage() {
   const [acaoId, setAcaoId] = useState<string | null>(null)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
-  function aplicarVisao(proximo: StatusProjeto) {
-    const params = new URLSearchParams(searchParams)
-    if (proximo === 'ATIVO') {
-      params.delete('status')
-    } else {
-      params.set('status', proximo)
+  function escreverUrl(proximo: { status: StatusProjeto; page: number }) {
+    const params = new URLSearchParams()
+    if (proximo.status === 'ARQUIVADO') {
+      params.set('status', 'ARQUIVADO')
+    }
+    if (proximo.page > 0) {
+      params.set('page', String(proximo.page))
     }
     setSearchParams(params, { replace: true })
+  }
+
+  function aplicarVisao(proximo: StatusProjeto) {
+    escreverUrl({ status: proximo, page: 0 })
+  }
+
+  function irParaPagina(proximo: number) {
+    escreverUrl({ status, page: Math.max(0, proximo) })
   }
 
   useEffect(() => {
@@ -68,7 +82,7 @@ export function ProjetosPage() {
       setCarregando(true)
       setErro(null)
       try {
-        const data = await listarProjetos({ status, page: 0, size: 20 })
+        const data = await listarProjetos({ status, page, size: 20 })
         if (ativo) {
           setResultado(data)
         }
@@ -88,7 +102,7 @@ export function ProjetosPage() {
     return () => {
       ativo = false
     }
-  }, [status, recarregarEm])
+  }, [status, page, recarregarEm])
 
   async function handleArquivar(id: string, nome: string) {
     const confirmado = await confirm({
@@ -133,6 +147,7 @@ export function ProjetosPage() {
 
   const listaVazia = !carregando && resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && status === 'ATIVO'
+  const totalPages = resultado?.totalPages ?? 0
 
   return (
     <main className="projetos-page">
@@ -145,6 +160,9 @@ export function ProjetosPage() {
           </p>
         </div>
         <div className="projetos-header-actions">
+          <Link to="/capacidade" className="btn btn--secondary">
+            Capacidade
+          </Link>
           <Link to="/projetos/nova" className="btn btn--primary">
             Novo projeto
           </Link>
@@ -185,7 +203,16 @@ export function ProjetosPage() {
                   </Link>
                 </>
               ) : (
-                <p>Nenhum projeto arquivado.</p>
+                <>
+                  <p>Nenhum projeto arquivado.</p>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => aplicarVisao('ATIVO')}
+                  >
+                    Ver ativos
+                  </button>
+                </>
               )}
             </div>
           ) : (
@@ -217,6 +244,21 @@ export function ProjetosPage() {
                       ) : null}
                     </div>
                     <div className="projeto-card__acoes">
+                      <Link
+                        to={`/projetos/${projeto.id}`}
+                        className="btn btn--ghost btn--sm"
+                      >
+                        Editar
+                      </Link>
+                      <Link
+                        to={`/tarefas?projetoId=${projeto.id}`}
+                        className="btn btn--ghost btn--sm"
+                      >
+                        Ver tarefas
+                      </Link>
+                      <Link to="/capacidade" className="btn btn--ghost btn--sm">
+                        Reservar tempo
+                      </Link>
                       {projeto.status === 'ARQUIVADO' ? (
                         <button
                           type="button"
@@ -242,6 +284,30 @@ export function ProjetosPage() {
               })}
             </ul>
           )}
+
+          {totalPages > 1 ? (
+            <div className="projetos-paginacao">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={page <= 0}
+                onClick={() => irParaPagina(page - 1)}
+              >
+                Anterior
+              </button>
+              <span>
+                Página {page + 1} de {totalPages}
+              </span>
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={page >= totalPages - 1}
+                onClick={() => irParaPagina(page + 1)}
+              >
+                Próxima
+              </button>
+            </div>
+          ) : null}
         </>
       ) : null}
     </main>
