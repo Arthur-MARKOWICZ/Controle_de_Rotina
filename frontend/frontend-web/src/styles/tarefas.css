@@ -111,6 +111,28 @@
   color: var(--accent-hover);
 }
 
+.projeto-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.projeto-filtro__field {
+  min-width: min(100%, 14rem);
+  margin: 0;
+}
+
+.tarefa-desvincular {
+  margin-top: var(--space-2);
+}
+
+.badge.badge--projeto {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
 .filtros-fieldset {
   border: 0;
   margin: 0;

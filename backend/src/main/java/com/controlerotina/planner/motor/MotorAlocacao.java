@@ -33,7 +33,17 @@ public final class MotorAlocacao {
     private MotorAlocacao() {
     }
 
-    public record DiaCapacidade(LocalDate data, int capacidadeMinutos) {
+    public record ReservaPedido(UUID projetoId, int minutosReservados) {
+    }
+
+    public record DiaCapacidade(LocalDate data, int capacidadeMinutos, List<ReservaPedido> reservas) {
+        public DiaCapacidade(LocalDate data, int capacidadeMinutos) {
+            this(data, capacidadeMinutos, List.of());
+        }
+
+        public DiaCapacidade {
+            reservas = reservas == null ? List.of() : List.copyOf(reservas);
+        }
     }
 
     /**
@@ -68,11 +78,20 @@ public final class MotorAlocacao {
 
     /** Compatível com estimativa cheia (sem execuções concluídas). */
     public static ResultadoAlocacao alocar(List<Tarefa> elegiveis, int capacidadeMinutos, LocalDate diaD) {
+        return alocar(elegiveis, capacidadeMinutos, diaD, List.of());
+    }
+
+    public static ResultadoAlocacao alocar(
+            List<Tarefa> elegiveis,
+            int capacidadeMinutos,
+            LocalDate diaD,
+            List<ReservaPedido> reservas
+    ) {
         Map<UUID, Integer> saldoPorTarefa = new HashMap<>();
         for (Tarefa tarefa : elegiveis) {
             saldoPorTarefa.put(tarefa.getId(), tarefa.getDuracaoMinutos());
         }
-        return alocar(elegiveis, saldoPorTarefa, capacidadeMinutos, diaD);
+        return alocar(elegiveis, saldoPorTarefa, capacidadeMinutos, diaD, reservas);
     }
 
     public static ResultadoAlocacao alocar(
@@ -81,12 +100,23 @@ public final class MotorAlocacao {
             int capacidadeMinutos,
             LocalDate diaD
     ) {
+        return alocar(elegiveis, saldoMinutosPorTarefa, capacidadeMinutos, diaD, List.of());
+    }
+
+    public static ResultadoAlocacao alocar(
+            List<Tarefa> elegiveis,
+            Map<UUID, Integer> saldoMinutosPorTarefa,
+            int capacidadeMinutos,
+            LocalDate diaD,
+            List<ReservaPedido> reservas
+    ) {
         if (capacidadeMinutos <= 0) {
             return new ResultadoAlocacao(List.of(), false, MENSAGEM_SEM_TEMPO);
         }
 
         Map<UUID, Integer> saldoRestante = new HashMap<>(saldoMinutosPorTarefa);
-        List<BlocoAlocado> blocos = alocarDia(elegiveis, saldoRestante, capacidadeMinutos, diaD, false);
+        List<BlocoAlocado> blocos = alocarDia(
+                elegiveis, saldoRestante, capacidadeMinutos, diaD, false, reservas);
 
         boolean temConflito = elegiveis.stream()
                 .anyMatch(t -> saldoRestante.getOrDefault(t.getId(), 0) > 0
@@ -147,7 +177,8 @@ public final class MotorAlocacao {
                     saldoRestante,
                     dia.capacidadeMinutos(),
                     dia.data(),
-                    true
+                    true,
+                    dia.reservas()
             );
             porDia.put(dia.data(), new ResultadoAlocacao(List.copyOf(blocos), false, null));
         }
@@ -155,24 +186,87 @@ public final class MotorAlocacao {
         return aplicarConflitosDePrazo(porDia, elegiveis, saldoRestante, dias);
     }
 
+    /**
+     * Distribui o teto efetivo entre projetos: ordem por {@code minutosReservados} desc,
+     * empate {@code projetoId} asc; cada um recebe {@code min(pedido, restanteDoTetoEfetivo)}.
+     */
+    static List<ReservaPedido> fatiasEfetivas(List<ReservaPedido> pedidos, int capacidadeMinutos) {
+        if (pedidos == null || pedidos.isEmpty() || capacidadeMinutos <= 0) {
+            return List.of();
+        }
+        List<ReservaPedido> comPedido = pedidos.stream()
+                .filter(r -> r.minutosReservados() > 0)
+                .sorted(Comparator
+                        .comparingInt(ReservaPedido::minutosReservados).reversed()
+                        .thenComparing(ReservaPedido::projetoId))
+                .toList();
+        int somaPedida = comPedido.stream().mapToInt(ReservaPedido::minutosReservados).sum();
+        int tetoEfetivo = Math.min(somaPedida, capacidadeMinutos);
+        List<ReservaPedido> efetivas = new ArrayList<>();
+        int restante = tetoEfetivo;
+        for (ReservaPedido pedido : comPedido) {
+            if (restante <= 0) {
+                break;
+            }
+            int fatia = Math.min(pedido.minutosReservados(), restante);
+            if (fatia > 0) {
+                efetivas.add(new ReservaPedido(pedido.projetoId(), fatia));
+                restante -= fatia;
+            }
+        }
+        return List.copyOf(efetivas);
+    }
+
     private static List<BlocoAlocado> alocarDia(
             List<Tarefa> elegiveis,
             Map<UUID, Integer> saldoRestante,
             int capacidadeMinutos,
             LocalDate dia,
-            boolean filtrarPrazo
+            boolean filtrarPrazo,
+            List<ReservaPedido> reservas
     ) {
         List<BlocoAlocado> blocos = new ArrayList<>();
-        int restante = capacidadeMinutos;
         int ordem = 1;
 
-        List<Tarefa> comPrazo = elegiveis.stream().filter(t -> t.getPrazo() != null).toList();
-        List<Tarefa> semPrazo = elegiveis.stream().filter(t -> t.getPrazo() == null).toList();
+        for (ReservaPedido fatia : fatiasEfetivas(reservas, capacidadeMinutos)) {
+            List<Tarefa> doProjeto = elegiveis.stream()
+                    .filter(t -> fatia.projetoId().equals(t.getProjetoId()))
+                    .toList();
+            ordem = alocarComPrazoDepoisSemPrazo(
+                    doProjeto, saldoRestante, fatia.minutosReservados(), dia, filtrarPrazo, blocos, ordem);
+        }
 
-        ordem = alocarFase(comPrazo, saldoRestante, restante, dia, filtrarPrazo, true, blocos, ordem);
-        restante = capacidadeMinutos - blocos.stream().mapToInt(BlocoAlocado::duracaoMinutos).sum();
-        alocarFase(semPrazo, saldoRestante, restante, dia, filtrarPrazo, false, blocos, ordem);
+        int poolLivre = capacidadeMinutos - minutosAlocados(blocos);
+        alocarComPrazoDepoisSemPrazo(
+                elegiveis, saldoRestante, poolLivre, dia, filtrarPrazo, blocos, ordem);
         return blocos;
+    }
+
+    private static int alocarComPrazoDepoisSemPrazo(
+            List<Tarefa> candidatas,
+            Map<UUID, Integer> saldoRestante,
+            int capacidade,
+            LocalDate dia,
+            boolean filtrarPrazo,
+            List<BlocoAlocado> blocos,
+            int ordemInicial
+    ) {
+        if (capacidade <= 0 || candidatas.isEmpty()) {
+            return ordemInicial;
+        }
+        List<Tarefa> comPrazo = candidatas.stream().filter(t -> t.getPrazo() != null).toList();
+        List<Tarefa> semPrazo = candidatas.stream().filter(t -> t.getPrazo() == null).toList();
+
+        int usadoAntes = minutosAlocados(blocos);
+        int ordem = alocarFase(
+                comPrazo, saldoRestante, capacidade, dia, filtrarPrazo, true, blocos, ordemInicial);
+        int restante = capacidade - (minutosAlocados(blocos) - usadoAntes);
+        return alocarFase(
+                semPrazo, saldoRestante, restante, dia, filtrarPrazo, false, blocos, ordem);
+    }
+
+    private static int minutosAlocados(List<BlocoAlocado> blocos) {
+        return blocos.stream().mapToInt(BlocoAlocado::duracaoMinutos).sum();
     }
 
     private static int alocarFase(

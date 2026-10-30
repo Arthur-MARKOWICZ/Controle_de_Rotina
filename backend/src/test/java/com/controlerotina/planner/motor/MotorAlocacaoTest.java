@@ -438,6 +438,77 @@ class MotorAlocacaoTest {
         assertThat(MotorAlocacao.fimJanela(DIA_D, List.of(semPrazo))).isEqualTo(DIA_D);
     }
 
+    @Test
+    void t1_reservaFase1EProjetoAindaEntraNaFase2() {
+        UUID projetoA = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Instant criado = Instant.parse("2026-10-01T10:00:00Z");
+        Tarefa tarefaA = tarefaComProjeto(
+                "A", Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoEmDias(5), 90, criado, projetoA);
+        Tarefa tarefaB = tarefa(
+                "B", Prioridade.ALTA, StatusTarefa.PENDENTE, prazoEmDias(5), 90, criado.plusSeconds(1));
+
+        ResultadoAlocacao resultado = MotorAlocacao.alocar(
+                List.of(tarefaA, tarefaB),
+                Map.of(tarefaA.getId(), 90, tarefaB.getId(), 90),
+                180,
+                DIA_D,
+                List.of(new MotorAlocacao.ReservaPedido(projetoA, 60))
+        );
+
+        assertThat(resultado.blocos()).hasSize(3);
+        assertThat(resultado.blocos().get(0).tarefaId()).isEqualTo(tarefaA.getId());
+        assertThat(resultado.blocos().get(0).duracaoMinutos()).isEqualTo(60);
+        assertThat(resultado.blocos().get(1).tarefaId()).isEqualTo(tarefaB.getId());
+        assertThat(resultado.blocos().get(1).duracaoMinutos()).isEqualTo(90);
+        assertThat(resultado.blocos().get(2).tarefaId()).isEqualTo(tarefaA.getId());
+        assertThat(resultado.blocos().get(2).duracaoMinutos()).isEqualTo(30);
+    }
+
+    @Test
+    void t2_reservaSemElegiveisVoltaAoPoolLivre() {
+        UUID projetoA = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Instant criado = Instant.parse("2026-10-01T10:00:00Z");
+        Tarefa tarefaB = tarefa(
+                "B", Prioridade.MEDIA, StatusTarefa.PENDENTE, prazoEmDias(5), 180, criado);
+
+        ResultadoAlocacao resultado = MotorAlocacao.alocar(
+                List.of(tarefaB),
+                Map.of(tarefaB.getId(), 180),
+                180,
+                DIA_D,
+                List.of(new MotorAlocacao.ReservaPedido(projetoA, 60))
+        );
+
+        assertThat(resultado.blocos().stream().mapToInt(BlocoAlocado::duracaoMinutos).sum()).isEqualTo(180);
+        assertThat(resultado.blocos()).allMatch(b -> b.tarefaId().equals(tarefaB.getId()));
+    }
+
+    @Test
+    void t3_clampDeReservaNaoEstouraCapacidadeDoDia() {
+        UUID projetoA = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID projetoB = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        Instant criado = Instant.parse("2026-10-01T10:00:00Z");
+        Tarefa tarefaA = tarefaComProjeto(
+                "A", Prioridade.ALTA, StatusTarefa.PENDENTE, prazoEmDias(5), 120, criado, projetoA);
+        Tarefa tarefaB = tarefaComProjeto(
+                "B", Prioridade.ALTA, StatusTarefa.PENDENTE, prazoEmDias(5), 120, criado.plusSeconds(1), projetoB);
+
+        ResultadoAlocacao resultado = MotorAlocacao.alocar(
+                List.of(tarefaA, tarefaB),
+                Map.of(tarefaA.getId(), 120, tarefaB.getId(), 120),
+                60,
+                DIA_D,
+                List.of(
+                        new MotorAlocacao.ReservaPedido(projetoA, 60),
+                        new MotorAlocacao.ReservaPedido(projetoB, 30)
+                )
+        );
+
+        int total = resultado.blocos().stream().mapToInt(BlocoAlocado::duracaoMinutos).sum();
+        assertThat(total).isEqualTo(60);
+        assertThat(resultado.blocos()).allMatch(b -> b.tarefaId().equals(tarefaA.getId()));
+    }
+
     private static Instant prazoEmDias(int diasAposD) {
         return DIA_D.plusDays(diasAposD).atTime(12, 0).atZone(ZONE).toInstant();
     }
@@ -462,5 +533,19 @@ class MotorAlocacaoTest {
                 createdAt,
                 createdAt
         );
+    }
+
+    private static Tarefa tarefaComProjeto(
+            String titulo,
+            Prioridade prioridade,
+            StatusTarefa status,
+            Instant prazo,
+            int duracaoMinutos,
+            Instant createdAt,
+            UUID projetoId
+    ) {
+        Tarefa tarefa = tarefa(titulo, prioridade, status, prazo, duracaoMinutos, createdAt);
+        tarefa.definirProjetoId(projetoId, createdAt);
+        return tarefa;
     }
 }

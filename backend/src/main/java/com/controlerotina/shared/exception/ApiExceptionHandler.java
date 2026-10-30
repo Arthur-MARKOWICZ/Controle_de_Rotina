@@ -133,6 +133,9 @@ public class ApiExceptionHandler {
         if (contem(mensagem, "uk_bloco_plano_plano_tarefa")) {
             return new TarefaJaNoPlanoException();
         }
+        if (contem(mensagem, "uq_reserva_projeto_semanal_usuario_projeto_dia")) {
+            return new ReservaProjetoDuplicadaException();
+        }
         return null;
     }
 

@@ -24,6 +24,7 @@ import { useToast } from '../feedback/ToastProvider'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { mensagensFeedbackXp } from '../xp/feedbackXp'
 import { useXpProgress } from '../xp/XpProgressContext'
+import type { DiaSemana } from '../capacidade/api/capacidadeSemanalApi'
 import { AdicionarTarefaForm } from '../home/AdicionarTarefaForm'
 import { AjustarCapacidadeHoje } from '../home/AjustarCapacidadeHoje'
 import { BlocoAtivo } from '../home/BlocoAtivo'
@@ -31,10 +32,19 @@ import { BlocoCard } from '../home/BlocoCard'
 import { CapacidadeBar } from '../home/CapacidadeBar'
 import { ConflitoBanner } from '../home/ConflitoBanner'
 import { EmptyStatePlano } from '../home/EmptyStatePlano'
+import {
+  diaSemanaDeDataIso,
+  formatarExplicacaoReservas,
+} from '../home/explicacaoReservas'
 import { formatarDataPorExtenso } from '../home/formatacao'
 import { OnboardingChecklist } from '../home/OnboardingChecklist'
 import { escolherBlocoMenorPrioridade } from '../home/justificativa'
 import { labelStatusPlano } from '../home/labels'
+import { listarProjetos } from '../projeto/api/projetoApi'
+import {
+  listarReservas,
+  type ReservaProjetoResponse,
+} from '../projeto/api/reservaProjetoApi'
 import {
   aceitarProposta,
   adicionarBloco,
@@ -120,12 +130,37 @@ export function HomePage() {
   const [ctaGerarAposCapacidade, setCtaGerarAposCapacidade] = useState(false)
   const [dataSelecionada, setDataSelecionada] = useState(() => dataHojeIso())
   const [datasProposta, setDatasProposta] = useState<string[]>([])
+  const [explicacaoReservas, setExplicacaoReservas] = useState<string | null>(null)
 
   const ehRascunho = plano?.status === 'RASCUNHO'
   const ehAprovado = plano?.status === 'APROVADO'
   const propostaPendente = Boolean(plano?.propostaPendente && plano.propostaId)
   const podeGerar = !plano || (ehRascunho && !propostaPendente)
   const dataHoje = dataHojeIso()
+
+  async function carregarExplicacaoReservas(data: string, cancelado?: () => boolean) {
+    try {
+      const dia: DiaSemana = diaSemanaDeDataIso(data)
+      const [reservas, projetosPage] = await Promise.all([
+        listarReservas({ diaSemana: dia }),
+        listarProjetos({ status: 'ATIVO', page: 0, size: 100 }),
+      ])
+      if (cancelado?.()) {
+        return
+      }
+      const nomes: Record<string, string> = {}
+      for (const projeto of projetosPage.content) {
+        nomes[projeto.id] = projeto.nome
+      }
+      // Inclui projetos só presentes nas reservas (ex.: arquivados ainda com reserva)
+      const doDia: ReservaProjetoResponse[] = reservas.filter((r) => r.diaSemana === dia)
+      setExplicacaoReservas(formatarExplicacaoReservas(doDia, nomes))
+    } catch {
+      if (!cancelado?.()) {
+        setExplicacaoReservas(null)
+      }
+    }
+  }
 
   async function carregarDia(data: string, cancelado?: () => boolean) {
     const [planoDia, resolvidas] = await Promise.all([
@@ -138,6 +173,8 @@ export function HomePage() {
     setPlano(planoDia)
     setCapacidade(capacidadeDoDia(resolvidas, data))
     setDataSelecionada(data)
+
+    await carregarExplicacaoReservas(data, cancelado)
 
     if (planoDia?.propostaId) {
       const datas = await listarDatasDaProposta(dataHoje, planoDia.propostaId)
@@ -588,6 +625,12 @@ export function HomePage() {
           ) : null}
         </div>
 
+        {explicacaoReservas ? (
+          <p className="plano-dia-reservas-hint" role="note">
+            {explicacaoReservas}
+          </p>
+        ) : null}
+
         {datasProposta.length > 1 ? (
           <nav className="proposta-dias" aria-label="Dias da proposta">
             <p className="proposta-dias__hint">Proposta multi-dia — escolha o dia para revisar</p>
@@ -785,6 +828,7 @@ export function HomePage() {
                         tarefaId={item.tarefaResumo.id}
                         duracaoMinutos={item.bloco.duracaoMinutos}
                         prioridade={item.tarefaResumo.prioridade}
+                        projetoNome={item.tarefaResumo.projetoNome}
                         statusExecucao={status}
                         acoes={acoes}
                       />
@@ -811,6 +855,7 @@ export function HomePage() {
                       duracaoMinutos={bloco.duracaoMinutos}
                       prioridade={bloco.tarefa.prioridade}
                       prazo={bloco.tarefa.prazo}
+                      projetoNome={bloco.tarefa.projetoNome}
                       mostrarJustificativa={ehRascunho}
                       diff={ehNovo ? 'novo' : null}
                       onRemover={

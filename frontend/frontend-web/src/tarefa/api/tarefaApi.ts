@@ -10,6 +10,8 @@ export type TarefaResponse = {
   prazo: string | null
   status: StatusTarefa
   duracaoMinutos: number
+  projetoId?: string | null
+  projetoNome?: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -38,6 +40,7 @@ export type ListarTarefasParams = {
   criadoAte?: string
   atualizadoDe?: string
   atualizadoAte?: string
+  projetoId?: string
   incluirDeletadas?: boolean
   somenteDeletadas?: boolean
   page?: number
@@ -52,6 +55,7 @@ export type CriarTarefaRequest = {
   prioridade: Prioridade
   prazo: string | null
   duracaoMinutos: number
+  projetoId?: string | null
 }
 
 export type AtualizarTarefaRequest = {
@@ -61,6 +65,7 @@ export type AtualizarTarefaRequest = {
   prazo?: string | null
   status?: StatusTarefa
   duracaoMinutos?: number
+  projetoId?: string | null
 }
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {
@@ -86,6 +91,7 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   if (filtro.criadoAte) params.set('criadoAte', filtro.criadoAte)
   if (filtro.atualizadoDe) params.set('atualizadoDe', filtro.atualizadoDe)
   if (filtro.atualizadoAte) params.set('atualizadoAte', filtro.atualizadoAte)
+  if (filtro.projetoId) params.set('projetoId', filtro.projetoId)
   if (filtro.incluirDeletadas != null) {
     params.set('incluirDeletadas', String(filtro.incluirDeletadas))
   }

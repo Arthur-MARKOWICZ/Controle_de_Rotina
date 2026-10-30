@@ -12,6 +12,13 @@
   margin-bottom: 0.85rem;
 }
 
+.plano-dia-reservas-hint {
+  margin: 0 0 var(--space-4);
+  font-size: 0.92rem;
+  color: var(--muted);
+  max-width: 40rem;
+}
+
 .plano-dia-cabecalho h2 {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;

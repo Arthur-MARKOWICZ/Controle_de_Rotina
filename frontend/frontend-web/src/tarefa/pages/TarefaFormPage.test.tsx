@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../auth/api/authApi'
+import { ToastProvider } from '../../feedback/ToastProvider'
+import * as projetoApi from '../../projeto/api/projetoApi'
 import * as tarefaApi from '../api/tarefaApi'
 import { TarefaFormPage } from './TarefaFormPage'
 
@@ -15,6 +17,27 @@ vi.mock('../api/tarefaApi', () => ({
   restaurarTarefa: vi.fn(),
 }))
 
+vi.mock('../../projeto/api/projetoApi', () => ({
+  listarProjetos: vi.fn(),
+}))
+
+const projetosAtivos = {
+  content: [
+    {
+      id: 'proj-tcc',
+      nome: 'TCC',
+      descricao: null,
+      status: 'ATIVO' as const,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+    },
+  ],
+  totalElements: 1,
+  totalPages: 1,
+  number: 0,
+  size: 20,
+}
+
 function prazoFuturoLocal(): string {
   const date = new Date(Date.now() + 2 * 60 * 60 * 1000)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -23,23 +46,27 @@ function prazoFuturoLocal(): string {
 
 function renderCriar() {
   return render(
-    <MemoryRouter initialEntries={['/tarefas/nova']}>
-      <Routes>
-        <Route path="/tarefas/nova" element={<TarefaFormPage />} />
-        <Route path="/tarefas" element={<p>Lista de tarefas</p>} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/tarefas/nova']}>
+        <Routes>
+          <Route path="/tarefas/nova" element={<TarefaFormPage />} />
+          <Route path="/tarefas" element={<p>Lista de tarefas</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
 function renderEditar() {
   return render(
-    <MemoryRouter initialEntries={['/tarefas/t-1']}>
-      <Routes>
-        <Route path="/tarefas/:id" element={<TarefaFormPage />} />
-        <Route path="/tarefas" element={<p>Lista de tarefas</p>} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/tarefas/t-1']}>
+        <Routes>
+          <Route path="/tarefas/:id" element={<TarefaFormPage />} />
+          <Route path="/tarefas" element={<p>Lista de tarefas</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
@@ -50,6 +77,8 @@ describe('TarefaFormPage', () => {
     vi.mocked(tarefaApi.atualizarTarefa).mockReset()
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue(projetosAtivos)
   })
 
   it('no create não exibe select de status e cria tarefa válida', async () => {
@@ -306,6 +335,49 @@ describe('TarefaFormPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/ATRASADA/i)
     expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
+  })
+
+  it('T3: Desvincular envia PATCH com projetoId: null', async () => {
+    vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({
+      id: 't-1',
+      titulo: 'Estudar',
+      descricao: 'Spring',
+      prioridade: 'ALTA',
+      prazo: '2030-06-01T15:00:00Z',
+      status: 'PENDENTE',
+      duracaoMinutos: 240,
+      projetoId: 'proj-tcc',
+      projetoNome: 'TCC',
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-01T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    })
+    vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({
+      id: 't-1',
+      titulo: 'Estudar',
+      descricao: 'Spring',
+      prioridade: 'ALTA',
+      prazo: '2030-06-01T15:00:00Z',
+      status: 'PENDENTE',
+      duracaoMinutos: 240,
+      projetoId: null,
+      projetoNome: null,
+      createdAt: '2026-01-01T10:00:00Z',
+      updatedAt: '2026-01-02T10:00:00Z',
+      deletedAt: null,
+      deletada: false,
+    })
+
+    const user = userEvent.setup()
+    renderEditar()
+
+    expect(await screen.findByDisplayValue('Estudar')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^desvincular$/i }))
+
+    await waitFor(() => {
+      expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith('t-1', { projetoId: null })
+    })
   })
 
   it('mostra detalhe de erro da API de status/prazo no save', async () => {

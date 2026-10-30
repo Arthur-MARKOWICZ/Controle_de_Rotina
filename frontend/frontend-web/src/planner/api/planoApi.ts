@@ -11,6 +11,8 @@ export type TarefaResumoResponse = {
   status: StatusTarefa
   duracaoMinutos: number
   prazo: string | null
+  projetoId?: string | null
+  projetoNome?: string | null
 }
 
 export type BlocoPlanoResponse = {

@@ -13,16 +13,24 @@ public record TarefaResumoResponse(
         Prioridade prioridade,
         StatusTarefa status,
         int duracaoMinutos,
-        Instant prazo
+        Instant prazo,
+        UUID projetoId,
+        String projetoNome
 ) {
     public static TarefaResumoResponse from(Tarefa tarefa) {
+        return from(tarefa, null);
+    }
+
+    public static TarefaResumoResponse from(Tarefa tarefa, String projetoNome) {
         return new TarefaResumoResponse(
                 tarefa.getId(),
                 tarefa.getTitulo(),
                 tarefa.getPrioridade(),
                 tarefa.getStatus(),
                 tarefa.getDuracaoMinutos(),
-                tarefa.getPrazo()
+                tarefa.getPrazo(),
+                tarefa.getProjetoId(),
+                projetoNome
         );
     }
 }

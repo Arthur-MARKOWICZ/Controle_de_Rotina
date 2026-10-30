@@ -156,12 +156,29 @@ núcleo MVP + regras planner → calendario (#38)
 
 ---
 
+## Pós-MVP — projetos (issue [#40](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/40))
+
+Agrupar tarefas, reservar minutos no template semanal (motor em duas fases) e, em seguida, link opcional GitHub + UI.
+
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 35 | [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md) | [#40](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/40) | pendente | tarefa, capacidade, planner (+ replanejamento); ideal após calendário | Núcleo: CRUD, vínculo, reserva, motor |
+| 36 | [`projetos/github-link.md`](../plans/negocio/projetos/github-link.md) | [#40](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/40) | pendente | `projetos.md` | Link issue/PR sem OAuth/sync |
+| 37 | [`ui-projetos.md`](../plans/ui/ui-projetos.md) | [#40](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/40) | pendente | `projetos.md`; ideal + `github-link.md` | Telas, filtro, reserva na capacidade, chip no plano |
+
+```text
+calendario (#38) → projetos (#40) → github-link → ui-projetos
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
 
-**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38).
+**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38).  
+Em seguida na fila: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md).
 
 ---
 

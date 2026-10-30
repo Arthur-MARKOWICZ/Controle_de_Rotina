@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../auth/api/authApi'
 import { useToast } from '../feedback/ToastProvider'
 import { PRIORIDADE_LABEL } from '../home/labels'
+import { listarProjetos, type ProjetoResponse } from '../projeto/api/projetoApi'
 import { criarTarefa } from './api/tarefaApi'
 import { datetimeLocalParaInstant } from './datetime'
 import { atalhosPrazo, type PrazoAtalhoId } from './prazoAtalhos'
@@ -36,6 +37,8 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const [values, setValues] = useState<TarefaFormValues>(VAZIO)
+  const [projetoId, setProjetoId] = useState('')
+  const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
   const [erros, setErros] = useState<TarefaFormErros>({})
   const [mostrarDescricao, setMostrarDescricao] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -63,11 +66,30 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
       return
     }
     setValues(VAZIO)
+    setProjetoId('')
     setErros({})
     setMostrarDescricao(false)
     setErroApi(null)
     setAtalhoAtivo(null)
     setEnviando(false)
+
+    let ativo = true
+    async function carregarProjetos() {
+      try {
+        const page = await listarProjetos({ status: 'ATIVO', page: 0, size: 100 })
+        if (ativo) {
+          setProjetosAtivos(page.content)
+        }
+      } catch {
+        if (ativo) {
+          setProjetosAtivos([])
+        }
+      }
+    }
+    void carregarProjetos()
+    return () => {
+      ativo = false
+    }
   }, [open])
 
   useEffect(() => {
@@ -115,6 +137,7 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
         prioridade,
         prazo,
         duracaoMinutos,
+        projetoId: projetoId || null,
       })
       toast.success('Tarefa criada', {
         action: {
@@ -218,6 +241,23 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
               {erros.prioridade}
             </p>
           ) : null}
+        </div>
+
+        <div className="field">
+          <label htmlFor="quick-projeto">Projeto (opcional)</label>
+          <select
+            id="quick-projeto"
+            name="projetoId"
+            value={projetoId}
+            onChange={(e) => setProjetoId(e.target.value)}
+          >
+            <option value="">Nenhum</option>
+            {projetosAtivos.map((projeto) => (
+              <option key={projeto.id} value={projeto.id}>
+                {projeto.nome}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="field">

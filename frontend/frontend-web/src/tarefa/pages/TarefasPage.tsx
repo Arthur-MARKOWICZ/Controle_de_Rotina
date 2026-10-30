@@ -7,6 +7,7 @@ import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
+import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
 import {
   excluirTarefa,
   listarTarefas,
@@ -69,6 +70,7 @@ function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
     !filtros.prazoAte &&
     !filtros.duracaoDe &&
     !filtros.duracaoAte &&
+    !filtros.projetoId &&
     filtros.sort === 'prazo' &&
     filtros.direction === 'asc'
   )
@@ -91,6 +93,7 @@ export function TarefasPage() {
     size: filtrosUrl.size,
   }))
   const [resultado, setResultado] = useState<PageTarefa | null>(null)
+  const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [acaoId, setAcaoId] = useState<string | null>(null)
@@ -111,6 +114,26 @@ export function TarefasPage() {
     })
   }, [filtrosUrl])
 
+  useEffect(() => {
+    let ativo = true
+    async function carregarProjetos() {
+      try {
+        const page = await listarProjetos({ status: 'ATIVO', page: 0, size: 100 })
+        if (ativo) {
+          setProjetosAtivos(page.content)
+        }
+      } catch {
+        if (ativo) {
+          setProjetosAtivos([])
+        }
+      }
+    }
+    void carregarProjetos()
+    return () => {
+      ativo = false
+    }
+  }, [])
+
   function atualizarUrl(proximo: FiltrosListaUrl) {
     const params = escreverFiltrosNaUrl(proximo)
     setSearchParams(params, { replace: true })
@@ -130,6 +153,7 @@ export function TarefasPage() {
           prazoAte: paraInstantOuUndefined(filtrosUrl.prazoAte),
           duracaoDe: paraNumeroOuUndefined(filtrosUrl.duracaoDe),
           duracaoAte: paraNumeroOuUndefined(filtrosUrl.duracaoAte),
+          projetoId: filtrosUrl.projetoId || undefined,
           page: filtrosUrl.page,
           size: filtrosUrl.size,
           sort: filtrosUrl.sort,
@@ -235,6 +259,13 @@ export function TarefasPage() {
   const grupos = resultado ? agruparPorPrazo(resultado.content) : []
   const listaVazia = !carregando && resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
+  const projetoFiltroNome =
+    projetosAtivos.find((p) => p.id === filtrosUrl.projetoId)?.nome ??
+    (filtrosUrl.projetoId ? 'Projeto' : null)
+
+  function aplicarFiltroProjeto(projetoId: string) {
+    atualizarUrl({ ...filtrosUrl, projetoId, page: 0 })
+  }
 
   return (
     <main className="tarefas-page">
@@ -274,6 +305,34 @@ export function TarefasPage() {
             {visao.label}
           </button>
         ))}
+      </div>
+
+      <div className="projeto-filtro">
+        <label className="field projeto-filtro__field" htmlFor="filtro-projeto">
+          Projeto
+          <select
+            id="filtro-projeto"
+            value={filtrosUrl.projetoId}
+            onChange={(e) => aplicarFiltroProjeto(e.target.value)}
+          >
+            <option value="">Todos os projetos</option>
+            {projetosAtivos.map((projeto) => (
+              <option key={projeto.id} value={projeto.id}>
+                {projeto.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtrosUrl.projetoId && projetoFiltroNome ? (
+          <button
+            type="button"
+            className="visao-chip visao-chip--ativo"
+            aria-label={`Remover filtro do projeto ${projetoFiltroNome}`}
+            onClick={() => aplicarFiltroProjeto('')}
+          >
+            {projetoFiltroNome} ×
+          </button>
+        ) : null}
       </div>
 
       <form className="tarefas-filtros card" onSubmit={handleAplicarFiltros}>
@@ -478,6 +537,9 @@ export function TarefasPage() {
                               >
                                 {PRIORIDADE_LABEL[tarefa.prioridade]}
                               </span>
+                              {tarefa.projetoNome ? (
+                                <span className="badge badge--projeto">{tarefa.projetoNome}</span>
+                              ) : null}
                               {tarefa.deletada ? (
                                 <span className="badge status-deletada">Excluída</span>
                               ) : null}

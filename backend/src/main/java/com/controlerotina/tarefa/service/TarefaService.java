@@ -3,7 +3,11 @@ package com.controlerotina.tarefa.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,9 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
+import com.controlerotina.projeto.entity.Projeto;
+import com.controlerotina.projeto.entity.StatusProjeto;
+import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.shared.exception.AtrasadaComPrazoFuturoException;
 import com.controlerotina.shared.exception.CampoTextoTarefaInvalidoException;
 import com.controlerotina.shared.exception.PrazoNoPassadoException;
+import com.controlerotina.shared.exception.ProjetoArquivadoException;
+import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
@@ -30,15 +39,18 @@ import com.controlerotina.tarefa.repository.TarefaSpecs;
 public class TarefaService {
 
     private final TarefaRepository tarefaRepository;
+    private final ProjetoRepository projetoRepository;
     private final PropostaGeracaoService propostaGeracaoService;
     private final Clock clock;
 
     public TarefaService(
             TarefaRepository tarefaRepository,
+            ProjetoRepository projetoRepository,
             PropostaGeracaoService propostaGeracaoService,
             Clock clock
     ) {
         this.tarefaRepository = tarefaRepository;
+        this.projetoRepository = projetoRepository;
         this.propostaGeracaoService = propostaGeracaoService;
         this.clock = clock;
     }
@@ -48,6 +60,11 @@ public class TarefaService {
         Instant agora = clock.instant();
         if (request.prazo() != null && request.prazo().isBefore(agora)) {
             throw new PrazoNoPassadoException();
+        }
+
+        String projetoNome = null;
+        if (request.projetoId() != null) {
+            projetoNome = validarProjetoAtivoParaVinculo(usuarioId, request.projetoId()).getNome();
         }
 
         Tarefa tarefa = new Tarefa(
@@ -62,11 +79,14 @@ public class TarefaService {
                 agora,
                 agora
         );
+        if (request.projetoId() != null) {
+            tarefa.definirProjetoId(request.projetoId(), agora);
+        }
 
         Tarefa salva = tarefaRepository.save(tarefa);
         tarefaRepository.flush();
         propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
-        return TarefaResponse.from(salva);
+        return TarefaResponse.from(salva, projetoNome);
     }
 
     @Transactional(readOnly = true)
@@ -79,15 +99,22 @@ public class TarefaService {
                 TarefaSpecs.duracaoEntre(filtro.duracaoDe(), filtro.duracaoAte()),
                 TarefaSpecs.criadoEntre(filtro.criadoDe(), filtro.criadoAte()),
                 TarefaSpecs.atualizadoEntre(filtro.atualizadoDe(), filtro.atualizadoAte()),
-                TarefaSpecs.filtroDelecao(filtro.incluirDeletadas(), filtro.somenteDeletadas())
+                TarefaSpecs.filtroDelecao(filtro.incluirDeletadas(), filtro.somenteDeletadas()),
+                TarefaSpecs.comProjetoId(filtro.projetoId())
         );
 
-        return tarefaRepository.findAll(spec, pageable).map(TarefaResponse::from);
+        Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
+        Map<UUID, String> nomes = carregarNomesProjetos(page.getContent());
+        return page.map(t -> TarefaResponse.from(
+                t,
+                t.getProjetoId() == null ? null : nomes.get(t.getProjetoId())
+        ));
     }
 
     @Transactional(readOnly = true)
     public TarefaResponse buscarPorId(UUID usuarioId, UUID id) {
-        return TarefaResponse.from(buscarDoUsuario(usuarioId, id));
+        Tarefa tarefa = buscarDoUsuario(usuarioId, id);
+        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
     }
 
     @Transactional
@@ -130,7 +157,51 @@ public class TarefaService {
                 agora
         );
 
-        return TarefaResponse.from(tarefa);
+        if (request.projetoIdPresente()) {
+            aplicarVinculoProjeto(usuarioId, tarefa, request.projetoId(), agora);
+        }
+
+        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
+    }
+
+    private void aplicarVinculoProjeto(UUID usuarioId, Tarefa tarefa, UUID novoProjetoId, Instant agora) {
+        if (novoProjetoId == null) {
+            tarefa.definirProjetoId(null, agora);
+            return;
+        }
+        if (novoProjetoId.equals(tarefa.getProjetoId())) {
+            return;
+        }
+        validarProjetoAtivoParaVinculo(usuarioId, novoProjetoId);
+        tarefa.definirProjetoId(novoProjetoId, agora);
+    }
+
+    private Projeto validarProjetoAtivoParaVinculo(UUID usuarioId, UUID projetoId) {
+        Projeto projeto = projetoRepository.findByIdAndUsuarioId(projetoId, usuarioId)
+                .orElseThrow(ProjetoNaoEncontradoException::new);
+        if (projeto.getStatus() == StatusProjeto.ARQUIVADO) {
+            throw new ProjetoArquivadoException();
+        }
+        return projeto;
+    }
+
+    private Map<UUID, String> carregarNomesProjetos(java.util.List<Tarefa> tarefas) {
+        Set<UUID> ids = tarefas.stream()
+                .map(Tarefa::getProjetoId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return projetoRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Projeto::getId, Projeto::getNome));
+    }
+
+    private String nomeDoProjeto(UUID projetoId) {
+        if (projetoId == null) {
+            return null;
+        }
+        return projetoRepository.findById(projetoId).map(Projeto::getNome).orElse(null);
     }
 
     private static boolean statusMudou(
@@ -157,7 +228,7 @@ public class TarefaService {
             throw new TarefaNaoEncontradaException();
         }
         tarefa.restore(clock.instant());
-        return TarefaResponse.from(tarefa);
+        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
     }
 
     @Transactional

@@ -18,6 +18,9 @@ import com.controlerotina.capacidade.entity.CapacidadeSemanal;
 import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.capacidade.repository.CapacidadeSemanalRepository;
 import com.controlerotina.planner.service.PropostaGeracaoService;
+import com.controlerotina.projeto.entity.ReservaProjetoSemanal;
+import com.controlerotina.projeto.repository.ReservaProjetoSemanalRepository;
+import com.controlerotina.shared.exception.CapacidadeAbaixoDasReservasException;
 import com.controlerotina.shared.exception.CapacidadeLoteVazioException;
 import com.controlerotina.shared.exception.CapacidadeSemanalConflitoException;
 import com.controlerotina.shared.exception.CapacidadeSemanalNaoEncontradaException;
@@ -27,15 +30,18 @@ import com.controlerotina.shared.exception.DiaSemanaDuplicadoNoLoteException;
 public class CapacidadeSemanalService {
 
     private final CapacidadeSemanalRepository capacidadeSemanalRepository;
+    private final ReservaProjetoSemanalRepository reservaProjetoSemanalRepository;
     private final PropostaGeracaoService propostaGeracaoService;
     private final Clock clock;
 
     public CapacidadeSemanalService(
             CapacidadeSemanalRepository capacidadeSemanalRepository,
+            ReservaProjetoSemanalRepository reservaProjetoSemanalRepository,
             PropostaGeracaoService propostaGeracaoService,
             Clock clock
     ) {
         this.capacidadeSemanalRepository = capacidadeSemanalRepository;
+        this.reservaProjetoSemanalRepository = reservaProjetoSemanalRepository;
         this.propostaGeracaoService = propostaGeracaoService;
         this.clock = clock;
     }
@@ -111,6 +117,13 @@ public class CapacidadeSemanalService {
             throw new CapacidadeSemanalConflitoException(request.diaSemana().name());
         }
 
+        if (request.horas() != null && request.horas() < capacidade.getHoras()) {
+            DiaSemana diaParaValidar = request.diaSemana() != null
+                    ? request.diaSemana()
+                    : capacidade.getDiaSemana();
+            validarHorasContraReservas(usuarioId, diaParaValidar, request.horas());
+        }
+
         DiaSemana diaAnterior = capacidade.getDiaSemana();
         capacidade.atualizar(request.diaSemana(), request.horas(), clock.instant());
         capacidadeSemanalRepository.flush();
@@ -119,6 +132,16 @@ public class CapacidadeSemanalService {
             propostaGeracaoService.gerarSeDiaSemanaAprovado(usuarioId, request.diaSemana());
         }
         return CapacidadeSemanalResponse.from(capacidade);
+    }
+
+    private void validarHorasContraReservas(UUID usuarioId, DiaSemana diaSemana, int horas) {
+        int somaReservas = reservaProjetoSemanalRepository.findByUsuarioIdAndDiaSemana(usuarioId, diaSemana)
+                .stream()
+                .mapToInt(ReservaProjetoSemanal::getMinutosReservados)
+                .sum();
+        if (horas * 60 < somaReservas) {
+            throw new CapacidadeAbaixoDasReservasException();
+        }
     }
 
     @Transactional

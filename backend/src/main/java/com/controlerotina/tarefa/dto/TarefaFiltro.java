@@ -2,6 +2,7 @@ package com.controlerotina.tarefa.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
@@ -18,6 +19,7 @@ public record TarefaFiltro(
         Instant atualizadoDe,
         Instant atualizadoAte,
         boolean incluirDeletadas,
-        boolean somenteDeletadas
+        boolean somenteDeletadas,
+        UUID projetoId
 ) {
 }

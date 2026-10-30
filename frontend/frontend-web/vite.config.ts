@@ -24,11 +24,11 @@ const backendProxy = {
 }
 
 /**
- * SPA e API compartilham /calendario.
+ * SPA e API compartilham o path (ex.: /calendario, /projetos).
  * Navegação do browser (Accept: text/html) → index.html;
  * fetch da API (Accept: application/json) → proxy no backend.
  */
-const calendarioProxy = {
+const spaApiSharedProxy = {
   ...backendProxy,
   bypass(req: { headers: { accept?: string } }) {
     if (req.headers.accept?.includes('text/html')) {
@@ -43,7 +43,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       ...Object.fromEntries(API_PROXY_PREFIXES.map((path) => [path, backendProxy])),
-      '/calendario': calendarioProxy,
+      '/calendario': spaApiSharedProxy,
+      '/projetos': spaApiSharedProxy,
     },
   },
   test: {

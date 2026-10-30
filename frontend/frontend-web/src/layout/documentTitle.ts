@@ -17,6 +17,15 @@ export function tituloPorRota(pathname: string): string {
   if (/^\/tarefas\/[^/]+$/.test(pathname)) {
     return `Editar tarefa · ${SUFIXO}`
   }
+  if (pathname === '/projetos') {
+    return `Projetos · ${SUFIXO}`
+  }
+  if (pathname === '/projetos/nova') {
+    return `Novo projeto · ${SUFIXO}`
+  }
+  if (/^\/projetos\/[^/]+$/.test(pathname)) {
+    return `Editar projeto · ${SUFIXO}`
+  }
   if (pathname === '/calendario') {
     return `Calendário · ${SUFIXO}`
   }

@@ -66,4 +66,38 @@ describe('BlocoCard (T2)', () => {
 
     expect(screen.getByText(/prioridade alta/i)).toBeInTheDocument()
   })
+
+  it('T5: card do bloco exibe nome do projeto quando presente', () => {
+    render(
+      <MemoryRouter>
+        <BlocoCard
+          ordem={1}
+          titulo="Estudar Spring"
+          tarefaId="t-1"
+          duracaoMinutos={60}
+          prioridade="ALTA"
+          projetoNome="TCC"
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('TCC')).toBeInTheDocument()
+    expect(document.querySelector('.badge--projeto')).toHaveTextContent('TCC')
+  })
+
+  it('T5: sem projetoNome não mostra chip de projeto', () => {
+    render(
+      <MemoryRouter>
+        <BlocoCard
+          ordem={1}
+          titulo="Estudar Spring"
+          tarefaId="t-1"
+          duracaoMinutos={60}
+          prioridade="ALTA"
+        />
+      </MemoryRouter>,
+    )
+
+    expect(document.querySelector('.badge--projeto')).not.toBeInTheDocument()
+  })
 })

@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -31,6 +32,8 @@ import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
+import com.controlerotina.projeto.entity.Projeto;
+import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.shared.exception.BlocoPlanoNaoEncontradoException;
 import com.controlerotina.shared.exception.ExecucaoBlocoConflitoException;
 import com.controlerotina.shared.exception.ExecucaoJaConcluidaException;
@@ -57,6 +60,7 @@ public class ExecucaoService {
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final PlanoRepository planoRepository;
     private final TarefaRepository tarefaRepository;
+    private final ProjetoRepository projetoRepository;
     private final XpConcessaoService xpConcessaoService;
     private final Clock clock;
 
@@ -65,6 +69,7 @@ public class ExecucaoService {
             BlocoPlanoRepository blocoPlanoRepository,
             PlanoRepository planoRepository,
             TarefaRepository tarefaRepository,
+            ProjetoRepository projetoRepository,
             XpConcessaoService xpConcessaoService,
             Clock clock
     ) {
@@ -72,6 +77,7 @@ public class ExecucaoService {
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.planoRepository = planoRepository;
         this.tarefaRepository = tarefaRepository;
+        this.projetoRepository = projetoRepository;
         this.xpConcessaoService = xpConcessaoService;
         this.clock = clock;
     }
@@ -230,6 +236,15 @@ public class ExecucaoService {
                         ).stream()
                         .collect(Collectors.toMap(Execucao::getBlocoPlanoId, Function.identity()));
 
+        Set<UUID> projetoIds = tarefas.values().stream()
+                .map(Tarefa::getProjetoId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> nomesProjeto = projetoIds.isEmpty()
+                ? Map.of()
+                : projetoRepository.findAllById(projetoIds).stream()
+                        .collect(Collectors.toMap(Projeto::getId, Projeto::getNome));
+
         List<ItemExecucaoResponse> itens = blocos.stream()
                 .map(bloco -> {
                     Tarefa tarefa = tarefas.get(bloco.getTarefaId());
@@ -237,9 +252,12 @@ public class ExecucaoService {
                         throw new TarefaNaoEncontradaException();
                     }
                     Execucao execucao = execucoes.get(bloco.getId());
+                    String projetoNome = tarefa.getProjetoId() == null
+                            ? null
+                            : nomesProjeto.get(tarefa.getProjetoId());
                     return new ItemExecucaoResponse(
                             BlocoExecucaoResponse.from(bloco),
-                            TarefaResumoResponse.from(tarefa),
+                            TarefaResumoResponse.from(tarefa, projetoNome),
                             ExecucaoResponse.efetiva(execucao)
                     );
                 })

@@ -11,6 +11,8 @@ export type TarefaResumoExecucao = {
   prioridade: Prioridade
   status: StatusTarefa
   duracaoMinutos: number
+  projetoId?: string | null
+  projetoNome?: string | null
 }
 
 export type BlocoExecucaoResponse = {

@@ -17,6 +17,8 @@ public interface CapacidadeSemanalRepository extends JpaRepository<CapacidadeSem
 
     boolean existsByUsuarioIdAndDiaSemanaAndAtivoTrueAndIdNot(UUID usuarioId, DiaSemana diaSemana, UUID id);
 
+    Optional<CapacidadeSemanal> findByUsuarioIdAndDiaSemanaAndAtivoTrue(UUID usuarioId, DiaSemana diaSemana);
+
     List<CapacidadeSemanal> findByUsuarioIdAndAtivoTrueOrderByDiaSemanaAsc(UUID usuarioId);
 
     List<CapacidadeSemanal> findByUsuarioIdOrderByDiaSemanaAsc(UUID usuarioId);

@@ -12,11 +12,15 @@ public record BlocoPlanoResponse(
         TarefaResumoResponse tarefa
 ) {
     public static BlocoPlanoResponse from(BlocoPlano bloco, Tarefa tarefa) {
+        return from(bloco, tarefa, null);
+    }
+
+    public static BlocoPlanoResponse from(BlocoPlano bloco, Tarefa tarefa, String projetoNome) {
         return new BlocoPlanoResponse(
                 bloco.getId(),
                 bloco.getDuracaoMinutos(),
                 bloco.getOrdem(),
-                TarefaResumoResponse.from(tarefa)
+                TarefaResumoResponse.from(tarefa, projetoNome)
         );
     }
 }

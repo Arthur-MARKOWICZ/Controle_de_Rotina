@@ -71,6 +71,7 @@ public class TarefaController {
             @RequestParam(required = false) Instant atualizadoAte,
             @RequestParam(defaultValue = "false") boolean incluirDeletadas,
             @RequestParam(defaultValue = "false") boolean somenteDeletadas,
+            @RequestParam(required = false) UUID projetoId,
             Pageable pageable
     ) {
         TarefaFiltro filtro = new TarefaFiltro(
@@ -85,7 +86,8 @@ public class TarefaController {
                 atualizadoDe,
                 atualizadoAte,
                 incluirDeletadas,
-                somenteDeletadas
+                somenteDeletadas,
+                projetoId
         );
         return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
     }

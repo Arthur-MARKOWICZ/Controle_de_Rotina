@@ -1,9 +1,12 @@
 package com.controlerotina.planner.service;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -18,6 +21,8 @@ import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
+import com.controlerotina.projeto.entity.Projeto;
+import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -33,15 +38,18 @@ public class PlanoConsultaService {
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final TarefaRepository tarefaRepository;
+    private final ProjetoRepository projetoRepository;
 
     public PlanoConsultaService(
             PlanoRepository planoRepository,
             BlocoPlanoRepository blocoPlanoRepository,
-            TarefaRepository tarefaRepository
+            TarefaRepository tarefaRepository,
+            ProjetoRepository projetoRepository
     ) {
         this.planoRepository = planoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.tarefaRepository = tarefaRepository;
+        this.projetoRepository = projetoRepository;
     }
 
     @Transactional(readOnly = true)
@@ -69,13 +77,18 @@ public class PlanoConsultaService {
                 ).stream()
                 .collect(Collectors.toMap(Tarefa::getId, Function.identity()));
 
+        Map<UUID, String> nomesProjeto = nomesDosProjetos(tarefas.values());
+
         List<BlocoPlanoResponse> blocosResponse = blocos.stream()
                 .map(bloco -> {
                     Tarefa tarefa = tarefas.get(bloco.getTarefaId());
                     if (tarefa == null) {
                         throw new PlanoNaoEncontradoException();
                     }
-                    return BlocoPlanoResponse.from(bloco, tarefa);
+                    String projetoNome = tarefa.getProjetoId() == null
+                            ? null
+                            : nomesProjeto.get(tarefa.getProjetoId());
+                    return BlocoPlanoResponse.from(bloco, tarefa, projetoNome);
                 })
                 .toList();
 
@@ -85,5 +98,17 @@ public class PlanoConsultaService {
                         plano.getUsuarioId(), plano.getData(), StatusPlano.APROVADO);
 
         return PlanoResponse.from(plano, blocosResponse, propostaPendente);
+    }
+
+    private Map<UUID, String> nomesDosProjetos(Collection<Tarefa> tarefas) {
+        Set<UUID> ids = tarefas.stream()
+                .map(Tarefa::getProjetoId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return projetoRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Projeto::getId, Projeto::getNome));
     }
 }

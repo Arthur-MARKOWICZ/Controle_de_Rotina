@@ -4,12 +4,17 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '../feedback/ToastProvider'
+import * as projetoApi from '../projeto/api/projetoApi'
 import * as tarefaApi from './api/tarefaApi'
 import { fimDoDiaBrtParaDatetimeLocal } from './prazoAtalhos'
 import { QuickAddTarefaDialog } from './QuickAddTarefaDialog'
 
 vi.mock('./api/tarefaApi', () => ({
   criarTarefa: vi.fn(),
+}))
+
+vi.mock('../projeto/api/projetoApi', () => ({
+  listarProjetos: vi.fn(),
 }))
 
 function renderDialog(open = true) {
@@ -25,6 +30,14 @@ function renderDialog(open = true) {
 describe('QuickAddTarefaDialog', () => {
   beforeEach(() => {
     vi.mocked(tarefaApi.criarTarefa).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+    })
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-10-28T15:00:00.000Z'))
   })

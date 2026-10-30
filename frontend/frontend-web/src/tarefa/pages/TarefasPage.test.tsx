@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '../../feedback/ToastProvider'
+import * as projetoApi from '../../projeto/api/projetoApi'
 import * as tarefaApi from '../api/tarefaApi'
 import { TarefasPage } from './TarefasPage'
 
@@ -11,6 +12,10 @@ vi.mock('../api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+}))
+
+vi.mock('../../projeto/api/projetoApi', () => ({
+  listarProjetos: vi.fn(),
 }))
 
 const refIso = '2026-10-28T15:00:00.000Z'
@@ -102,6 +107,23 @@ describe('TarefasPage', () => {
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina)
+    vi.mocked(projetoApi.listarProjetos).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      content: [
+        {
+          id: 'proj-tcc',
+          nome: 'TCC',
+          descricao: null,
+          status: 'ATIVO',
+          createdAt: '2026-01-01T10:00:00Z',
+          updatedAt: '2026-01-01T10:00:00Z',
+        },
+      ],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    })
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(refIso))
   })
@@ -161,6 +183,18 @@ describe('TarefasPage', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('T2: filtro projetoId na URL da lista de tarefas', async () => {
+    renderLista('/tarefas?projetoId=proj-tcc')
+
+    await waitFor(() => {
+      expect(tarefaApi.listarTarefas).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projetoId: 'proj-tcc',
+        }),
+      )
+    })
   })
 
   it('chip de visão aplica filtro imediatamente', async () => {

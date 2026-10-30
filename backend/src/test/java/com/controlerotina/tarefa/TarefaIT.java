@@ -2,6 +2,7 @@ package com.controlerotina.tarefa;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -720,6 +721,161 @@ class TarefaIT {
         assertThat(statusDaTarefa(deletada)).isEqualTo("PENDENTE");
         assertThat(statusDaTarefa(pendenteFutura)).isEqualTo("PENDENTE");
         assertThat(statusDaTarefa(pendenteHoje)).isEqualTo("PENDENTE");
+    }
+
+    @Test
+    void t6_deveAssociarTarefaAProjetoAtivoNoCreateERetornarNome() {
+        UUID projetoId = criarProjeto("TCC");
+
+        Map<String, Object> body = tarefaValida();
+        body.put("projetoId", projetoId.toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        assertThat(response.getBody().get("projetoId")).isEqualTo(projetoId.toString());
+        assertThat(response.getBody().get("projetoNome")).isEqualTo("TCC");
+        assertThat(jdbcTemplate.queryForObject(
+                "select projeto_id from tarefa where id = ?",
+                UUID.class,
+                UUID.fromString(response.getBody().get("id").toString()))).isEqualTo(projetoId);
+    }
+
+    @Test
+    void t6_deveAssociarEDesvincularProjetoViaPatch() {
+        UUID projetoId = criarProjeto("API");
+        UUID tarefaId = criarTarefaAutenticada("Sem projeto", Instant.now().plus(2, ChronoUnit.DAYS), "ALTA", 60);
+
+        ResponseEntity<Map> associada = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("projetoId", projetoId.toString())),
+                Map.class);
+
+        assertThat(associada.getStatusCode()).isEqualTo(OK);
+        assertThat(associada.getBody().get("projetoId")).isEqualTo(projetoId.toString());
+        assertThat(associada.getBody().get("projetoNome")).isEqualTo("API");
+
+        Map<String, Object> desvincular = new HashMap<>();
+        desvincular.put("projetoId", null);
+
+        ResponseEntity<Map> desvinculada = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(desvincular),
+                Map.class);
+
+        assertThat(desvinculada.getStatusCode()).isEqualTo(OK);
+        assertThat(desvinculada.getBody().get("projetoId")).isNull();
+        assertThat(desvinculada.getBody().get("projetoNome")).isNull();
+        assertThat(jdbcTemplate.queryForObject(
+                "select projeto_id from tarefa where id = ?", UUID.class, tarefaId)).isNull();
+    }
+
+    @Test
+    void t6_deveRejeitarVinculoAProjetoArquivadoCom409() {
+        UUID projetoId = criarProjeto("Arquivado");
+        restTemplate.exchange(
+                "/projetos/" + projetoId + "/arquivar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        Map<String, Object> body = tarefaValida();
+        body.put("projetoId", projetoId.toString());
+
+        ResponseEntity<Map> create = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+        assertThat(create.getStatusCode()).isEqualTo(CONFLICT);
+
+        UUID tarefaId = criarTarefaAutenticada("Livre", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 45);
+        ResponseEntity<Map> patch = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("projetoId", projetoId.toString())),
+                Map.class);
+        assertThat(patch.getStatusCode()).isEqualTo(CONFLICT);
+    }
+
+    @Test
+    void t6_deveFiltrarTarefasPorProjetoId() {
+        UUID projetoA = criarProjeto("Proj A");
+        UUID projetoB = criarProjeto("Proj B");
+
+        Map<String, Object> bodyA = tarefaValida("Tarefa A", Instant.now().plus(3, ChronoUnit.DAYS), "ALTA", 60);
+        bodyA.put("projetoId", projetoA.toString());
+        UUID idA = UUID.fromString(restTemplate.exchange(
+                "/tarefas", HttpMethod.POST, autenticadoJson(bodyA), Map.class).getBody().get("id").toString());
+
+        Map<String, Object> bodyB = tarefaValida("Tarefa B", Instant.now().plus(3, ChronoUnit.DAYS), "ALTA", 60);
+        bodyB.put("projetoId", projetoB.toString());
+        restTemplate.exchange("/tarefas", HttpMethod.POST, autenticadoJson(bodyB), Map.class);
+
+        criarTarefaAutenticada("Sem proj", Instant.now().plus(3, ChronoUnit.DAYS), "BAIXA", 30);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas?projetoId=" + projetoA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        List<Map<String, Object>> content = content(response);
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0).get("id")).isEqualTo(idA.toString());
+        assertThat(content.get(0).get("projetoId")).isEqualTo(projetoA.toString());
+        assertThat(content.get(0).get("projetoNome")).isEqualTo("Proj A");
+    }
+
+    @Test
+    void t6_patchSemProjetoIdNaoDesvincula() {
+        UUID projetoId = criarProjeto("Manter");
+        Map<String, Object> body = tarefaValida();
+        body.put("projetoId", projetoId.toString());
+        UUID tarefaId = UUID.fromString(restTemplate.exchange(
+                "/tarefas", HttpMethod.POST, autenticadoJson(body), Map.class).getBody().get("id").toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("titulo", "Só título")),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("titulo")).isEqualTo("Só título");
+        assertThat(response.getBody().get("projetoId")).isEqualTo(projetoId.toString());
+        assertThat(response.getBody().get("projetoNome")).isEqualTo("Manter");
+    }
+
+    @Test
+    void t6_deveRetornar404AoVincularProjetoInexistente() {
+        Map<String, Object> body = tarefaValida();
+        body.put("projetoId", UUID.randomUUID().toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
+    private UUID criarProjeto(String nome) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/projetos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("nome", nome)),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return UUID.fromString(response.getBody().get("id").toString());
     }
 
     private static Instant prazoAntesDoInicioDoDia() {

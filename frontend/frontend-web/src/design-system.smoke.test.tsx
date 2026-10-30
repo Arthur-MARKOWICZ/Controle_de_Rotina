@@ -76,6 +76,22 @@ vi.mock('./execucao/api/execucaoApi', () => ({
   abortarExecucao: vi.fn(),
 }))
 
+vi.mock('./projeto/api/projetoApi', () => ({
+  listarProjetos: vi.fn().mockResolvedValue({
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 20,
+  }),
+}))
+
+vi.mock('./projeto/api/reservaProjetoApi', () => ({
+  listarReservas: vi.fn().mockResolvedValue([]),
+  criarReserva: vi.fn(),
+  atualizarReserva: vi.fn(),
+}))
+
 vi.mock('./historico/api/historicoApi', () => ({
   consultarHistoricoDia: vi.fn(),
   consultarHistoricoSemana: vi.fn(),

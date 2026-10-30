@@ -161,6 +161,26 @@ describe('tarefaApi', () => {
     }
   })
 
+  it('lista com filtro projetoId', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          number: 0,
+          size: 20,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    await listarTarefas({ projetoId: 'proj-1', page: 0, size: 20 })
+
+    const [url] = vi.mocked(apiClient.apiFetch).mock.calls[0]
+    expect(url).toContain('projetoId=proj-1')
+  })
+
   it('lista com filtros de deletadas', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
       new Response(

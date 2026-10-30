@@ -11,6 +11,8 @@ import { HistoricoPage } from './historico/pages/HistoricoPage'
 import { AppShell } from './layout/AppShell'
 import { DocumentTitle } from './layout/DocumentTitle'
 import { HomePage } from './pages/HomePage'
+import { ProjetoFormPage } from './projeto/pages/ProjetoFormPage'
+import { ProjetosPage } from './projeto/pages/ProjetosPage'
 import { TarefaFormPage } from './tarefa/pages/TarefaFormPage'
 import { TarefasPage } from './tarefa/pages/TarefasPage'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -36,6 +38,9 @@ export default function App() {
               <Route path="/tarefas" element={<TarefasPage />} />
               <Route path="/tarefas/nova" element={<TarefaFormPage />} />
               <Route path="/tarefas/:id" element={<TarefaFormPage />} />
+              <Route path="/projetos" element={<ProjetosPage />} />
+              <Route path="/projetos/nova" element={<ProjetoFormPage />} />
+              <Route path="/projetos/:id" element={<ProjetoFormPage />} />
               <Route path="/calendario" element={<CalendarioPage />} />
               <Route path="/capacidade" element={<CapacidadePage />} />
               <Route path="/historico" element={<HistoricoPage />} />

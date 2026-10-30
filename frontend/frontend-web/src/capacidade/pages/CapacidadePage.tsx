@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useToast } from '../../feedback/ToastProvider'
+import { buscarPlano } from '../../planner/api/planoApi'
+import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
+import {
+  atualizarReserva,
+  criarReserva,
+  listarReservas,
+  type ReservaProjetoResponse,
+} from '../../projeto/api/reservaProjetoApi'
 import {
   excluirCapacidadeOverride,
   listarCapacidadesOverride,
@@ -24,6 +33,7 @@ import {
 import {
   adicionarDiasIso,
   datasDaSemana,
+  formatarDataIso,
   formatarIntervaloSemana,
   inicioSemana,
   parseDataIsoLocal,
@@ -43,8 +53,11 @@ const DIAS_UTEIS: DiaSemana[] = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA'
 const FIM_DE_SEMANA: DiaSemana[] = ['SABADO', 'DOMINGO']
 const HORAS_MAX = 16
 const BARRA_ESCALA_MIN = 8
+const MINUTOS_RESERVA_MIN = 15
+const MINUTOS_RESERVA_STEP = 15
 
 type RascunhoHoras = Record<DiaSemana, number>
+type MinutosDraft = Record<string, number>
 
 function mapaPorDia(
   lista: CapacidadeSemanalResponse[],
@@ -107,6 +120,21 @@ function mensagemErro(error: unknown, fallback: string): string {
   return fallback
 }
 
+function reservasDoDia(
+  reservas: ReservaProjetoResponse[],
+  dia: DiaSemana,
+): ReservaProjetoResponse[] {
+  return reservas.filter((r) => r.diaSemana === dia)
+}
+
+function somaMinutosReservados(reservas: ReservaProjetoResponse[]): number {
+  return reservas.reduce((acc, r) => acc + r.minutosReservados, 0)
+}
+
+function chaveReserva(reservaId: string): string {
+  return reservaId
+}
+
 function diasAlterados(
   rascunho: RascunhoHoras,
   porDia: Partial<Record<DiaSemana, CapacidadeSemanalResponse>>,
@@ -129,11 +157,23 @@ export function CapacidadePage() {
   const toast = useToast()
   const [capacidades, setCapacidades] = useState<CapacidadeSemanalResponse[]>([])
   const [rascunho, setRascunho] = useState<RascunhoHoras>(() => rascunhoDeCapacidades([]))
+  const [reservas, setReservas] = useState<ReservaProjetoResponse[]>([])
+  const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
+  const [minutosDraft, setMinutosDraft] = useState<MinutosDraft>({})
+  const [novoProjetoPorDia, setNovoProjetoPorDia] = useState<Partial<Record<DiaSemana, string>>>(
+    {},
+  )
+  const [novosMinutosPorDia, setNovosMinutosPorDia] = useState<Partial<Record<DiaSemana, number>>>(
+    {},
+  )
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [copiando, setCopiando] = useState(false)
   const [acaoOverrideId, setAcaoOverrideId] = useState<string | null>(null)
+  const [salvandoReservaId, setSalvandoReservaId] = useState<string | null>(null)
+  const [criandoReservaDia, setCriandoReservaDia] = useState<DiaSemana | null>(null)
+  const [mostrarCtaProposta, setMostrarCtaProposta] = useState(false)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
   const [semanaInicio, setSemanaInicio] = useState(() => inicioSemana())
@@ -148,19 +188,29 @@ export function CapacidadePage() {
       setErro(null)
       try {
         const dataAte = adicionarDiasIso(semanaInicio, 6)
-        const [semanais, resolvida, overridesLista] = await Promise.all([
-          listarCapacidadesSemanais(),
-          consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
-          listarCapacidadesOverride({
-            dataDe: semanaInicio,
-            dataAte,
-          }),
-        ])
+        const [semanais, resolvida, overridesLista, reservasLista, projetosPage] =
+          await Promise.all([
+            listarCapacidadesSemanais(),
+            consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
+            listarCapacidadesOverride({
+              dataDe: semanaInicio,
+              dataAte,
+            }),
+            listarReservas(),
+            listarProjetos({ status: 'ATIVO', page: 0, size: 100 }),
+          ])
         if (ativo) {
           setCapacidades(semanais)
           setRascunho(rascunhoDeCapacidades(semanais))
           setResolvidas(resolvida)
           setOverrides(overridesLista)
+          setReservas(reservasLista)
+          setProjetosAtivos(projetosPage.content)
+          const drafts: MinutosDraft = {}
+          for (const reserva of reservasLista) {
+            drafts[chaveReserva(reserva.id)] = reserva.minutosReservados
+          }
+          setMinutosDraft(drafts)
         }
       } catch (error) {
         if (ativo) {
@@ -168,6 +218,8 @@ export function CapacidadePage() {
           setCapacidades([])
           setResolvidas([])
           setOverrides([])
+          setReservas([])
+          setProjetosAtivos([])
         }
       } finally {
         if (ativo) {
@@ -294,6 +346,76 @@ export function CapacidadePage() {
     }
   }
 
+  async function verificarPropostaPendente() {
+    try {
+      const plano = await buscarPlano({ data: formatarDataIso(new Date()) })
+      setMostrarCtaProposta(Boolean(plano?.propostaPendente && plano.propostaId))
+    } catch {
+      setMostrarCtaProposta(false)
+    }
+  }
+
+  function nomeProjeto(projetoId: string): string {
+    return projetosAtivos.find((p) => p.id === projetoId)?.nome ?? 'Projeto'
+  }
+
+  async function handleSalvarReserva(reserva: ReservaProjetoResponse) {
+    const minutos = minutosDraft[chaveReserva(reserva.id)] ?? reserva.minutosReservados
+    if (minutos < MINUTOS_RESERVA_MIN || minutos % MINUTOS_RESERVA_STEP !== 0) {
+      setErro(`A reserva deve ser múltiplo de ${MINUTOS_RESERVA_STEP} minutos (mín. ${MINUTOS_RESERVA_MIN}).`)
+      return
+    }
+    setErro(null)
+    setSalvandoReservaId(reserva.id)
+    try {
+      await atualizarReserva(reserva.projetoId, reserva.id, { minutosReservados: minutos })
+      setRecarregarEm((n) => n + 1)
+      toast.success('Reserva atualizada')
+      await verificarPropostaPendente()
+    } catch (error) {
+      const mensagem = mensagemErro(error, 'Não foi possível atualizar a reserva.')
+      setErro(mensagem)
+      if (error instanceof ApiError && error.status === 409) {
+        toast.error(mensagem)
+      }
+    } finally {
+      setSalvandoReservaId(null)
+    }
+  }
+
+  async function handleCriarReserva(dia: DiaSemana) {
+    const projetoId = novoProjetoPorDia[dia]
+    const minutos = novosMinutosPorDia[dia] ?? 60
+    if (!projetoId) {
+      setErro('Selecione um projeto para reservar.')
+      return
+    }
+    if (minutos < MINUTOS_RESERVA_MIN || minutos % MINUTOS_RESERVA_STEP !== 0) {
+      setErro(`A reserva deve ser múltiplo de ${MINUTOS_RESERVA_STEP} minutos (mín. ${MINUTOS_RESERVA_MIN}).`)
+      return
+    }
+    setErro(null)
+    setCriandoReservaDia(dia)
+    try {
+      await criarReserva(projetoId, { diaSemana: dia, minutosReservados: minutos })
+      setNovoProjetoPorDia((atual) => ({ ...atual, [dia]: '' }))
+      setNovosMinutosPorDia((atual) => ({ ...atual, [dia]: 60 }))
+      setRecarregarEm((n) => n + 1)
+      toast.success('Reserva criada')
+      await verificarPropostaPendente()
+    } catch (error) {
+      const mensagem = mensagemErro(error, 'Não foi possível criar a reserva.')
+      setErro(mensagem)
+      if (error instanceof ApiError && error.status === 409) {
+        toast.error(mensagem)
+      }
+    } finally {
+      setCriandoReservaDia(null)
+    }
+  }
+
+  const mapaNomeProjeto = Object.fromEntries(projetosAtivos.map((p) => [p.id, p.nome]))
+
   return (
     <main className="capacidade-page">
       <header className="capacidade-header">
@@ -302,11 +424,24 @@ export function CapacidadePage() {
           <p className="capacidade-subtitle">
             Defina quantas horas você tem disponíveis em cada dia da semana.
           </p>
+          <p className="capacidade-hint">
+            Tempo reservado a um projeto fica separado no dia; o restante segue a prioridade
+            geral.
+          </p>
         </div>
         <p className="capacidade-total" aria-live="polite">
           {total}h disponíveis
         </p>
       </header>
+
+      {mostrarCtaProposta ? (
+        <div className="capacidade-proposta-cta" role="status">
+          <p>Há uma proposta de plano pendente após a mudança de reserva.</p>
+          <Link to="/" className="btn btn--secondary btn--sm">
+            Revisar proposta
+          </Link>
+        </div>
+      ) : null}
 
       <div className="capacidade-semana-nav" aria-label="Semana selecionada">
         <button
@@ -448,6 +583,133 @@ export function CapacidadePage() {
                     {ocupadoOverride ? 'Removendo…' : `Voltar ao padrão (${labelLower})`}
                   </button>
                 ) : null}
+
+                <section
+                  className="capacidade-reservas"
+                  aria-label={`Reservas por projeto — ${labelLower}`}
+                >
+                  <h3 className="capacidade-reservas__titulo">Reservas por projeto</h3>
+                  {(() => {
+                    const doDia = reservasDoDia(reservas, valor)
+                    const soma = somaMinutosReservados(doDia)
+                    const capacidadeMin = horas * 60
+                    const projetosOcupados = new Set(doDia.map((r) => r.projetoId))
+                    const disponiveis = projetosAtivos.filter((p) => !projetosOcupados.has(p.id))
+                    return (
+                      <>
+                        <p
+                          className={
+                            soma > capacidadeMin
+                              ? 'capacidade-reservas__total capacidade-reservas__total--excede'
+                              : 'capacidade-reservas__total'
+                          }
+                        >
+                          {soma} / {capacidadeMin} min
+                        </p>
+                        <ul className="capacidade-reservas__lista">
+                          {doDia.map((reserva) => {
+                            const nome = mapaNomeProjeto[reserva.projetoId] ?? nomeProjeto(reserva.projetoId)
+                            const draft =
+                              minutosDraft[chaveReserva(reserva.id)] ?? reserva.minutosReservados
+                            const ocupado = salvandoReservaId === reserva.id
+                            return (
+                              <li key={reserva.id} className="capacidade-reservas__item">
+                                <span className="capacidade-reservas__nome">{nome}</span>
+                                <label className="capacidade-reservas__campo">
+                                  <span className="visually-hidden">
+                                    Minutos reservados para {nome}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={MINUTOS_RESERVA_MIN}
+                                    step={MINUTOS_RESERVA_STEP}
+                                    value={draft}
+                                    disabled={ocupado || salvando}
+                                    onChange={(e) => {
+                                      const n = Number(e.target.value)
+                                      setMinutosDraft((atual) => ({
+                                        ...atual,
+                                        [chaveReserva(reserva.id)]: Number.isFinite(n) ? n : 0,
+                                      }))
+                                    }}
+                                    aria-label={`Minutos reservados para ${nome}`}
+                                  />
+                                  <span aria-hidden="true">min</span>
+                                </label>
+                                <button
+                                  type="button"
+                                  className="btn btn--ghost btn--sm"
+                                  disabled={ocupado || salvando}
+                                  aria-busy={ocupado}
+                                  aria-label={`Salvar reserva de ${nome}`}
+                                  onClick={() => void handleSalvarReserva(reserva)}
+                                >
+                                  {ocupado ? '…' : 'Salvar'}
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                        {disponiveis.length > 0 ? (
+                          <div className="capacidade-reservas__nova">
+                            <label className="capacidade-reservas__campo">
+                              <span className="visually-hidden">Projeto para {labelLower}</span>
+                              <select
+                                value={novoProjetoPorDia[valor] ?? ''}
+                                disabled={criandoReservaDia === valor || salvando}
+                                onChange={(e) =>
+                                  setNovoProjetoPorDia((atual) => ({
+                                    ...atual,
+                                    [valor]: e.target.value,
+                                  }))
+                                }
+                                aria-label={`Projeto para reservar em ${labelLower}`}
+                              >
+                                <option value="">Projeto…</option>
+                                {disponiveis.map((projeto) => (
+                                  <option key={projeto.id} value={projeto.id}>
+                                    {projeto.nome}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="capacidade-reservas__campo">
+                              <span className="visually-hidden">Minutos novos em {labelLower}</span>
+                              <input
+                                type="number"
+                                min={MINUTOS_RESERVA_MIN}
+                                step={MINUTOS_RESERVA_STEP}
+                                value={novosMinutosPorDia[valor] ?? 60}
+                                disabled={criandoReservaDia === valor || salvando}
+                                onChange={(e) => {
+                                  const n = Number(e.target.value)
+                                  setNovosMinutosPorDia((atual) => ({
+                                    ...atual,
+                                    [valor]: Number.isFinite(n) ? n : 60,
+                                  }))
+                                }}
+                                aria-label={`Minutos da nova reserva em ${labelLower}`}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              disabled={
+                                !novoProjetoPorDia[valor] ||
+                                criandoReservaDia === valor ||
+                                salvando
+                              }
+                              aria-busy={criandoReservaDia === valor}
+                              onClick={() => void handleCriarReserva(valor)}
+                            >
+                              {criandoReservaDia === valor ? '…' : 'Add'}
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    )
+                  })()}
+                </section>
               </article>
             )
           })}

@@ -17,6 +17,7 @@ type BlocoCardProps = {
   prioridade: Prioridade
   /** API: `string | null`. Não use só `string | undefined` — ver README (null vs undefined). */
   prazo?: string | null
+  projetoNome?: string | null
   mostrarJustificativa?: boolean
   diff?: BlocoDiffMarker | null
   statusExecucao?: StatusExecucao
@@ -33,6 +34,7 @@ export function BlocoCard({
   duracaoMinutos,
   prioridade,
   prazo,
+  projetoNome = null,
   mostrarJustificativa = false,
   diff = null,
   statusExecucao,
@@ -70,6 +72,12 @@ export function BlocoCard({
           <span className={`badge priority-${prioridade.toLowerCase()}`}>
             {labelPrioridade(prioridade)}
           </span>
+          {projetoNome ? (
+            <>
+              {' · '}
+              <span className="badge badge--projeto">{projetoNome}</span>
+            </>
+          ) : null}
           {statusExecucao ? (
             <>
               {' · '}

@@ -1,6 +1,7 @@
 package com.controlerotina.tarefa.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
@@ -24,7 +25,9 @@ public record CriarTarefaRequest(
 
         @NotNull
         @DuracaoMinutosValida
-        Integer duracaoMinutos
+        Integer duracaoMinutos,
+
+        UUID projetoId
 ) {
     public CriarTarefaRequest {
         if (titulo != null) {

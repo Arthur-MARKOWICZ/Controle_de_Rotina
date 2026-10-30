@@ -22,6 +22,16 @@ describe('listaUrl (T1)', () => {
     expect(lerFiltrosDaUrl(params)).toEqual(filtros)
   })
 
+  it('T2: round-trip preserva projetoId na query string', () => {
+    const filtros = {
+      ...FILTROS_LISTA_INICIAIS,
+      projetoId: 'proj-abc',
+    }
+    const params = escreverFiltrosNaUrl(filtros)
+    expect(params.get('projetoId')).toBe('proj-abc')
+    expect(lerFiltrosDaUrl(params).projetoId).toBe('proj-abc')
+  })
+
   it('paramsApiDaVisao mapeia chips para API', () => {
     expect(paramsApiDaVisao('todas')).toEqual({})
     expect(paramsApiDaVisao('pendentes')).toEqual({ status: ['PENDENTE'] })

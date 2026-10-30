@@ -40,6 +40,9 @@ public class Tarefa {
     @Column(name = "duracao_minutos", nullable = false)
     private int duracaoMinutos;
 
+    @Column(name = "projeto_id")
+    private UUID projetoId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -108,6 +111,10 @@ public class Tarefa {
         return duracaoMinutos;
     }
 
+    public UUID getProjetoId() {
+        return projetoId;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -147,6 +154,11 @@ public class Tarefa {
         if (duracaoMinutos != null) {
             this.duracaoMinutos = duracaoMinutos;
         }
+        this.updatedAt = updatedAt;
+    }
+
+    public void definirProjetoId(UUID projetoId, Instant updatedAt) {
+        this.projetoId = projetoId;
         this.updatedAt = updatedAt;
     }
 

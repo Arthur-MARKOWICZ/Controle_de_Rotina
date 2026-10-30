@@ -87,6 +87,15 @@ public final class TarefaSpecs {
         };
     }
 
+    public static Specification<Tarefa> comProjetoId(UUID projetoId) {
+        return (root, query, cb) -> {
+            if (projetoId == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("projetoId"), projetoId);
+        };
+    }
+
     private static Specification<Tarefa> intervaloInstant(String campo, Instant de, Instant ate) {
         return (root, query, cb) -> {
             if (de == null && ate == null) {

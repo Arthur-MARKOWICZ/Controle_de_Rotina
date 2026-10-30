@@ -4,7 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
+import { useToast } from '../../feedback/ToastProvider'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
+import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
 import {
   atualizarTarefa,
   buscarTarefa,
@@ -42,15 +44,40 @@ export function TarefaFormPage() {
   const { id } = useParams<{ id: string }>()
   const modo: 'criar' | 'editar' = id ? 'editar' : 'criar'
   const navigate = useNavigate()
+  const toast = useToast()
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [values, setValues] = useState<TarefaFormValues>(VAZIO)
+  const [projetoId, setProjetoId] = useState('')
+  const [projetoNomeVinculado, setProjetoNomeVinculado] = useState<string | null>(null)
+  const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
   const [deletada, setDeletada] = useState(false)
   const [carregando, setCarregando] = useState(modo === 'editar')
   const [enviando, setEnviando] = useState(false)
+  const [desvinculando, setDesvinculando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [restaurando, setRestaurando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    async function carregarProjetos() {
+      try {
+        const page = await listarProjetos({ status: 'ATIVO', page: 0, size: 100 })
+        if (ativo) {
+          setProjetosAtivos(page.content)
+        }
+      } catch {
+        if (ativo) {
+          setProjetosAtivos([])
+        }
+      }
+    }
+    void carregarProjetos()
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   useEffect(() => {
     if (modo !== 'editar' || !id) {
@@ -76,6 +103,8 @@ export function TarefaFormPage() {
           duracaoMinutos: tarefa.duracaoMinutos,
           status: tarefa.status,
         })
+        setProjetoId(tarefa.projetoId ?? '')
+        setProjetoNomeVinculado(tarefa.projetoNome ?? null)
         setDeletada(tarefa.deletada)
       } catch {
         if (ativo) {
@@ -122,6 +151,7 @@ export function TarefaFormPage() {
           prioridade,
           prazo,
           duracaoMinutos,
+          projetoId: projetoId || null,
         })
       } else if (id) {
         await atualizarTarefa(id, {
@@ -131,6 +161,7 @@ export function TarefaFormPage() {
           prazo,
           duracaoMinutos,
           status: values.status as StatusTarefa,
+          ...(projetoId ? { projetoId } : {}),
         })
       }
       navigate('/tarefas', { replace: true })
@@ -146,6 +177,28 @@ export function TarefaFormPage() {
       }
     } finally {
       setEnviando(false)
+    }
+  }
+
+  async function handleDesvincular() {
+    if (!id || !projetoId || deletada) {
+      return
+    }
+    setErro(null)
+    setDesvinculando(true)
+    try {
+      const atualizada = await atualizarTarefa(id, { projetoId: null })
+      setProjetoId(atualizada.projetoId ?? '')
+      setProjetoNomeVinculado(atualizada.projetoNome ?? null)
+      toast.success('Projeto desvinculado')
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErro(error.message)
+      } else {
+        setErro('Não foi possível desvincular o projeto. Tente novamente.')
+      }
+    } finally {
+      setDesvinculando(false)
     }
   }
 
@@ -195,6 +248,8 @@ export function TarefaFormPage() {
         duracaoMinutos: restaurada.duracaoMinutos,
         status: restaurada.status,
       })
+      setProjetoId(restaurada.projetoId ?? '')
+      setProjetoNomeVinculado(restaurada.projetoNome ?? null)
     } catch (error) {
       if (error instanceof ApiError) {
         setErro(error.message)
@@ -204,6 +259,22 @@ export function TarefaFormPage() {
     } finally {
       setRestaurando(false)
     }
+  }
+
+  const opcoesProjeto = [...projetosAtivos]
+  if (
+    projetoId &&
+    projetoNomeVinculado &&
+    !opcoesProjeto.some((p) => p.id === projetoId)
+  ) {
+    opcoesProjeto.unshift({
+      id: projetoId,
+      nome: `${projetoNomeVinculado} (arquivado)`,
+      descricao: null,
+      status: 'ARQUIVADO',
+      createdAt: '',
+      updatedAt: '',
+    })
   }
 
   if (carregando) {
@@ -280,6 +351,44 @@ export function TarefaFormPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="projetoId">Projeto (opcional)</label>
+            <select
+              id="projetoId"
+              name="projetoId"
+              value={projetoId}
+              onChange={(e) => {
+                const novoId = e.target.value
+                setProjetoId(novoId)
+                setProjetoNomeVinculado(
+                  opcoesProjeto.find((p) => p.id === novoId)?.nome ?? null,
+                )
+              }}
+              disabled={deletada}
+            >
+              {!projetoId ? <option value="">Nenhum</option> : null}
+              {opcoesProjeto.map((projeto) => (
+                <option
+                  key={projeto.id}
+                  value={projeto.id}
+                  disabled={projeto.status === 'ARQUIVADO'}
+                >
+                  {projeto.nome}
+                </option>
+              ))}
+            </select>
+            {modo === 'editar' && projetoId ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm tarefa-desvincular"
+                disabled={deletada || desvinculando}
+                onClick={() => void handleDesvincular()}
+              >
+                {desvinculando ? 'Desvinculando…' : 'Desvincular'}
+              </button>
+            ) : null}
           </div>
 
           <div className="field">

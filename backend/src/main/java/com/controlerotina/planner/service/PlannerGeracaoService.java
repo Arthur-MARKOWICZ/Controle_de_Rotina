@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.controlerotina.capacidade.dto.CapacidadeResolvidaResponse;
+import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.capacidade.service.CapacidadeResolvidaService;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
@@ -26,6 +28,8 @@ import com.controlerotina.planner.motor.MotorAlocacao;
 import com.controlerotina.planner.motor.ResultadoAlocacao;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
+import com.controlerotina.projeto.entity.ReservaProjetoSemanal;
+import com.controlerotina.projeto.repository.ReservaProjetoSemanalRepository;
 import com.controlerotina.shared.exception.PlanoJaAprovadoException;
 import com.controlerotina.shared.exception.PlanoVersaoConflitoException;
 import com.controlerotina.tarefa.entity.StatusTarefa;
@@ -46,6 +50,7 @@ public class PlannerGeracaoService {
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final ExecucaoRepository execucaoRepository;
+    private final ReservaProjetoSemanalRepository reservaProjetoSemanalRepository;
     private final Clock clock;
     private final TransactionTemplate transactionTemplate;
 
@@ -55,6 +60,7 @@ public class PlannerGeracaoService {
             PlanoRepository planoRepository,
             BlocoPlanoRepository blocoPlanoRepository,
             ExecucaoRepository execucaoRepository,
+            ReservaProjetoSemanalRepository reservaProjetoSemanalRepository,
             Clock clock,
             PlatformTransactionManager transactionManager
     ) {
@@ -63,6 +69,7 @@ public class PlannerGeracaoService {
         this.planoRepository = planoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.execucaoRepository = execucaoRepository;
+        this.reservaProjetoSemanalRepository = reservaProjetoSemanalRepository;
         this.clock = clock;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -141,10 +148,25 @@ public class PlannerGeracaoService {
         List<CapacidadeResolvidaResponse> capacidades = capacidadeResolvidaService
                 .resolver(usuarioId, inicio, fim);
 
+        Map<DiaSemana, List<MotorAlocacao.ReservaPedido>> reservasPorDiaSemana =
+                reservaProjetoSemanalRepository.findByUsuarioId(usuarioId).stream()
+                        .filter(r -> r.getMinutosReservados() > 0)
+                        .collect(Collectors.groupingBy(
+                                ReservaProjetoSemanal::getDiaSemana,
+                                Collectors.mapping(
+                                        r -> new MotorAlocacao.ReservaPedido(
+                                                r.getProjetoId(),
+                                                r.getMinutosReservados()
+                                        ),
+                                        Collectors.toList()
+                                )
+                        ));
+
         List<MotorAlocacao.DiaCapacidade> dias = capacidades.stream()
                 .map(c -> new MotorAlocacao.DiaCapacidade(
                         c.data(),
-                        MotorAlocacao.capacidadeMinutos(c.horas())
+                        MotorAlocacao.capacidadeMinutos(c.horas()),
+                        reservasPorDiaSemana.getOrDefault(DiaSemana.de(c.data()), List.of())
                 ))
                 .toList();
 
