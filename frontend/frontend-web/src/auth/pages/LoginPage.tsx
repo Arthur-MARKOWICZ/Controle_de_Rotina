@@ -1,38 +1,57 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { ApiError, login } from '../api/authApi'
+import { AuthLayout } from '../components/AuthLayout'
 import { CampoSenha } from '../components/CampoSenha'
+import { CampoTexto } from '../components/CampoTexto'
+import { focarPrimeiroInvalido, temErro } from '../components/focarPrimeiroInvalido'
 import { useAuth } from '../session/AuthContext'
 import { isEmailValido } from '../validation/email'
 
-const PROPOSTA_VALOR = 'Diga o que precisa fazer; o sistema monta o plano.'
+type ErrosLogin = { email?: string; senha?: string }
+
+function validarLogin(email: string, senha: string): ErrosLogin {
+  return {
+    email: isEmailValido(email) ? undefined : 'Informe um email válido.',
+    senha: senha ? undefined : 'Informe a senha.',
+  }
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { isAuthenticated, loginWithToken } = useAuth()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  const [erros, setErros] = useState<ErrosLogin>({})
+  const [erroGeral, setErroGeral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const senhaRef = useRef<HTMLInputElement>(null)
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
   }
 
+  function mostrarErros(proximos: ErrosLogin) {
+    setErros(proximos)
+    focarPrimeiroInvalido([
+      [proximos.email, emailRef],
+      [proximos.senha, senhaRef],
+    ])
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    setErro(null)
+    setErroGeral(null)
 
-    if (!isEmailValido(email)) {
-      setErro('Informe um email válido.')
+    const validacao = validarLogin(email, senha)
+    if (temErro(validacao)) {
+      mostrarErros(validacao)
       return
     }
-    if (!senha) {
-      setErro('Informe a senha.')
-      return
-    }
+    setErros({})
 
     setEnviando(true)
     try {
@@ -44,9 +63,9 @@ export function LoginPage() {
       navigate('/', { replace: true })
     } catch (error) {
       if (error instanceof ApiError) {
-        setErro('Credenciais inválidas.')
+        mostrarErros({ senha: 'Credenciais inválidas.' })
       } else {
-        setErro('Não foi possível entrar. Tente novamente.')
+        setErroGeral('Não foi possível entrar. Tente novamente.')
       }
     } finally {
       setEnviando(false)
@@ -54,51 +73,56 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-panel card">
-        <h1>Entrar</h1>
-        <p className="auth-value">{PROPOSTA_VALOR}</p>
-        <p className="auth-subtitle">Acesse sua conta para continuar.</p>
-
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <div className="field">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <CampoSenha
-            id="senha"
-            label="Senha"
-            value={senha}
-            onChange={setSenha}
-            autoComplete="current-password"
-            required
-          />
-
-          {erro ? <InlineAlert>{erro}</InlineAlert> : null}
-
-          <button
-            type="submit"
-            className="btn btn--primary"
-            disabled={enviando}
-            aria-busy={enviando}
-          >
-            {enviando ? 'Entrando…' : 'Entrar'}
-          </button>
-        </form>
-
-        <p className="auth-footer">
+    <AuthLayout
+      titulo="Entrar"
+      subtitulo="Acesse sua conta para continuar."
+      rodape={
+        <>
           Não tem conta? <Link to="/cadastro">Criar conta</Link>
-        </p>
-      </section>
-    </main>
+        </>
+      }
+    >
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <CampoTexto
+          ref={emailRef}
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(valor) => {
+            setEmail(valor)
+            setErros((atual) => ({ ...atual, email: undefined }))
+          }}
+          erro={erros.email}
+          required
+        />
+
+        <CampoSenha
+          ref={senhaRef}
+          id="senha"
+          label="Senha"
+          value={senha}
+          onChange={(valor) => {
+            setSenha(valor)
+            setErros((atual) => ({ ...atual, senha: undefined }))
+          }}
+          autoComplete="current-password"
+          erro={erros.senha}
+          required
+        />
+
+        {erroGeral ? <InlineAlert>{erroGeral}</InlineAlert> : null}
+
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={enviando}
+          aria-busy={enviando}
+        >
+          {enviando ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </AuthLayout>
   )
 }

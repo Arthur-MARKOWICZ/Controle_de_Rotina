@@ -5,6 +5,7 @@ import {
   datasDaSemana,
   fimSemana,
   formatarDataIso,
+  formatarIntervaloSemana,
   inicioSemana,
 } from './semana'
 
@@ -31,5 +32,10 @@ describe('semana', () => {
   it('adiciona dias em ISO local', () => {
     expect(adicionarDiasIso('2026-10-05', 7)).toBe('2026-10-12')
     expect(formatarDataIso(new Date(2026, 9, 5))).toBe('2026-10-05')
+  })
+
+  it('formata intervalo da semana no estilo 5–11 out', () => {
+    expect(formatarIntervaloSemana('2026-10-05')).toMatch(/^5–11\s+out$/i)
+    expect(formatarIntervaloSemana('2026-09-28')).toMatch(/^28\s+set\s+–\s+4\s+out$/i)
   })
 })

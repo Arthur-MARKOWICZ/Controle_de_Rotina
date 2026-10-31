@@ -1,47 +1,33 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { CaretLeftIcon, CaretRightIcon, CheckSquareIcon, PlusIcon } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
-import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../../home/labels'
+import { PageHeader } from '../../layout/PageHeader'
+import { useQuickAdd } from '../../layout/QuickAddContext'
 import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
 import {
   excluirTarefa,
   listarTarefas,
   restaurarTarefa,
   type PageTarefa,
-  type SortCampo,
-  type SortDirection,
+  type TarefaResponse,
 } from '../api/tarefaApi'
-import { formatarDataHora } from '../datetime'
-import { agruparPorPrazo, formatarPrazoLista } from '../listaGrupos'
+import { chipsAtivos, filtrosLimpos } from '../filtrosAtivos'
+import { FiltrosBarra } from '../FiltrosBarra'
+import { agruparPorPrazo } from '../listaGrupos'
 import {
   escreverFiltrosNaUrl,
-  FILTROS_LISTA_INICIAIS,
   lerFiltrosDaUrl,
   paramsApiDaVisao,
   type FiltrosListaUrl,
-  type VisaoLista,
 } from '../listaUrl'
-import { QuickAddTarefaDialog } from '../QuickAddTarefaDialog'
-import type { Prioridade } from '../validation/tarefaForm'
-
-const PRIORIDADE_OPCOES: Prioridade[] = ['ALTA', 'MEDIA', 'BAIXA']
-
-const VISOES: { id: VisaoLista; label: string }[] = [
-  { id: 'todas', label: 'Todas' },
-  { id: 'pendentes', label: 'Pendentes' },
-  { id: 'em_progresso', label: 'Em progresso' },
-  { id: 'finalizadas', label: 'Finalizadas' },
-  { id: 'excluidas', label: 'Excluídas' },
-]
-
-function toggleValor<T extends string>(lista: T[], valor: T): T[] {
-  return lista.includes(valor) ? lista.filter((item) => item !== valor) : [...lista, valor]
-}
+import { TarefaCard } from '../TarefaCard'
+import type { TarefasOutletContext } from '../TarefaDrawer'
 
 function paraInstantOuUndefined(local: string): string | undefined {
   if (!local) {
@@ -62,6 +48,22 @@ function paraNumeroOuUndefined(valor: string): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function paramsApi(filtros: FiltrosListaUrl) {
+  return {
+    ...paramsApiDaVisao(filtros.visao),
+    prioridade: filtros.prioridade.length ? filtros.prioridade : undefined,
+    prazoDe: paraInstantOuUndefined(filtros.prazoDe),
+    prazoAte: paraInstantOuUndefined(filtros.prazoAte),
+    duracaoDe: paraNumeroOuUndefined(filtros.duracaoDe),
+    duracaoAte: paraNumeroOuUndefined(filtros.duracaoAte),
+    projetoId: filtros.projetoId || undefined,
+    page: filtros.page,
+    size: filtros.size,
+    sort: filtros.sort,
+    direction: filtros.direction,
+  }
+}
+
 function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
   return (
     filtros.visao === 'todas' &&
@@ -76,42 +78,52 @@ function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
   )
 }
 
+function removerDaPagina(pagina: PageTarefa, id: string): PageTarefa {
+  return {
+    ...pagina,
+    content: pagina.content.filter((t) => t.id !== id),
+    totalElements: Math.max(0, pagina.totalElements - 1),
+  }
+}
+
+function inserirNaPagina(pagina: PageTarefa, tarefa: TarefaResponse, indice: number): PageTarefa {
+  if (pagina.content.some((t) => t.id === tarefa.id)) {
+    return pagina
+  }
+  const content = [...pagina.content]
+  content.splice(Math.min(indice, content.length), 0, tarefa)
+  return { ...pagina, content, totalElements: pagina.totalElements + 1 }
+}
+
+function substituirNaPagina(pagina: PageTarefa, tarefa: TarefaResponse): PageTarefa {
+  return { ...pagina, content: pagina.content.map((t) => (t.id === tarefa.id ? tarefa : t)) }
+}
+
+function mensagemErro(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback
+}
+
 export function TarefasPage() {
   const toast = useToast()
+  const location = useLocation()
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [searchParams, setSearchParams] = useSearchParams()
   const filtrosUrl = useMemo(() => lerFiltrosDaUrl(searchParams), [searchParams])
+  const { abrir: abrirQuickAdd, assinarCriada } = useQuickAdd()
 
-  const [filtrosAvancados, setFiltrosAvancados] = useState(() => ({
-    prioridade: filtrosUrl.prioridade,
-    prazoDe: filtrosUrl.prazoDe,
-    prazoAte: filtrosUrl.prazoAte,
-    duracaoDe: filtrosUrl.duracaoDe,
-    duracaoAte: filtrosUrl.duracaoAte,
-    sort: filtrosUrl.sort,
-    direction: filtrosUrl.direction,
-    size: filtrosUrl.size,
-  }))
+  const chaveAtual = useMemo(() => escreverFiltrosNaUrl(filtrosUrl).toString(), [filtrosUrl])
+
   const [resultado, setResultado] = useState<PageTarefa | null>(null)
   const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
-  const [carregando, setCarregando] = useState(true)
+  /** Filtros (serializados) da última leitura concluída; `null` antes da primeira. */
+  const [chaveCarregada, setChaveCarregada] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const [acaoId, setAcaoId] = useState<string | null>(null)
-  const [recarregarEm, setRecarregarEm] = useState(0)
-  const [mostrarFiltros, setMostrarFiltros] = useState(false)
-  const [quickAddAberto, setQuickAddAberto] = useState(false)
+  const controllerRef = useRef<AbortController | null>(null)
+  const filtrosRef = useRef(filtrosUrl)
+  const listaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setFiltrosAvancados({
-      prioridade: filtrosUrl.prioridade,
-      prazoDe: filtrosUrl.prazoDe,
-      prazoAte: filtrosUrl.prazoAte,
-      duracaoDe: filtrosUrl.duracaoDe,
-      duracaoAte: filtrosUrl.duracaoAte,
-      sort: filtrosUrl.sort,
-      direction: filtrosUrl.direction,
-      size: filtrosUrl.size,
-    })
+    filtrosRef.current = filtrosUrl
   }, [filtrosUrl])
 
   useEffect(() => {
@@ -134,367 +146,161 @@ export function TarefasPage() {
     }
   }, [])
 
-  function atualizarUrl(proximo: FiltrosListaUrl) {
-    const params = escreverFiltrosNaUrl(proximo)
-    setSearchParams(params, { replace: true })
-  }
+  /** Só a resposta da última leitura é aplicada: a anterior é abortada. */
+  const carregar = useCallback(async (filtros: FiltrosListaUrl, silencioso: boolean) => {
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    const chave = escreverFiltrosNaUrl(filtros).toString()
+    try {
+      const data = await listarTarefas(paramsApi(filtros), controller.signal)
+      if (controller.signal.aborted) {
+        return
+      }
+      setResultado(data)
+      setErro(null)
+      setChaveCarregada(chave)
+    } catch {
+      if (controller.signal.aborted || silencioso) {
+        return
+      }
+      setErro('Não foi possível carregar as tarefas.')
+      setResultado(null)
+      setChaveCarregada(chave)
+    }
+  }, [])
+
+  const lerSilenciosamente = useCallback(() => {
+    void carregar(filtrosRef.current, true)
+  }, [carregar])
 
   useEffect(() => {
-    let ativo = true
+    void carregar(filtrosUrl, false)
+  }, [filtrosUrl, carregar])
 
-    async function carregar() {
-      setCarregando(true)
-      setErro(null)
-      try {
-        const data = await listarTarefas({
-          ...paramsApiDaVisao(filtrosUrl.visao),
-          prioridade: filtrosUrl.prioridade.length ? filtrosUrl.prioridade : undefined,
-          prazoDe: paraInstantOuUndefined(filtrosUrl.prazoDe),
-          prazoAte: paraInstantOuUndefined(filtrosUrl.prazoAte),
-          duracaoDe: paraNumeroOuUndefined(filtrosUrl.duracaoDe),
-          duracaoAte: paraNumeroOuUndefined(filtrosUrl.duracaoAte),
-          projetoId: filtrosUrl.projetoId || undefined,
-          page: filtrosUrl.page,
-          size: filtrosUrl.size,
-          sort: filtrosUrl.sort,
-          direction: filtrosUrl.direction,
-        })
-        if (ativo) {
-          setResultado(data)
-        }
-      } catch {
-        if (ativo) {
-          setErro('Não foi possível carregar as tarefas.')
-          setResultado(null)
-        }
-      } finally {
-        if (ativo) {
-          setCarregando(false)
-        }
-      }
-    }
+  useEffect(() => () => controllerRef.current?.abort(), [])
 
-    void carregar()
-    return () => {
-      ativo = false
-    }
-  }, [filtrosUrl, recarregarEm])
+  useEffect(() => assinarCriada(lerSilenciosamente), [assinarCriada, lerSilenciosamente])
 
-  function aplicarVisao(visao: VisaoLista) {
-    atualizarUrl({ ...filtrosUrl, visao, page: 0 })
+  function atualizarUrl(proximo: FiltrosListaUrl) {
+    setSearchParams(escreverFiltrosNaUrl(proximo), { replace: true })
   }
 
-  function handleAplicarFiltros(event: FormEvent) {
-    event.preventDefault()
-    atualizarUrl({
-      ...filtrosUrl,
-      ...filtrosAvancados,
-      page: 0,
+  function irParaPagina(page: number) {
+    atualizarUrl({ ...filtrosUrl, page })
+    listaRef.current?.focus()
+  }
+
+  function restaurarOtimista(tarefa: TarefaResponse, indice: number) {
+    const restaurada = { ...tarefa, deletada: false, deletedAt: null }
+    setResultado((r) => (r ? inserirNaPagina(r, restaurada, indice) : r))
+    restaurarTarefa(tarefa.id).catch((error) => {
+      setResultado((r) => (r ? removerDaPagina(r, tarefa.id) : r))
+      toast.error(mensagemErro(error, 'Não foi possível restaurar a tarefa.'))
     })
   }
 
-  function handleLimparFiltros() {
-    atualizarUrl({
-      ...FILTROS_LISTA_INICIAIS,
-      visao: filtrosUrl.visao,
-    })
-  }
-
-  async function handleExcluir(id: string) {
+  async function handleExcluir(tarefa: TarefaResponse) {
     const confirmado = await confirm({
       title: 'Excluir tarefa?',
       message: 'A tarefa será excluída. Você poderá restaurá-la depois.',
       confirmLabel: 'Excluir',
     })
-    if (!confirmado) {
+    if (!confirmado || !resultado) {
       return
     }
 
-    setErro(null)
-    setAcaoId(id)
+    const indice = resultado.content.findIndex((t) => t.id === tarefa.id)
+    setResultado((r) => (r ? removerDaPagina(r, tarefa.id) : r))
     try {
-      await excluirTarefa(id)
-      setRecarregarEm((n) => n + 1)
+      await excluirTarefa(tarefa.id)
       toast.success('Tarefa excluída', {
-        action: {
-          label: 'Desfazer',
-          onClick: () => {
-            void restaurarTarefa(id)
-              .then(() => setRecarregarEm((n) => n + 1))
-              .catch((error) => {
-                setErro(
-                  error instanceof ApiError
-                    ? error.message
-                    : 'Não foi possível restaurar a tarefa.',
-                )
-              })
-          },
-        },
+        action: { label: 'Desfazer', onClick: () => restaurarOtimista(tarefa, indice) },
       })
     } catch (error) {
-      setErro(
-        error instanceof ApiError ? error.message : 'Não foi possível excluir a tarefa.',
-      )
-    } finally {
-      setAcaoId(null)
+      setResultado((r) => (r ? inserirNaPagina(r, tarefa, indice) : r))
+      toast.error(mensagemErro(error, 'Não foi possível excluir a tarefa.'))
     }
   }
 
-  async function handleRestaurar(id: string) {
-    setErro(null)
-    setAcaoId(id)
+  async function handleRestaurar(tarefa: TarefaResponse) {
+    setResultado((r) =>
+      r ? substituirNaPagina(r, { ...tarefa, deletada: false, deletedAt: null }) : r,
+    )
     try {
-      await restaurarTarefa(id)
-      setRecarregarEm((n) => n + 1)
+      await restaurarTarefa(tarefa.id)
+      toast.success('Tarefa restaurada')
     } catch (error) {
-      setErro(
-        error instanceof ApiError ? error.message : 'Não foi possível restaurar a tarefa.',
-      )
-    } finally {
-      setAcaoId(null)
+      setResultado((r) => (r ? substituirNaPagina(r, tarefa) : r))
+      toast.error(mensagemErro(error, 'Não foi possível restaurar a tarefa.'))
     }
   }
 
+  const contextoDrawer: TarefasOutletContext = {
+    projetosAtivos,
+    aoAtualizar: (tarefa) => {
+      setResultado((r) => (r ? substituirNaPagina(r, tarefa) : r))
+      lerSilenciosamente()
+    },
+    aoCriar: () => lerSilenciosamente(),
+  }
+
+  const carregandoPrimeira = chaveCarregada === null
+  const recarregando = resultado != null && chaveCarregada !== chaveAtual
   const totalPages = resultado?.totalPages ?? 0
   const grupos = resultado ? agruparPorPrazo(resultado.content) : []
-  const listaVazia = !carregando && resultado != null && resultado.content.length === 0
+  const listaVazia = resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
-  const projetoFiltroNome =
-    projetosAtivos.find((p) => p.id === filtrosUrl.projetoId)?.nome ??
-    (filtrosUrl.projetoId ? 'Projeto' : null)
-
-  function aplicarFiltroProjeto(projetoId: string) {
-    atualizarUrl({ ...filtrosUrl, projetoId, page: 0 })
-  }
+  const temChips = chipsAtivos(filtrosUrl, projetosAtivos).length > 0
+  const total = resultado?.totalElements ?? 0
 
   return (
     <main className="tarefas-page">
       {confirmDialog}
-      <QuickAddTarefaDialog
-        open={quickAddAberto}
-        onClose={() => setQuickAddAberto(false)}
-        onCriada={() => setRecarregarEm((n) => n + 1)}
+      <PageHeader
+        title="Tarefas"
+        description="Liste, filtre e ordene o que precisa ser planejado."
       />
-      <header className="tarefas-header">
-        <div>
-          <h1>Tarefas</h1>
-          <p className="tarefas-subtitle">Liste, filtre e ordene o que precisa ser planejado.</p>
-        </div>
-        <div className="tarefas-header-actions">
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => setQuickAddAberto(true)}
-          >
-            Nova tarefa
-          </button>
-        </div>
-      </header>
 
-      <div className="visao-chips" role="group" aria-label="Visão da lista">
-        {VISOES.map((visao) => (
-          <button
-            key={visao.id}
-            type="button"
-            className={
-              filtrosUrl.visao === visao.id ? 'visao-chip visao-chip--ativo' : 'visao-chip'
-            }
-            aria-pressed={filtrosUrl.visao === visao.id}
-            onClick={() => aplicarVisao(visao.id)}
-          >
-            {visao.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="projeto-filtro">
-        <label className="field projeto-filtro__field" htmlFor="filtro-projeto">
-          Projeto
-          <select
-            id="filtro-projeto"
-            value={filtrosUrl.projetoId}
-            onChange={(e) => aplicarFiltroProjeto(e.target.value)}
-          >
-            <option value="">Todos os projetos</option>
-            {projetosAtivos.map((projeto) => (
-              <option key={projeto.id} value={projeto.id}>
-                {projeto.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-        {filtrosUrl.projetoId && projetoFiltroNome ? (
-          <button
-            type="button"
-            className="visao-chip visao-chip--ativo"
-            aria-label={`Remover filtro do projeto ${projetoFiltroNome}`}
-            onClick={() => aplicarFiltroProjeto('')}
-          >
-            {projetoFiltroNome} ×
-          </button>
-        ) : null}
-      </div>
-
-      <form className="tarefas-filtros card" onSubmit={handleAplicarFiltros}>
-        <div className="filtros-actions">
-          <button
-            type="button"
-            className="btn btn--secondary"
-            aria-expanded={mostrarFiltros}
-            onClick={() => setMostrarFiltros((atual) => !atual)}
-          >
-            {mostrarFiltros ? 'Ocultar filtros' : 'Filtros'}
-          </button>
-          {mostrarFiltros ? (
-            <>
-              <button type="submit" className="btn btn--primary">
-                Aplicar filtros
-              </button>
-              <button type="button" className="btn btn--secondary" onClick={handleLimparFiltros}>
-                Limpar
-              </button>
-            </>
-          ) : null}
-        </div>
-
-        {mostrarFiltros ? (
-          <div className="filtros-grid filtros-avancados">
-            <fieldset className="filtros-fieldset">
-              <legend>Prioridade</legend>
-              <div className="chip-group">
-                {PRIORIDADE_OPCOES.map((prioridade) => (
-                  <label key={prioridade} className="chip">
-                    <input
-                      type="checkbox"
-                      checked={filtrosAvancados.prioridade.includes(prioridade)}
-                      onChange={() =>
-                        setFiltrosAvancados((atual) => ({
-                          ...atual,
-                          prioridade: toggleValor(atual.prioridade, prioridade),
-                        }))
-                      }
-                    />
-                    {PRIORIDADE_LABEL[prioridade]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <label className="field">
-              Prazo de
-              <input
-                type="datetime-local"
-                value={filtrosAvancados.prazoDe}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({ ...a, prazoDe: e.target.value }))
-                }
-              />
-            </label>
-            <label className="field">
-              Prazo até
-              <input
-                type="datetime-local"
-                value={filtrosAvancados.prazoAte}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({ ...a, prazoAte: e.target.value }))
-                }
-              />
-            </label>
-            <label className="field">
-              Duração de (min)
-              <input
-                type="number"
-                min={1}
-                value={filtrosAvancados.duracaoDe}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({ ...a, duracaoDe: e.target.value }))
-                }
-              />
-            </label>
-            <label className="field">
-              Duração até (min)
-              <input
-                type="number"
-                min={1}
-                value={filtrosAvancados.duracaoAte}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({ ...a, duracaoAte: e.target.value }))
-                }
-              />
-            </label>
-            <label className="field">
-              Ordenar por
-              <select
-                value={filtrosAvancados.sort}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({
-                    ...a,
-                    sort: e.target.value as SortCampo,
-                  }))
-                }
-              >
-                <option value="prazo">Prazo</option>
-                <option value="duracao">Duração</option>
-                <option value="prioridade">Prioridade</option>
-              </select>
-            </label>
-            <label className="field">
-              Direção
-              <select
-                value={filtrosAvancados.direction}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({
-                    ...a,
-                    direction: e.target.value as SortDirection,
-                  }))
-                }
-              >
-                <option value="asc">Ascendente</option>
-                <option value="desc">Descendente</option>
-              </select>
-            </label>
-            <label className="field">
-              Por página
-              <select
-                value={filtrosAvancados.size}
-                onChange={(e) =>
-                  setFiltrosAvancados((a) => ({ ...a, size: Number(e.target.value) }))
-                }
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </label>
-          </div>
-        ) : null}
-      </form>
+      <FiltrosBarra filtros={filtrosUrl} projetosAtivos={projetosAtivos} onAplicar={atualizarUrl} />
 
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
-      {carregando ? <Skeleton variant="tarefas-lista" /> : null}
+      {carregandoPrimeira ? <Skeleton variant="tarefas-lista" /> : null}
 
-      {!carregando && resultado ? (
-        <>
-          <p className="tarefas-meta">
-            {resultado.totalElements} tarefa{resultado.totalElements === 1 ? '' : 's'}
-          </p>
-
+      {resultado ? (
+        <div
+          ref={listaRef}
+          className={recarregando ? 'tarefas-lista tarefas-lista--recarregando' : 'tarefas-lista'}
+          aria-busy={recarregando}
+          aria-label="Lista de tarefas"
+          role="region"
+          tabIndex={-1}
+        >
           {listaVazia ? (
             <div className="tarefas-empty" role="status">
               {emptyPrimeira ? (
                 <>
-                  <p>Nenhuma tarefa ainda.</p>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => setQuickAddAberto(true)}
-                  >
-                    Criar primeira tarefa
+                  <CheckSquareIcon className="tarefas-empty__icone" aria-hidden />
+                  <p className="tarefas-empty__titulo">Nenhuma tarefa ainda</p>
+                  <button type="button" className="btn btn--primary" onClick={abrirQuickAdd}>
+                    <PlusIcon aria-hidden />
+                    Nova tarefa
                   </button>
                 </>
               ) : (
-                <p>Nenhuma tarefa encontrada com estes filtros.</p>
+                <>
+                  <p className="tarefas-empty__titulo">Nada com estes filtros</p>
+                  {temChips ? (
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => atualizarUrl(filtrosLimpos(filtrosUrl))}
+                    >
+                      Limpar filtros
+                    </button>
+                  ) : null}
+                </>
               )}
             </div>
           ) : (
@@ -510,107 +316,52 @@ export function TarefasPage() {
                     <span className="tarefa-grupo__contador">({grupo.tarefas.length})</span>
                   </h2>
                   <ul className="tarefa-cards">
-                    {grupo.tarefas.map((tarefa) => {
-                      const prazoRelativo = formatarPrazoLista(tarefa.prazo)
-                      const prazoAbsoluto = formatarDataHora(tarefa.prazo)
-                      return (
-                        <li
-                          key={tarefa.id}
-                          className={
-                            tarefa.deletada
-                              ? 'tarefa-card tarefa-card--deletada'
-                              : 'tarefa-card'
-                          }
-                        >
-                          <div className="tarefa-card__principal">
-                            <Link to={`/tarefas/${tarefa.id}`} className="tarefa-card__titulo">
-                              {tarefa.titulo}
-                            </Link>
-                            <div className="tarefa-card__meta">
-                              <span
-                                className={`badge status-${tarefa.status.toLowerCase()}`}
-                              >
-                                {STATUS_TAREFA_LABEL[tarefa.status]}
-                              </span>
-                              <span
-                                className={`badge priority-${tarefa.prioridade.toLowerCase()}`}
-                              >
-                                {PRIORIDADE_LABEL[tarefa.prioridade]}
-                              </span>
-                              {tarefa.projetoNome ? (
-                                <span className="badge badge--projeto">{tarefa.projetoNome}</span>
-                              ) : null}
-                              {tarefa.deletada ? (
-                                <span className="badge status-deletada">Excluída</span>
-                              ) : null}
-                            </div>
-                            <p className="tarefa-card__prazo">
-                              <time
-                                dateTime={tarefa.prazo ?? undefined}
-                                title={prazoAbsoluto}
-                              >
-                                {prazoRelativo}
-                              </time>
-                              <span className="tarefa-card__duracao">
-                                · {tarefa.duracaoMinutos} min
-                              </span>
-                            </p>
-                          </div>
-                          <div className="tarefa-card__acoes">
-                            {tarefa.deletada ? (
-                              <button
-                                type="button"
-                                className="btn btn--ghost btn--sm"
-                                disabled={acaoId === tarefa.id}
-                                onClick={() => void handleRestaurar(tarefa.id)}
-                              >
-                                {acaoId === tarefa.id ? 'Restaurando…' : 'Restaurar'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn btn--ghost btn--danger btn--sm"
-                                disabled={acaoId === tarefa.id}
-                                onClick={() => void handleExcluir(tarefa.id)}
-                              >
-                                {acaoId === tarefa.id ? 'Excluindo…' : 'Excluir'}
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      )
-                    })}
+                    {grupo.tarefas.map((tarefa) => (
+                      <TarefaCard
+                        key={tarefa.id}
+                        tarefa={tarefa}
+                        visao={filtrosUrl.visao}
+                        search={location.search}
+                        onExcluir={(t) => void handleExcluir(t)}
+                        onRestaurar={(t) => void handleRestaurar(t)}
+                      />
+                    ))}
                   </ul>
                 </section>
               ))}
             </div>
           )}
 
-          <div className="tarefas-paginacao">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={filtrosUrl.page <= 0}
-              onClick={() =>
-                atualizarUrl({ ...filtrosUrl, page: Math.max(0, filtrosUrl.page - 1) })
-              }
-            >
-              Anterior
-            </button>
-            <span>
-              Página {totalPages === 0 ? 0 : filtrosUrl.page + 1} de {totalPages}
-            </span>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={totalPages === 0 || filtrosUrl.page >= totalPages - 1}
-              onClick={() => atualizarUrl({ ...filtrosUrl, page: filtrosUrl.page + 1 })}
-            >
-              Próxima
-            </button>
-          </div>
-        </>
+          {totalPages > 0 ? (
+            <nav className="tarefas-paginacao" aria-label="Paginação">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={filtrosUrl.page <= 0}
+                onClick={() => irParaPagina(Math.max(0, filtrosUrl.page - 1))}
+              >
+                <CaretLeftIcon aria-hidden />
+                Anterior
+              </button>
+              <span className="tarefas-paginacao__info">
+                Página {filtrosUrl.page + 1} de {totalPages} · {total} tarefa
+                {total === 1 ? '' : 's'}
+              </span>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={filtrosUrl.page >= totalPages - 1}
+                onClick={() => irParaPagina(filtrosUrl.page + 1)}
+              >
+                Próxima
+                <CaretRightIcon aria-hidden />
+              </button>
+            </nav>
+          ) : null}
+        </div>
       ) : null}
+
+      <Outlet key={location.pathname} context={contextoDrawer} />
     </main>
   )
 }

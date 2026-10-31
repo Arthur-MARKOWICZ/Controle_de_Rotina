@@ -8,6 +8,7 @@ import { listarProjetos, type ProjetoResponse } from '../projeto/api/projetoApi'
 import { criarTarefa } from './api/tarefaApi'
 import { datetimeLocalParaInstant } from './datetime'
 import { atalhosPrazo, type PrazoAtalhoId } from './prazoAtalhos'
+import type { TarefaDrawerState } from './TarefaDrawer'
 import {
   validarTarefaFormCampos,
   type Prioridade,
@@ -113,6 +114,12 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
     setAtalhoAtivo(id)
     setValues((atual) => ({ ...atual, prazo: atalho.prazoLocal }))
     setErros((atual) => ({ ...atual, prazo: undefined }))
+  }
+
+  function abrirMaisDetalhes() {
+    const state: TarefaDrawerState = { titulo: values.titulo }
+    onClose()
+    navigate('/tarefas/nova', { state })
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -337,6 +344,14 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
         ) : null}
 
         <div className="quick-add-dialog__actions">
+          <button
+            type="button"
+            className="btn btn--ghost quick-add-dialog__detalhes"
+            onClick={abrirMaisDetalhes}
+            disabled={enviando}
+          >
+            Mais detalhes
+          </button>
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={enviando}>
             Cancelar
           </button>

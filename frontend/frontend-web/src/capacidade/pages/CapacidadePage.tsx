@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  CopySimpleIcon,
+  WarningCircleIcon,
+  CalendarCheckIcon,
+} from '@phosphor-icons/react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useToast } from '../../feedback/ToastProvider'
+import { PageHeader } from '../../layout/PageHeader'
 import { buscarPlano } from '../../planner/api/planoApi'
 import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
 import {
@@ -52,6 +60,7 @@ const DIAS: { valor: DiaSemana; label: string; curto: string }[] = [
 const DIAS_UTEIS: DiaSemana[] = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA']
 const FIM_DE_SEMANA: DiaSemana[] = ['SABADO', 'DOMINGO']
 const HORAS_MAX = 16
+const HORAS_STEP = 1
 const BARRA_ESCALA_MIN = 8
 const MINUTOS_RESERVA_MIN = 15
 const MINUTOS_RESERVA_STEP = 15
@@ -153,6 +162,27 @@ function diasAlterados(
   })
 }
 
+function mesclarSemanaisSalvas(
+  atuais: CapacidadeSemanalResponse[],
+  respostas: CapacidadeSemanalResponse[],
+): CapacidadeSemanalResponse[] {
+  let proximo = [...atuais]
+  for (const item of respostas) {
+    proximo = proximo.filter((c) => !(c.diaSemana === item.diaSemana && c.ativo && c.id !== item.id))
+    const idx = proximo.findIndex((c) => c.id === item.id)
+    if (idx >= 0) {
+      proximo[idx] = item
+    } else {
+      proximo.push(item)
+    }
+  }
+  return proximo
+}
+
+function textoDiasAlterados(n: number): string {
+  return n === 1 ? '1 dia alterado' : `${n} dias alterados`
+}
+
 export function CapacidadePage() {
   const toast = useToast()
   const [capacidades, setCapacidades] = useState<CapacidadeSemanalResponse[]>([])
@@ -166,7 +196,8 @@ export function CapacidadePage() {
   const [novosMinutosPorDia, setNovosMinutosPorDia] = useState<Partial<Record<DiaSemana, number>>>(
     {},
   )
-  const [carregando, setCarregando] = useState(true)
+  const [carregandoPrimeira, setCarregandoPrimeira] = useState(true)
+  const [recarregandoSemana, setRecarregandoSemana] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [copiando, setCopiando] = useState(false)
@@ -174,32 +205,43 @@ export function CapacidadePage() {
   const [salvandoReservaId, setSalvandoReservaId] = useState<string | null>(null)
   const [criandoReservaDia, setCriandoReservaDia] = useState<DiaSemana | null>(null)
   const [mostrarCtaProposta, setMostrarCtaProposta] = useState(false)
-  const [recarregarEm, setRecarregarEm] = useState(0)
 
   const [semanaInicio, setSemanaInicio] = useState(() => inicioSemana())
   const [resolvidas, setResolvidas] = useState<CapacidadeResolvidaResponse[]>([])
   const [overrides, setOverrides] = useState<CapacidadeOverrideResponse[]>([])
+  const cargaSemanaId = useRef(0)
+  const primeiraCargaFeita = useRef(false)
+  const tempReservaSeq = useRef(0)
 
   useEffect(() => {
+    const id = ++cargaSemanaId.current
+    const primeira = !primeiraCargaFeita.current
     let ativo = true
 
     async function carregar() {
-      setCarregando(true)
+      if (primeira) {
+        setCarregandoPrimeira(true)
+      } else {
+        setRecarregandoSemana(true)
+      }
       setErro(null)
       try {
         const dataAte = adicionarDiasIso(semanaInicio, 6)
-        const [semanais, resolvida, overridesLista, reservasLista, projetosPage] =
-          await Promise.all([
-            listarCapacidadesSemanais(),
-            consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
-            listarCapacidadesOverride({
-              dataDe: semanaInicio,
-              dataAte,
-            }),
-            listarReservas(),
-            listarProjetos({ status: 'ATIVO', page: 0, size: 100 }),
-          ])
-        if (ativo) {
+        if (primeira) {
+          const [semanais, resolvida, overridesLista, reservasLista, projetosPage] =
+            await Promise.all([
+              listarCapacidadesSemanais(),
+              consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
+              listarCapacidadesOverride({
+                dataDe: semanaInicio,
+                dataAte,
+              }),
+              listarReservas(),
+              listarProjetos({ status: 'ATIVO', page: 0, size: 100 }),
+            ])
+          if (!ativo || id !== cargaSemanaId.current) {
+            return
+          }
           setCapacidades(semanais)
           setRascunho(rascunhoDeCapacidades(semanais))
           setResolvidas(resolvida)
@@ -211,19 +253,36 @@ export function CapacidadePage() {
             drafts[chaveReserva(reserva.id)] = reserva.minutosReservados
           }
           setMinutosDraft(drafts)
+          primeiraCargaFeita.current = true
+        } else {
+          const [resolvida, overridesLista] = await Promise.all([
+            consultarCapacidadeResolvida({ dataDe: semanaInicio, dataAte }),
+            listarCapacidadesOverride({
+              dataDe: semanaInicio,
+              dataAte,
+            }),
+          ])
+          if (!ativo || id !== cargaSemanaId.current) {
+            return
+          }
+          setResolvidas(resolvida)
+          setOverrides(overridesLista)
         }
       } catch (error) {
-        if (ativo) {
+        if (ativo && id === cargaSemanaId.current) {
           setErro(mensagemErro(error, 'Não foi possível carregar as capacidades.'))
-          setCapacidades([])
-          setResolvidas([])
-          setOverrides([])
-          setReservas([])
-          setProjetosAtivos([])
+          if (primeira) {
+            setCapacidades([])
+            setResolvidas([])
+            setOverrides([])
+            setReservas([])
+            setProjetosAtivos([])
+          }
         }
       } finally {
-        if (ativo) {
-          setCarregando(false)
+        if (ativo && id === cargaSemanaId.current) {
+          setCarregandoPrimeira(false)
+          setRecarregandoSemana(false)
         }
       }
     }
@@ -232,7 +291,7 @@ export function CapacidadePage() {
     return () => {
       ativo = false
     }
-  }, [recarregarEm, semanaInicio])
+  }, [semanaInicio])
 
   const porDia = mapaPorDia(capacidades)
   const porDataOverride = mapaOverridePorData(overrides)
@@ -247,11 +306,30 @@ export function CapacidadePage() {
     ...Object.values(porDataOverride).map((o) => o.horas),
   )
 
+  useEffect(() => {
+    if (!sujo) {
+      return
+    }
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [sujo])
+
   function ajustarHoras(dia: DiaSemana, delta: number) {
     setRascunho((atual) => {
       const proximo = Math.min(HORAS_MAX, Math.max(0, atual[dia] + delta))
       return { ...atual, [dia]: proximo }
     })
+  }
+
+  function definirHoras(dia: DiaSemana, horas: number) {
+    const proximo = Math.min(HORAS_MAX, Math.max(0, Math.round(horas)))
+    setRascunho((atual) => ({ ...atual, [dia]: proximo }))
   }
 
   function aplicarPresetDiasUteis() {
@@ -265,6 +343,23 @@ export function CapacidadePage() {
       }
       return proximo
     })
+  }
+
+  function handleDescartar() {
+    setRascunho(rascunhoDeCapacidades(capacidades))
+  }
+
+  async function relerResolvidaSilencioso() {
+    try {
+      const dataAte = adicionarDiasIso(semanaInicio, 6)
+      const resolvida = await consultarCapacidadeResolvida({
+        dataDe: semanaInicio,
+        dataAte,
+      })
+      setResolvidas(resolvida)
+    } catch {
+      // leitura silenciosa: toast já cobre a mutação
+    }
   }
 
   async function handleCopiarSemanaAnterior() {
@@ -301,17 +396,20 @@ export function CapacidadePage() {
     setErro(null)
     setSalvando(true)
     try {
-      const operacoes = alterados.map(async (dia) => {
-        const horas = rascunho[dia]
-        const existente = porDia[dia]
-        if (existente) {
-          await atualizarCapacidadeSemanal(existente.id, { horas })
-        } else {
-          await criarCapacidadeSemanal({ diaSemana: dia, horas })
-        }
-      })
-      await Promise.all(operacoes)
-      setRecarregarEm((n) => n + 1)
+      const respostas = await Promise.all(
+        alterados.map(async (dia) => {
+          const horas = rascunho[dia]
+          const existente = porDia[dia]
+          if (existente) {
+            return [await atualizarCapacidadeSemanal(existente.id, { horas })]
+          }
+          return criarCapacidadeSemanal({ diaSemana: dia, horas })
+        }),
+      )
+      const flat = respostas.flat()
+      setCapacidades((atual) => mesclarSemanaisSalvas(atual, flat))
+      toast.success('Capacidade salva')
+      await relerResolvidaSilencioso()
     } catch (error) {
       setErro(mensagemErro(error, 'Não foi possível salvar a capacidade.'))
     } finally {
@@ -319,18 +417,59 @@ export function CapacidadePage() {
     }
   }
 
+  function resolvidaSemOverride(
+    lista: CapacidadeResolvidaResponse[],
+    data: string,
+  ): CapacidadeResolvidaResponse[] {
+    const dia = (Object.entries(datasSemana) as [DiaSemana, string][]).find(
+      ([, iso]) => iso === data,
+    )?.[0]
+    const template = dia != null ? porDia[dia] : undefined
+    return lista.map((item) => {
+      if (item.data !== data) {
+        return item
+      }
+      if (template != null) {
+        return { data, horas: template.horas, origem: 'SEMANAL' as const }
+      }
+      return { data, horas: null, origem: 'VAZIO' as const }
+    })
+  }
+
   async function handleVoltarAoPadrao(override: CapacidadeOverrideResponse, label: string) {
     setErro(null)
     setAcaoOverrideId(override.id)
+    const snapshotOverrides = overrides
+    const snapshotResolvidas = resolvidas
+    setOverrides((atual) => atual.filter((o) => o.id !== override.id))
+    setResolvidas((atual) => resolvidaSemOverride(atual, override.data))
     try {
       await excluirCapacidadeOverride(override.id)
-      setRecarregarEm((n) => n + 1)
       toast.success('Exceção removida', {
         action: {
           label: 'Desfazer',
           onClick: () => {
             void restaurarCapacidadeOverride(override.id)
-              .then(() => setRecarregarEm((n) => n + 1))
+              .then((restaurado) => {
+                setOverrides((atual) => {
+                  if (atual.some((o) => o.id === restaurado.id)) {
+                    return atual
+                  }
+                  return [...atual, restaurado]
+                })
+                setResolvidas((atual) =>
+                  atual.map((item) =>
+                    item.data === restaurado.data
+                      ? {
+                          data: restaurado.data,
+                          horas: restaurado.horas,
+                          origem: 'OVERRIDE' as const,
+                        }
+                      : item,
+                  ),
+                )
+                void relerResolvidaSilencioso()
+              })
               .catch((error) => {
                 setErro(
                   mensagemErro(error, `Não foi possível restaurar a exceção de ${label}.`),
@@ -339,7 +478,10 @@ export function CapacidadePage() {
           },
         },
       })
+      await relerResolvidaSilencioso()
     } catch (error) {
+      setOverrides(snapshotOverrides)
+      setResolvidas(snapshotResolvidas)
       setErro(mensagemErro(error, `Não foi possível remover a exceção de ${label}.`))
     } finally {
       setAcaoOverrideId(null)
@@ -366,18 +508,32 @@ export function CapacidadePage() {
       return
     }
     setErro(null)
+    const snapshot = reserva
+    const otimista = { ...reserva, minutosReservados: minutos }
     setSalvandoReservaId(reserva.id)
+    setReservas((atual) => atual.map((r) => (r.id === reserva.id ? otimista : r)))
+    setMinutosDraft((atual) => ({ ...atual, [chaveReserva(reserva.id)]: minutos }))
     try {
-      await atualizarReserva(reserva.projetoId, reserva.id, { minutosReservados: minutos })
-      setRecarregarEm((n) => n + 1)
+      const atualizada = await atualizarReserva(reserva.projetoId, reserva.id, {
+        minutosReservados: minutos,
+      })
+      setReservas((atual) => atual.map((r) => (r.id === reserva.id ? atualizada : r)))
+      setMinutosDraft((atual) => ({
+        ...atual,
+        [chaveReserva(reserva.id)]: atualizada.minutosReservados,
+      }))
       toast.success('Reserva atualizada')
+      await relerResolvidaSilencioso()
       await verificarPropostaPendente()
     } catch (error) {
+      setReservas((atual) => atual.map((r) => (r.id === reserva.id ? snapshot : r)))
+      setMinutosDraft((atual) => ({
+        ...atual,
+        [chaveReserva(reserva.id)]: snapshot.minutosReservados,
+      }))
       const mensagem = mensagemErro(error, 'Não foi possível atualizar a reserva.')
       setErro(mensagem)
-      if (error instanceof ApiError && error.status === 409) {
-        toast.error(mensagem)
-      }
+      toast.error(mensagem)
     } finally {
       setSalvandoReservaId(null)
     }
@@ -395,48 +551,111 @@ export function CapacidadePage() {
       return
     }
     setErro(null)
+    tempReservaSeq.current += 1
+    const tempId = `temp-${dia}-${tempReservaSeq.current}`
+    const otimista: ReservaProjetoResponse = {
+      id: tempId,
+      projetoId,
+      diaSemana: dia,
+      minutosReservados: minutos,
+      createdAt: '',
+      updatedAt: '',
+    }
     setCriandoReservaDia(dia)
+    setReservas((atual) => [...atual, otimista])
+    setMinutosDraft((atual) => ({ ...atual, [chaveReserva(tempId)]: minutos }))
+    setNovoProjetoPorDia((atual) => ({ ...atual, [dia]: '' }))
+    setNovosMinutosPorDia((atual) => ({ ...atual, [dia]: 60 }))
     try {
-      await criarReserva(projetoId, { diaSemana: dia, minutosReservados: minutos })
-      setNovoProjetoPorDia((atual) => ({ ...atual, [dia]: '' }))
-      setNovosMinutosPorDia((atual) => ({ ...atual, [dia]: 60 }))
-      setRecarregarEm((n) => n + 1)
+      const criada = await criarReserva(projetoId, { diaSemana: dia, minutosReservados: minutos })
+      setReservas((atual) => atual.map((r) => (r.id === tempId ? criada : r)))
+      setMinutosDraft((atual) => {
+        const proximo = { ...atual }
+        delete proximo[chaveReserva(tempId)]
+        proximo[chaveReserva(criada.id)] = criada.minutosReservados
+        return proximo
+      })
       toast.success('Reserva criada')
+      await relerResolvidaSilencioso()
       await verificarPropostaPendente()
     } catch (error) {
+      setReservas((atual) => atual.filter((r) => r.id !== tempId))
+      setMinutosDraft((atual) => {
+        const proximo = { ...atual }
+        delete proximo[chaveReserva(tempId)]
+        return proximo
+      })
+      setNovoProjetoPorDia((atual) => ({ ...atual, [dia]: projetoId }))
+      setNovosMinutosPorDia((atual) => ({ ...atual, [dia]: minutos }))
       const mensagem = mensagemErro(error, 'Não foi possível criar a reserva.')
       setErro(mensagem)
-      if (error instanceof ApiError && error.status === 409) {
-        toast.error(mensagem)
-      }
+      toast.error(mensagem)
     } finally {
       setCriandoReservaDia(null)
     }
   }
 
+  function onHorasKeyDown(dia: DiaSemana, event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      ajustarHoras(dia, HORAS_STEP)
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      ajustarHoras(dia, -HORAS_STEP)
+    }
+  }
+
   const mapaNomeProjeto = Object.fromEntries(projetosAtivos.map((p) => [p.id, p.nome]))
+  const gradeVisivel = !carregandoPrimeira
 
   return (
-    <main className="capacidade-page">
-      <header className="capacidade-header">
-        <div>
-          <h1>Capacidade</h1>
-          <p className="capacidade-subtitle">
+    <main className={sujo ? 'capacidade-page capacidade-page--sujo' : 'capacidade-page'}>
+      <PageHeader
+        title="Capacidade"
+        description={
+          <>
             Defina quantas horas você tem disponíveis em cada dia da semana.
-          </p>
-          <p className="capacidade-hint">
-            Tempo reservado a um projeto fica separado no dia; o restante segue a prioridade
-            geral.
-          </p>
-        </div>
-        <p className="capacidade-total" aria-live="polite">
-          {total}h disponíveis
-        </p>
-      </header>
+            <span className="capacidade-total" aria-live="polite">
+              {' '}
+              · {total}h disponíveis
+            </span>
+          </>
+        }
+        actions={
+          <div className="capacidade-presets">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={aplicarPresetDiasUteis}
+              disabled={carregandoPrimeira || salvando}
+            >
+              <CalendarCheckIcon aria-hidden />
+              Dias úteis 4h, fim de semana 0h
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => void handleCopiarSemanaAnterior()}
+              disabled={carregandoPrimeira || salvando || copiando}
+              aria-busy={copiando}
+            >
+              <CopySimpleIcon aria-hidden />
+              {copiando ? 'Copiando…' : 'Copiar semana anterior'}
+            </button>
+          </div>
+        }
+      />
+
+      <p className="capacidade-hint">
+        Tempo reservado a um projeto fica separado no dia; o restante segue a prioridade geral.
+      </p>
 
       {mostrarCtaProposta ? (
         <div className="capacidade-proposta-cta" role="status">
-          <p>Há uma proposta de plano pendente após a mudança de reserva.</p>
+          <div className="capacidade-proposta-cta__corpo">
+            <WarningCircleIcon className="capacidade-proposta-cta__icone" aria-hidden />
+            <p>Há uma proposta de plano pendente após a mudança de reserva.</p>
+          </div>
           <Link to="/" className="btn btn--secondary btn--sm">
             Revisar proposta
           </Link>
@@ -446,77 +665,58 @@ export function CapacidadePage() {
       <div className="capacidade-semana-nav" aria-label="Semana selecionada">
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="btn btn--ghost btn--icon btn--touch"
+          aria-label="Semana anterior"
           onClick={() => setSemanaInicio((atual) => adicionarDiasIso(atual, -7))}
         >
-          Semana anterior
+          <CaretLeftIcon aria-hidden />
         </button>
-        <p className="capacidade-semana-label">
-          Semana {formatarIntervaloSemana(semanaInicio)}
-        </p>
+        <p className="capacidade-semana-label">{formatarIntervaloSemana(semanaInicio)}</p>
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="btn btn--ghost btn--icon btn--touch"
+          aria-label="Semana seguinte"
           onClick={() => setSemanaInicio((atual) => adicionarDiasIso(atual, 7))}
         >
-          Semana seguinte
-        </button>
-      </div>
-
-      <div className="capacidade-toolbar">
-        <div className="capacidade-presets">
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={aplicarPresetDiasUteis}
-            disabled={carregando || salvando}
-          >
-            Dias úteis 4h, fim de semana 0h
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => void handleCopiarSemanaAnterior()}
-            disabled={carregando || salvando || copiando}
-            aria-busy={copiando}
-          >
-            {copiando ? 'Copiando…' : 'Copiar semana anterior'}
-          </button>
-        </div>
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={() => void handleSalvarSemana()}
-          disabled={!sujo || carregando || salvando}
-          aria-busy={salvando}
-        >
-          {salvando ? 'Salvando…' : 'Salvar semana'}
+          <CaretRightIcon aria-hidden />
         </button>
       </div>
 
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
-      {carregando ? <Skeleton variant="capacidade-grade" /> : null}
+      {carregandoPrimeira ? <Skeleton variant="capacidade-grade" /> : null}
 
-      {!carregando ? (
-        <div className="capacidade-grade" role="list">
+      {gradeVisivel ? (
+        <div
+          className={
+            recarregandoSemana
+              ? 'capacidade-grade capacidade-grade--recarregando'
+              : 'capacidade-grade'
+          }
+          role="list"
+          aria-busy={recarregandoSemana || undefined}
+        >
           {DIAS.map(({ valor, label, curto }) => {
             const horas = rascunho[valor]
             const dataDia = datasSemana[valor]
             const override = porDataOverride[dataDia]
             const resolvida = porDataResolvida[dataDia]
-            const comOverride = override != null || resolvida?.origem === 'OVERRIDE'
-            const horasBarra = override?.horas ?? horas
+            const comOverride = override != null
+            const horasBarra =
+              override?.horas ??
+              (resolvida?.origem === 'OVERRIDE' && resolvida.horas != null
+                ? resolvida.horas
+                : horas)
             const alturaPct = Math.round((horasBarra / escalaBarra) * 100)
             const labelLower = label.toLowerCase()
             const ocupadoOverride = override != null && acaoOverrideId === override.id
+            const badgeOrigem = comOverride ? 'Exceção' : 'Padrão'
 
             return (
               <article
                 key={valor}
                 className={[
                   'capacidade-celula',
-                  'card',
                   comOverride ? 'capacidade-celula-override' : '',
                 ]
                   .filter(Boolean)
@@ -528,7 +728,13 @@ export function CapacidadePage() {
                     <span className="capacidade-dia-curto">{curto}</span>
                     <span className="capacidade-dia-longo">{label}</span>
                   </h2>
-                  {comOverride ? <span className="badge badge-excecao">Exceção</span> : null}
+                  <span
+                    className={
+                      comOverride ? 'badge badge-excecao' : 'badge badge-padrao'
+                    }
+                  >
+                    {badgeOrigem}
+                  </span>
                 </div>
 
                 <p className="capacidade-data-celula">{formatarDataBr(dataDia)}</p>
@@ -540,10 +746,7 @@ export function CapacidadePage() {
                   />
                 </div>
 
-                <p
-                  className="capacidade-horas"
-                  aria-label={`Horas de ${labelLower}`}
-                >
+                <p className="capacidade-horas" aria-hidden="true">
                   {horas}h
                 </p>
 
@@ -554,19 +757,35 @@ export function CapacidadePage() {
                 <div className="capacidade-stepper">
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
-                    aria-label={`Diminuir ${labelLower}`}
+                    className="btn btn--ghost btn--touch"
+                    aria-label={`Diminuir horas de ${labelLower}`}
                     disabled={horas <= 0 || salvando}
-                    onClick={() => ajustarHoras(valor, -1)}
+                    onClick={() => ajustarHoras(valor, -HORAS_STEP)}
                   >
                     −
                   </button>
+                  <div className="capacidade-horas-input">
+                    <input
+                      type="number"
+                      min={0}
+                      max={HORAS_MAX}
+                      step={HORAS_STEP}
+                      value={horas}
+                      disabled={salvando}
+                      aria-label={`Horas de ${labelLower}`}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        definirHoras(valor, Number.isFinite(n) ? n : 0)
+                      }}
+                      onKeyDown={(e) => onHorasKeyDown(valor, e)}
+                    />
+                  </div>
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
-                    aria-label={`Aumentar ${labelLower}`}
+                    className="btn btn--ghost btn--touch"
+                    aria-label={`Aumentar horas de ${labelLower}`}
                     disabled={horas >= HORAS_MAX || salvando}
-                    onClick={() => ajustarHoras(valor, 1)}
+                    onClick={() => ajustarHoras(valor, HORAS_STEP)}
                   >
                     +
                   </button>
@@ -608,12 +827,21 @@ export function CapacidadePage() {
                         </p>
                         <ul className="capacidade-reservas__lista">
                           {doDia.map((reserva) => {
-                            const nome = mapaNomeProjeto[reserva.projetoId] ?? nomeProjeto(reserva.projetoId)
+                            const nome =
+                              mapaNomeProjeto[reserva.projetoId] ?? nomeProjeto(reserva.projetoId)
                             const draft =
                               minutosDraft[chaveReserva(reserva.id)] ?? reserva.minutosReservados
                             const ocupado = salvandoReservaId === reserva.id
                             return (
-                              <li key={reserva.id} className="capacidade-reservas__item">
+                              <li
+                                key={reserva.id}
+                                className={
+                                  ocupado
+                                    ? 'capacidade-reservas__item capacidade-reservas__item--pendente'
+                                    : 'capacidade-reservas__item'
+                                }
+                                aria-busy={ocupado || undefined}
+                              >
                                 <span className="capacidade-reservas__nome">{nome}</span>
                                 <label className="capacidade-reservas__campo">
                                   <span className="visually-hidden">
@@ -713,6 +941,31 @@ export function CapacidadePage() {
               </article>
             )
           })}
+        </div>
+      ) : null}
+
+      {sujo ? (
+        <div className="capacidade-salvar-barra" role="status" aria-live="polite">
+          <p className="capacidade-salvar-barra__texto">{textoDiasAlterados(alterados.length)}</p>
+          <div className="capacidade-salvar-barra__acoes">
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={handleDescartar}
+              disabled={salvando}
+            >
+              Descartar
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => void handleSalvarSemana()}
+              disabled={salvando}
+              aria-busy={salvando}
+            >
+              {salvando ? 'Salvando…' : 'Salvar semana'}
+            </button>
+          </div>
         </div>
       ) : null}
     </main>

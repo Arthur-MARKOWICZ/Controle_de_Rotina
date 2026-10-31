@@ -24,20 +24,6 @@ const projetoExistente = {
   updatedAt: '2026-01-01T10:00:00Z',
 }
 
-function renderCriar() {
-  return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={['/projetos/nova']}>
-        <Routes>
-          <Route path="/projetos/nova" element={<ProjetoFormPage />} />
-          <Route path="/projetos/:id" element={<p>Hub do projeto</p>} />
-          <Route path="/projetos" element={<p>Lista de projetos</p>} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider>,
-  )
-}
-
 function renderEditar(path = '/projetos/p-tcc') {
   return render(
     <ToastProvider>
@@ -62,18 +48,13 @@ describe('ProjetoFormPage (F1)', () => {
     vi.mocked(projetoApi.reativarProjeto).mockReset()
   })
 
-  it('T1: create e edit não usam layout auth-page', async () => {
+  it('T1: edit não usa layout auth-page', async () => {
     vi.mocked(projetoApi.buscarProjeto).mockResolvedValue(projetoExistente)
-
-    renderCriar()
-    expect(document.querySelector('main.auth-page')).not.toBeInTheDocument()
-    expect(document.querySelector('main.projetos-page')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /novo projeto/i })).toBeInTheDocument()
 
     renderEditar()
     expect(await screen.findByDisplayValue('TCC')).toBeInTheDocument()
-    expect(document.querySelectorAll('main.auth-page')).toHaveLength(0)
-    expect(document.querySelectorAll('main.projetos-page').length).toBeGreaterThanOrEqual(1)
+    expect(document.querySelector('main.auth-page')).not.toBeInTheDocument()
+    expect(document.querySelector('main.projetos-page')).toBeInTheDocument()
   })
 
   it('T1b: loading do edit usa Skeleton (aria-busy), não só texto', async () => {
@@ -94,31 +75,6 @@ describe('ProjetoFormPage (F1)', () => {
 
     resolveBusca(projetoExistente)
     expect(await screen.findByDisplayValue('TCC')).toBeInTheDocument()
-  })
-
-  it('T2: toast ao criar e redireciona para /projetos/:id', async () => {
-    vi.mocked(projetoApi.criarProjeto).mockResolvedValue({
-      ...projetoExistente,
-      id: 'p-novo',
-      nome: 'Novo',
-      descricao: null,
-    })
-
-    const user = userEvent.setup()
-    renderCriar()
-
-    await user.type(screen.getByLabelText(/^nome$/i), 'Novo')
-    await user.click(screen.getByRole('button', { name: /criar projeto/i }))
-
-    await waitFor(() => {
-      expect(projetoApi.criarProjeto).toHaveBeenCalledWith({
-        nome: 'Novo',
-        descricao: null,
-      })
-    })
-
-    expect(await screen.findByRole('status')).toHaveTextContent(/projeto criado/i)
-    expect(await screen.findByText(/hub do projeto/i)).toBeInTheDocument()
   })
 
   it('T2b: toast ao salvar e permanece no form (não volta à lista)', async () => {

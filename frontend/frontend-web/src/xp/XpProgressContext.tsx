@@ -13,6 +13,8 @@ import type { XpProgresso } from './types'
 
 type XpProgressApi = {
   progresso: XpProgresso | null
+  /** Nome vindo do mesmo `/me` do XP (avatar do menu de conta). */
+  nomeUsuario: string | null
   aplicarProgresso: (proximo: XpProgresso) => void
 }
 
@@ -20,6 +22,7 @@ const XpProgressContext = createContext<XpProgressApi | null>(null)
 
 export function XpProgressProvider({ children }: { children: ReactNode }) {
   const [progresso, setProgresso] = useState<XpProgresso | null>(null)
+  const [nomeUsuario, setNomeUsuario] = useState<string | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -28,6 +31,7 @@ export function XpProgressProvider({ children }: { children: ReactNode }) {
         if (!ativo) {
           return
         }
+        setNomeUsuario(me.nome)
         setProgresso({
           xpTotal: me.xpTotal,
           nivel: me.nivel,
@@ -48,8 +52,8 @@ export function XpProgressProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ progresso, aplicarProgresso }),
-    [progresso, aplicarProgresso],
+    () => ({ progresso, nomeUsuario, aplicarProgresso }),
+    [progresso, nomeUsuario, aplicarProgresso],
   )
 
   return <XpProgressContext.Provider value={value}>{children}</XpProgressContext.Provider>

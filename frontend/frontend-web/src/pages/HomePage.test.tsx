@@ -12,8 +12,10 @@ import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
 import { ToastProvider } from '../feedback/ToastProvider'
 import * as planoApi from '../planner/api/planoApi'
 import type { PlanoResponse } from '../planner/api/planoApi'
+import * as reservaProjetoApi from '../projeto/api/reservaProjetoApi'
 import * as tarefaApi from '../tarefa/api/tarefaApi'
 import type { TarefaResponse } from '../tarefa/api/tarefaApi'
+import { QuickAddProvider } from '../layout/QuickAddContext'
 import { XpProgressProvider } from '../xp/XpProgressContext'
 import { HomePage } from './HomePage'
 
@@ -148,11 +150,13 @@ function renderHome(initialPath = '/') {
       <ToastProvider>
         <XpProgressProvider>
           <MemoryRouter initialEntries={[initialPath]}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/tarefas/:id" element={<p>Detalhe da tarefa</p>} />
-              <Route path="/capacidade" element={<p>Página capacidade</p>} />
-            </Routes>
+            <QuickAddProvider>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/tarefas/:id" element={<p>Detalhe da tarefa</p>} />
+                <Route path="/capacidade" element={<p>Página capacidade</p>} />
+              </Routes>
+            </QuickAddProvider>
           </MemoryRouter>
         </XpProgressProvider>
       </ToastProvider>
@@ -169,6 +173,8 @@ describe('HomePage — plano do dia', () => {
     vi.mocked(planoApi.descartarProposta).mockReset()
     vi.mocked(planoApi.adicionarBloco).mockReset()
     vi.mocked(planoApi.removerBloco).mockReset()
+    vi.mocked(planoApi.listarDatasDaProposta).mockReset().mockResolvedValue([])
+    vi.mocked(reservaProjetoApi.listarReservas).mockReset().mockResolvedValue([])
     vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockReset()
     vi.mocked(capacidadeOverrideApi.listarCapacidadesOverride).mockReset()
     vi.mocked(capacidadeOverrideApi.criarCapacidadeOverride).mockReset()
@@ -352,8 +358,9 @@ describe('HomePage — plano do dia', () => {
 
       renderHome()
 
-      expect(await screen.findByText(/1h\s*\/\s*2h/i)).toBeInTheDocument()
-      expect(screen.getByRole('progressbar', { name: /capacidade/i })).toBeInTheDocument()
+      expect(await screen.findByText(/1h de 2h/i)).toBeInTheDocument()
+      expect(screen.getByText('1 bloco')).toBeInTheDocument()
+      expect(screen.getByRole('progressbar', { name: /capacidade: 1h \/ 2h/i })).toBeInTheDocument()
     })
 
     it('mostra estado RASCUNHO', async () => {
@@ -384,7 +391,10 @@ describe('HomePage — plano do dia', () => {
       expect(
         screen.getByText(/gere o plano → revise → aprove → execute/i),
       ).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^gerar plano$/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^gerar plano de hoje$/i })).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /^ajustar capacidade de hoje$/i }),
+      ).toBeInTheDocument()
     })
 
     it('mostra erro quando a consulta falha', async () => {
@@ -410,7 +420,7 @@ describe('HomePage — plano do dia', () => {
       const user = userEvent.setup()
       renderHome()
 
-      await user.click(await screen.findByRole('button', { name: /^gerar plano$/i }))
+      await user.click(await screen.findByRole('button', { name: /^gerar plano de hoje$/i }))
 
       await waitFor(() => {
         expect(planoApi.gerarPlano).toHaveBeenCalledWith('2026-10-20')
@@ -496,7 +506,29 @@ describe('HomePage — plano do dia', () => {
 
       expect(await screen.findByRole('button', { name: /aceitar proposta/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^descartar$/i })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /aprovar plano/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^aprovar/i })).not.toBeInTheDocument()
+    })
+
+    it('T10: aceitar e descartar proposta ainda pedem confirmação', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        propostaId: 'prop-1',
+        propostaPendente: true,
+        versao: 2,
+      })
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /aceitar proposta/i }))
+      expect(screen.getByRole('heading', { name: /aceitar proposta\?/i })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /^cancelar$/i }))
+      expect(planoApi.aceitarProposta).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /^descartar$/i }))
+      expect(screen.getByRole('heading', { name: /descartar proposta\?/i })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /^cancelar$/i }))
+      expect(planoApi.descartarProposta).not.toHaveBeenCalled()
     })
   })
 
@@ -510,10 +542,10 @@ describe('HomePage — plano do dia', () => {
       renderHome()
 
       expect(await screen.findByText(/aprovado/i)).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /aprovar plano/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^aprovar/i })).not.toBeInTheDocument()
     })
 
-    it('T14: após aprovar a UI reflete APROVADO', async () => {
+    it('T10: aprovar chama a API direto, sem dialog, com resumo no botão', async () => {
       vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
       vi.mocked(planoApi.aprovarPlano).mockResolvedValue({
         ...planoBase,
@@ -523,39 +555,15 @@ describe('HomePage — plano do dia', () => {
       const user = userEvent.setup()
       renderHome()
 
-      await user.click(await screen.findByRole('button', { name: /aprovar plano/i }))
-      await user.click(screen.getByRole('button', { name: /^aprovar$/i }))
+      await user.click(await screen.findByRole('button', { name: /^aprovar 1 bloco · 1h$/i }))
 
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       await waitFor(() => {
         expect(planoApi.aprovarPlano).toHaveBeenCalledWith('p-1')
       })
       expect(await screen.findByText(/^aprovado$/i)).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /aprovar plano/i })).not.toBeInTheDocument()
-    })
-
-    it('T4: aprovar abre dialog com resumo e só chama API após confirmar', async () => {
-      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
-      vi.mocked(planoApi.aprovarPlano).mockResolvedValue({
-        ...planoBase,
-        status: 'APROVADO',
-      })
-
-      const user = userEvent.setup()
-      renderHome()
-
-      await user.click(await screen.findByRole('button', { name: /aprovar plano/i }))
-      expect(screen.getByRole('dialog')).toHaveTextContent(/1 bloco/i)
-      expect(screen.getByRole('dialog')).toHaveTextContent(/1h de 2h/i)
-      expect(planoApi.aprovarPlano).not.toHaveBeenCalled()
-
-      await user.click(screen.getByRole('button', { name: /cancelar/i }))
-      expect(planoApi.aprovarPlano).not.toHaveBeenCalled()
-
-      await user.click(await screen.findByRole('button', { name: /aprovar plano/i }))
-      await user.click(screen.getByRole('button', { name: /^aprovar$/i }))
-      await waitFor(() => {
-        expect(planoApi.aprovarPlano).toHaveBeenCalledWith('p-1')
-      })
+      expect(screen.queryByRole('button', { name: /^aprovar/i })).not.toBeInTheDocument()
+      expect(execucaoApi.listarExecucoes).toHaveBeenCalledWith('2026-10-20')
     })
   })
 
@@ -578,6 +586,50 @@ describe('HomePage — plano do dia', () => {
         expect(screen.queryByText('Estudar Spring')).not.toBeInTheDocument()
       })
       expect(screen.getByText(/nenhum bloco neste plano/i)).toBeInTheDocument()
+    })
+
+    it('T9: bloco some na hora, Desfazer re-adiciona a tarefa', async () => {
+      let liberarDelete: () => void = () => undefined
+      vi.mocked(planoApi.buscarPlano)
+        .mockResolvedValueOnce(planoBase)
+        .mockResolvedValue({ ...planoBase, blocos: [] })
+      vi.mocked(planoApi.removerBloco).mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            liberarDelete = resolve
+          }),
+      )
+      vi.mocked(planoApi.adicionarBloco).mockResolvedValue(planoBase)
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /remover estudar spring/i }))
+      expect(screen.queryByText('Estudar Spring')).not.toBeInTheDocument()
+      expect(planoApi.removerBloco).toHaveBeenCalledWith('p-1', 'b-1')
+
+      liberarDelete()
+      await user.click(await screen.findByRole('button', { name: /^desfazer$/i }))
+
+      await waitFor(() => {
+        expect(planoApi.adicionarBloco).toHaveBeenCalledWith('p-1', 't-1')
+      })
+      expect(await screen.findByRole('link', { name: 'Estudar Spring' })).toBeInTheDocument()
+    })
+
+    it('T9: erro no DELETE restaura o bloco e oferece tentar de novo', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+      vi.mocked(planoApi.removerBloco).mockRejectedValue(new Error('Falha ao remover'))
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /remover estudar spring/i }))
+
+      expect(await screen.findByText('Falha ao remover')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Estudar Spring' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /tentar de novo/i })).toBeInTheDocument()
+      expect(planoApi.buscarPlano).toHaveBeenCalledTimes(1)
     })
 
     it('não mostra remover quando plano está APROVADO', async () => {
@@ -656,9 +708,26 @@ describe('HomePage — plano do dia', () => {
       expect(await screen.findByRole('option', { name: /ler docs/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /correr no parque/i })).toBeInTheDocument()
 
-      await user.type(screen.getByLabelText(/buscar tarefa/i), 'correr')
+      const chamadasAntes = vi.mocked(tarefaApi.listarTarefas).mock.calls.length
+      await user.type(screen.getByRole('combobox', { name: /buscar tarefa/i }), 'correr')
       expect(screen.getByRole('option', { name: /correr no parque/i })).toBeInTheDocument()
       expect(screen.queryByRole('option', { name: /ler docs/i })).not.toBeInTheDocument()
+      // T12: filtro local, sem requisição por tecla
+      expect(tarefaApi.listarTarefas).toHaveBeenCalledTimes(chamadasAntes)
+    })
+
+    it('mostra linha “adicionando…” enquanto a API não responde', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+      vi.mocked(planoApi.adicionarBloco).mockImplementation(() => new Promise(() => undefined))
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('option', { name: /ler docs/i }))
+      await user.click(screen.getByRole('button', { name: /adicionar ao plano/i }))
+
+      const lista = screen.getAllByRole('list').find((el) => el.classList.contains('plano-blocos'))
+      expect(lista).toHaveTextContent(/ler docs\s*adicionando…/i)
     })
 
     it('não mostra picker quando plano está APROVADO', async () => {
@@ -730,7 +799,7 @@ describe('HomePage — plano do dia', () => {
 
       renderHome()
 
-      expect(await screen.findByLabelText(/tempo restante/i)).toHaveTextContent(/restante:\s*32min/i)
+      expect(await screen.findByLabelText(/tempo restante/i)).toHaveTextContent(/32min/i)
       expect(screen.getByRole('button', { name: /concluir estudar spring/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /abortar estudar spring/i })).toBeInTheDocument()
     })
@@ -779,6 +848,76 @@ describe('HomePage — plano do dia', () => {
         expect(execucaoApi.iniciarExecucao).toHaveBeenCalledWith('b-1')
       })
       expect(await screen.findByRole('button', { name: /concluir estudar spring/i })).toBeInTheDocument()
+    })
+
+    it('T5: iniciar mostra “Em andamento” antes do POST resolver, sem recarregar execuções', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+      let resolverPost: (value: Awaited<ReturnType<typeof execucaoApi.iniciarExecucao>>) => void =
+        () => undefined
+      vi.mocked(execucaoApi.iniciarExecucao).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolverPost = resolve
+          }),
+      )
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /iniciar estudar spring/i }))
+
+      expect(screen.getByText('Em andamento')).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: /agora/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /concluir estudar spring/i })).toBeDisabled()
+
+      resolverPost({
+        id: 'e-1',
+        blocoPlanoId: 'b-1',
+        status: 'EM_ANDAMENTO',
+        iniciadoEm: new Date().toISOString(),
+        concluidoEm: null,
+        abortadoEm: null,
+      })
+
+      expect(
+        await screen.findByRole('button', { name: /concluir estudar spring/i }),
+      ).toBeEnabled()
+      expect(execucaoApi.listarExecucoes).toHaveBeenCalledTimes(1)
+    })
+
+    it('T6: erro ao iniciar volta a “Não iniciado” e mostra toast com tentar de novo', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({
+        ...planoBase,
+        status: 'APROVADO',
+      })
+      vi.mocked(execucaoApi.iniciarExecucao).mockRejectedValue(new Error('Falha ao iniciar'))
+
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /iniciar estudar spring/i }))
+
+      expect(await screen.findByText('Falha ao iniciar')).toBeInTheDocument()
+      expect(screen.getByText('Não iniciado')).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /agora/i })).not.toBeInTheDocument()
+
+      vi.mocked(execucaoApi.iniciarExecucao).mockResolvedValue({
+        id: 'e-1',
+        blocoPlanoId: 'b-1',
+        status: 'EM_ANDAMENTO',
+        iniciadoEm: new Date().toISOString(),
+        concluidoEm: null,
+        abortadoEm: null,
+      })
+      await user.click(screen.getByRole('button', { name: /tentar de novo/i }))
+
+      await waitFor(() => {
+        expect(execucaoApi.iniciarExecucao).toHaveBeenCalledTimes(2)
+      })
+      expect(await screen.findByRole('button', { name: /concluir estudar spring/i })).toBeEnabled()
     })
 
     it('conclui execução', async () => {
@@ -848,9 +987,14 @@ describe('HomePage — plano do dia', () => {
       expect(await screen.findByText('Concluído')).toBeInTheDocument()
       expect(await screen.findByText('+120 XP')).toBeInTheDocument()
       expect(await screen.findByText('Nível 5!')).toBeInTheDocument()
-      expect(
-        await screen.findByText(/plano de hoje concluído · \+120 XP/i),
-      ).toBeInTheDocument()
+      expect(await screen.findByText('Plano de hoje concluído')).toBeInTheDocument()
+      expect(await screen.findByText('+120 XP hoje')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /ver histórico/i })).toHaveAttribute(
+        'href',
+        '/historico',
+      )
+      // T7: XP vem da resposta; sem leitura extra de execuções
+      expect(execucaoApi.listarExecucoes).toHaveBeenCalledTimes(1)
     })
 
     it('T5/T7: toast +XP e level-up após concluir com ganho', async () => {
@@ -1010,6 +1154,86 @@ describe('HomePage — plano do dia', () => {
       await user.click(screen.getByRole('button', { name: /^cancelar$/i }))
 
       expect(execucaoApi.abortarExecucao).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('carga do dia', () => {
+    function planoDoDia(data: string, titulo: string): PlanoResponse {
+      return {
+        ...planoBase,
+        id: `p-${data}`,
+        data,
+        propostaId: 'prop-1',
+        blocos: [
+          {
+            ...planoBase.blocos[0],
+            id: `b-${data}`,
+            tarefa: { ...planoBase.blocos[0].tarefa, id: `t-${data}`, titulo },
+          },
+        ],
+      }
+    }
+
+    it('T3: plano e capacidade são pedidos juntos; reservas não bloqueiam', async () => {
+      let liberar: (value: PlanoResponse | null) => void = () => undefined
+      vi.mocked(planoApi.buscarPlano).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            liberar = resolve
+          }),
+      )
+      vi.mocked(reservaProjetoApi.listarReservas).mockRejectedValue(new Error('falhou'))
+
+      renderHome()
+
+      expect(planoApi.buscarPlano).toHaveBeenCalledWith({ data: '2026-10-20' })
+      expect(capacidadeResolvidaApi.consultarCapacidadeResolvida).toHaveBeenCalledWith({
+        dataDe: '2026-10-20',
+        dataAte: '2026-10-20',
+      })
+      expect(reservaProjetoApi.listarReservas).toHaveBeenCalled()
+
+      liberar(planoBase)
+      expect(await screen.findByRole('link', { name: 'Estudar Spring' })).toBeInTheDocument()
+    })
+
+    it('T4: resposta antiga de troca de dia é descartada', async () => {
+      const pendentes = new Map<string, (plano: PlanoResponse) => void>()
+      vi.mocked(planoApi.listarDatasDaProposta).mockResolvedValue([
+        '2026-10-20',
+        '2026-10-21',
+        '2026-10-22',
+      ])
+      vi.mocked(planoApi.buscarPlano).mockImplementation(({ data }) =>
+        data === '2026-10-20'
+          ? Promise.resolve(planoDoDia(data, 'Tarefa de hoje'))
+          : new Promise((resolve) => pendentes.set(data, resolve)),
+      )
+
+      const user = userEvent.setup()
+      renderHome()
+
+      expect(await screen.findByRole('link', { name: 'Tarefa de hoje' })).toBeInTheDocument()
+
+      await user.click(await screen.findByRole('button', { name: 'qua 21/10' }))
+      await user.click(screen.getByRole('button', { name: 'qui 22/10' }))
+
+      // Conteúdo atual segue visível (sem skeleton) enquanto o novo dia não chega.
+      expect(screen.getByRole('link', { name: 'Tarefa de hoje' })).toBeInTheDocument()
+      expect(document.querySelector('.skeleton--plano-blocos')).not.toBeInTheDocument()
+
+      pendentes.get('2026-10-22')?.(planoDoDia('2026-10-22', 'Tarefa de quinta'))
+      expect(await screen.findByRole('link', { name: 'Tarefa de quinta' })).toBeInTheDocument()
+
+      pendentes.get('2026-10-21')?.(planoDoDia('2026-10-21', 'Tarefa de quarta'))
+      await waitFor(() => {
+        expect(screen.queryByRole('link', { name: 'Tarefa de quarta' })).not.toBeInTheDocument()
+      })
+      expect(screen.getByRole('link', { name: 'Tarefa de quinta' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'qui 22/10' })).toHaveAttribute(
+        'aria-current',
+        'date',
+      )
     })
   })
 

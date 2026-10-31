@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CalendarioResponse } from '../api/calendarioApi'
@@ -111,11 +111,50 @@ const mesResposta: CalendarioResponse = {
   }),
 }
 
+function semanaVazia(inicio: string, fim: string, titulo: string): CalendarioResponse {
+  return {
+    periodo: { inicio, fim },
+    dias: [
+      {
+        ...semanaResposta.dias[0],
+        data: inicio,
+        plano: {
+          id: `p-${inicio}`,
+          versao: 1,
+          temConflito: false,
+          blocos: [
+            {
+              id: `b-${inicio}`,
+              tarefaId: 't-x',
+              titulo,
+              duracaoMinutos: 30,
+              ordem: 1,
+              prioridade: 'BAIXA',
+            },
+          ],
+        },
+        tarefasComPrazo: [],
+      },
+    ],
+  }
+}
+
+function TarefaProbe() {
+  const location = useLocation()
+  const estado = location.state as { daLista?: boolean } | null
+  return (
+    <p>
+      Drawer da tarefa {location.pathname} {estado?.daLista ? 'com volta' : 'sem volta'}
+    </p>
+  )
+}
+
 function renderPage(path = '/calendario') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/calendario" element={<CalendarioPage />} />
+        <Route path="/tarefas/:id" element={<TarefaProbe />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -203,5 +242,66 @@ describe('CalendarioPage', () => {
     await user.click(screen.getByRole('button', { name: /próximo/i }))
     expect(await screen.findByText(/novembro/i)).toBeInTheDocument()
     expect(calendarioApi.consultarCalendario).toHaveBeenCalledWith('2026-11-01', '2026-11-30')
+  })
+
+  it('T1: PeriodoNav navega ‹ › e Hoje com rótulo acessível; só a última resposta é aplicada', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const pendentes = new Map<string, (resposta: CalendarioResponse) => void>()
+    vi.mocked(calendarioApi.consultarCalendario).mockImplementation(
+      (de) => new Promise((resolve) => pendentes.set(de, resolve)),
+    )
+
+    renderPage()
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    await act(async () => pendentes.get('2026-10-26')?.(semanaResposta))
+    expect(await screen.findByText('Estudar Spring')).toBeInTheDocument()
+
+    const navegacao = screen.getByRole('group', { name: 'Navegação do período' })
+    const rotulo = within(navegacao).getByText(/26/)
+    expect(rotulo).toHaveAttribute('aria-live', 'polite')
+
+    await user.click(within(navegacao).getByRole('button', { name: 'Próximo período' }))
+    await user.click(within(navegacao).getByRole('button', { name: 'Próximo período' }))
+    expect(rotulo).toHaveTextContent(/09.*15/)
+    expect(screen.getByRole('region', { name: 'Grade da semana' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+
+    await act(async () =>
+      pendentes.get('2026-11-09')?.(semanaVazia('2026-11-09', '2026-11-15', 'Bloco da última')),
+    )
+    await act(async () =>
+      pendentes.get('2026-11-02')?.(semanaVazia('2026-11-02', '2026-11-08', 'Bloco atrasado')),
+    )
+    expect(screen.getByText('Bloco da última')).toBeInTheDocument()
+    expect(screen.queryByText('Bloco atrasado')).not.toBeInTheDocument()
+
+    await user.click(within(navegacao).getByRole('button', { name: 'Período anterior' }))
+    expect(calendarioApi.consultarCalendario).toHaveBeenLastCalledWith('2026-11-02', '2026-11-08')
+
+    await user.click(within(navegacao).getByRole('button', { name: 'Hoje' }))
+    expect(calendarioApi.consultarCalendario).toHaveBeenLastCalledWith('2026-10-26', '2026-11-01')
+    expect(rotulo).toHaveTextContent(/26/)
+  })
+
+  it('T2: clicar num bloco abre a tarefa no drawer (/tarefas/:id) com volta ao calendário', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderPage()
+
+    const bloco = await screen.findByRole('link', { name: /estudar spring/i })
+    expect(bloco).toHaveAttribute('href', '/tarefas/t-1')
+    await user.click(bloco)
+
+    expect(await screen.findByText('Drawer da tarefa /tarefas/t-1 com volta')).toBeInTheDocument()
+  })
+
+  it('destaca o dia atual e expõe a prioridade do bloco em texto', async () => {
+    renderPage()
+
+    const bloco = await screen.findByRole('link', { name: /estudar spring/i })
+    expect(bloco).toHaveAccessibleName(/prioridade alta/i)
+    expect(screen.getByRole('button', { name: 'Qua 28' }).closest('[aria-current="date"]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Seg 26' }).closest('[aria-current="date"]')).toBeNull()
   })
 })

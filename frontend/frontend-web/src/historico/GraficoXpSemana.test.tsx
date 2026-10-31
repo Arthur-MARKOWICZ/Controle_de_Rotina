@@ -29,4 +29,11 @@ describe('GraficoXpSemana (T3)', () => {
     expect(container.querySelectorAll('.historico-grafico__label')).toHaveLength(7)
     expect(screen.getByText('Ter')).toBeInTheDocument()
   })
+
+  it('destaca a barra do dia atual', () => {
+    const { container } = render(<GraficoXpSemana pontos={pontos} hojeIso="2026-10-27" />)
+    const destacadas = container.querySelectorAll('.historico-grafico__barra--hoje')
+    expect(destacadas).toHaveLength(1)
+    expect(destacadas[0].closest('.historico-grafico__coluna')).toHaveAttribute('title', '280 XP')
+  })
 })

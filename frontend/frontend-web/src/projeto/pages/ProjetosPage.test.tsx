@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '../../feedback/ToastProvider'
 import * as projetoApi from '../api/projetoApi'
+import { ProjetoDrawer } from '../ProjetoDrawer'
 import { ProjetosPage } from './ProjetosPage'
 
 function LocationProbe() {
@@ -16,6 +17,7 @@ vi.mock('../api/projetoApi', () => ({
   listarProjetos: vi.fn(),
   arquivarProjeto: vi.fn(),
   reativarProjeto: vi.fn(),
+  criarProjeto: vi.fn(),
 }))
 
 const pagina = {
@@ -41,8 +43,9 @@ function renderLista(path = '/projetos') {
       <MemoryRouter initialEntries={[path]}>
         <LocationProbe />
         <Routes>
-          <Route path="/projetos" element={<ProjetosPage />} />
-          <Route path="/projetos/nova" element={<p>página novo projeto</p>} />
+          <Route path="/projetos" element={<ProjetosPage />}>
+            <Route path="nova" element={<ProjetoDrawer />} />
+          </Route>
           <Route path="/projetos/:id" element={<p>página editar projeto</p>} />
           <Route path="/tarefas" element={<p>página tarefas</p>} />
           <Route path="/capacidade" element={<p>página capacidade</p>} />
@@ -57,6 +60,7 @@ describe('ProjetosPage', () => {
     vi.mocked(projetoApi.listarProjetos).mockReset()
     vi.mocked(projetoApi.arquivarProjeto).mockReset()
     vi.mocked(projetoApi.reativarProjeto).mockReset()
+    vi.mocked(projetoApi.criarProjeto).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue(pagina)
   })
 
@@ -236,5 +240,54 @@ describe('ProjetosPage', () => {
       )
     })
     expect(await screen.findByText('Projeto B')).toBeInTheDocument()
+  })
+
+  it('T6: /projetos/nova abre drawer sobre a lista; criar navega para /projetos/:id', async () => {
+    vi.mocked(projetoApi.criarProjeto).mockResolvedValue({
+      ...pagina.content[0],
+      id: 'p-novo',
+      nome: 'Novo',
+      descricao: null,
+    })
+    const user = userEvent.setup()
+    renderLista('/projetos?status=ARQUIVADO')
+    await screen.findByText('TCC')
+
+    await user.click(screen.getByRole('link', { name: /^novo projeto$/i }))
+
+    const drawer = await screen.findByRole('dialog', { name: /novo projeto/i })
+    expect(screen.getByTestId('location')).toHaveTextContent('/projetos/nova?status=ARQUIVADO')
+    expect(screen.getByText('TCC')).toBeInTheDocument()
+    expect(within(drawer).getByLabelText(/^nome$/i)).toHaveFocus()
+
+    await user.type(within(drawer).getByLabelText(/^nome$/i), 'Novo')
+    await user.click(within(drawer).getByRole('button', { name: /criar projeto/i }))
+
+    await waitFor(() => {
+      expect(projetoApi.criarProjeto).toHaveBeenCalledWith({ nome: 'Novo', descricao: null })
+    })
+    expect(await screen.findByText('página editar projeto')).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/projetos/p-novo')
+    expect(screen.getByRole('status')).toHaveTextContent(/projeto criado/i)
+  })
+
+  it('cancelar o drawer de criação volta à lista e pede confirmação se houver dados', async () => {
+    const user = userEvent.setup()
+    renderLista()
+    await screen.findByText('TCC')
+
+    await user.click(screen.getByRole('link', { name: /^novo projeto$/i }))
+    const drawer = await screen.findByRole('dialog', { name: /novo projeto/i })
+    await user.type(within(drawer).getByLabelText(/^nome$/i), 'Rascunho')
+    await user.click(within(drawer).getByRole('button', { name: /^cancelar$/i }))
+
+    const confirmacao = await screen.findByRole('dialog', { name: /descartar projeto/i })
+    await user.click(within(confirmacao).getByRole('button', { name: /^descartar$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/projetos$/)
+    })
+    expect(screen.queryByRole('dialog', { name: /novo projeto/i })).not.toBeInTheDocument()
+    expect(projetoApi.criarProjeto).not.toHaveBeenCalled()
   })
 })

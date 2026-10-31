@@ -6,6 +6,8 @@ type AjustarCapacidadeHojeProps = {
   salvando: boolean
   mostrarCtaGerar: boolean
   gerando: boolean
+  /** Falso quando outro componente já oferece o botão de abrir (ex.: empty state). */
+  mostrarGatilho?: boolean
   onAbrir: () => void
   onFechar: () => void
   onSalvar: (horas: number) => void
@@ -20,6 +22,7 @@ export function AjustarCapacidadeHoje({
   salvando,
   mostrarCtaGerar,
   gerando,
+  mostrarGatilho = true,
   onAbrir,
   onFechar,
   onSalvar,
@@ -33,16 +36,18 @@ export function AjustarCapacidadeHoje({
     }
   }, [aberto, horasIniciais])
 
+  if (!aberto && !mostrarGatilho && !mostrarCtaGerar) {
+    return null
+  }
+
   return (
     <div className="ajustar-capacidade-hoje">
       {!aberto ? (
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          onClick={onAbrir}
-        >
-          Ajustar capacidade de hoje
-        </button>
+        mostrarGatilho ? (
+          <button type="button" className="btn btn--ghost btn--sm" onClick={onAbrir}>
+            Ajustar capacidade de hoje
+          </button>
+        ) : null
       ) : (
         <div
           className="ajustar-capacidade-hoje__painel"

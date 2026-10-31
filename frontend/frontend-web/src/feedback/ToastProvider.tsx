@@ -1,4 +1,11 @@
 import {
+  CheckCircleIcon,
+  InfoIcon,
+  WarningCircleIcon,
+  XIcon,
+  type Icon,
+} from '@phosphor-icons/react'
+import {
   createContext,
   useCallback,
   useContext,
@@ -39,6 +46,12 @@ type ToastApi = {
 const ToastContext = createContext<ToastApi | null>(null)
 
 const DEFAULT_DURATION_MS = 5000
+
+const TOAST_ICON: Record<ToastTone, Icon> = {
+  success: CheckCircleIcon,
+  error: WarningCircleIcon,
+  info: InfoIcon,
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -101,12 +114,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toast-host" aria-live="polite">
         {toasts.map((toast) => {
           const role = toast.tone === 'error' && toast.critical ? 'alert' : 'status'
+          const Icon = TOAST_ICON[toast.tone]
           return (
             <div
               key={toast.id}
               className={`toast toast--${toast.tone}`}
               role={role}
             >
+              <Icon className="toast__icon" aria-hidden />
               <p className="toast__message">{toast.message}</p>
               <div className="toast__actions">
                 {toast.action ? (
@@ -123,11 +138,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 ) : null}
                 <button
                   type="button"
-                  className="btn btn--ghost btn--sm"
+                  className="btn btn--ghost btn--sm btn--icon"
                   aria-label="Fechar"
                   onClick={() => dismiss(toast.id)}
                 >
-                  Fechar
+                  <XIcon aria-hidden />
                 </button>
               </div>
             </div>

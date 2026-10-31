@@ -1,3 +1,4 @@
+import { CheckIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -16,6 +17,14 @@ type Props = {
   temPlano: boolean
   onAbrirQuickAdd: () => void
   onGerarPlano?: () => void
+}
+
+function StatusPasso({ ok, numero }: { ok: boolean; numero: number }) {
+  return (
+    <span className="onboarding-checklist__status" aria-hidden="true">
+      {ok ? <CheckIcon weight="bold" /> : numero}
+    </span>
+  )
 }
 
 function capacidadeConfigurada(
@@ -91,9 +100,7 @@ export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }:
       </p>
       <ol className="onboarding-checklist__lista">
         <li data-ok={passos.capacidade ? 'true' : 'false'}>
-          <span className="onboarding-checklist__status" aria-hidden="true">
-            {passos.capacidade ? '✓' : '1.'}
-          </span>
+          <StatusPasso ok={passos.capacidade} numero={1} />
           {passos.capacidade ? (
             <span>Capacidade semanal definida</span>
           ) : (
@@ -101,9 +108,7 @@ export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }:
           )}
         </li>
         <li data-ok={passos.tarefa ? 'true' : 'false'}>
-          <span className="onboarding-checklist__status" aria-hidden="true">
-            {passos.tarefa ? '✓' : '2.'}
-          </span>
+          <StatusPasso ok={passos.tarefa} numero={2} />
           {passos.tarefa ? (
             <span>Primeira tarefa criada</span>
           ) : (
@@ -113,9 +118,7 @@ export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }:
           )}
         </li>
         <li data-ok={passos.plano ? 'true' : 'false'}>
-          <span className="onboarding-checklist__status" aria-hidden="true">
-            {passos.plano ? '✓' : '3.'}
-          </span>
+          <StatusPasso ok={passos.plano} numero={3} />
           {passos.plano ? (
             <span>Primeiro plano gerado</span>
           ) : onGerarPlano ? (

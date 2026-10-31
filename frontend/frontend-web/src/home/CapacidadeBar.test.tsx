@@ -28,6 +28,19 @@ describe('CapacidadeBar (T1)', () => {
       expect.stringMatching(/sobrecarga|capacidade insuficiente|3h\s*\/\s*2h/i),
     )
   })
+
+  it('com blocos mostra resumo do dia', () => {
+    render(
+      <CapacidadeBar
+        usadosMinutos={130}
+        disponiveisMinutos={240}
+        blocos={{ total: 6, concluidos: 3 }}
+      />,
+    )
+
+    expect(screen.getByText('3 de 6 blocos')).toBeInTheDocument()
+    expect(screen.getByText(/2h 10min de 4h/)).toBeInTheDocument()
+  })
 })
 
 describe('saudação / data por extenso', () => {

@@ -1,3 +1,4 @@
+import { CheckIcon, PlayIcon, XIcon } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -24,7 +25,27 @@ type BlocoCardProps = {
   tempoRestanteLabel?: string | null
   onRemover?: () => void
   removendo?: boolean
+  /** Mutação otimista ainda aguardando a API. */
+  pendente?: boolean
   acoes?: ReactNode
+}
+
+function Marcador({ ordem, status }: { ordem: number; status?: StatusExecucao }) {
+  if (status === 'CONCLUIDO') {
+    return (
+      <span className="plano-bloco-ordem plano-bloco-ordem--concluido">
+        <CheckIcon aria-hidden weight="bold" />
+      </span>
+    )
+  }
+  if (status === 'EM_ANDAMENTO') {
+    return (
+      <span className="plano-bloco-ordem plano-bloco-ordem--andamento">
+        <PlayIcon aria-hidden weight="fill" />
+      </span>
+    )
+  }
+  return <span className="plano-bloco-ordem">{ordem}</span>
 }
 
 export function BlocoCard({
@@ -41,6 +62,7 @@ export function BlocoCard({
   tempoRestanteLabel,
   onRemover,
   removendo = false,
+  pendente = false,
   acoes,
 }: BlocoCardProps) {
   const justificativa =
@@ -50,13 +72,16 @@ export function BlocoCard({
     'plano-bloco',
     diff === 'novo' ? 'plano-bloco--novo' : null,
     diff === 'removido' ? 'plano-bloco--removido' : null,
+    statusExecucao === 'CONCLUIDO' ? 'plano-bloco--concluido' : null,
+    statusExecucao === 'EM_ANDAMENTO' ? 'plano-bloco--andamento' : null,
+    pendente ? 'plano-bloco--pendente' : null,
   ]
     .filter(Boolean)
     .join(' ')
 
   return (
-    <li className={className}>
-      <span className="plano-bloco-ordem">{ordem}</span>
+    <li className={className} aria-busy={pendente || undefined}>
+      <Marcador ordem={ordem} status={statusExecucao} />
       <div className="plano-bloco-corpo">
         <p className="plano-bloco-titulo">
           <Link to={`/tarefas/${tarefaId}`}>{titulo}</Link>
@@ -67,30 +92,18 @@ export function BlocoCard({
           ) : null}
         </p>
         <p className="plano-bloco-meta">
-          <span>{formatarCapacidadeMinutos(duracaoMinutos)}</span>
-          {' · '}
-          <span className={`badge priority-${prioridade.toLowerCase()}`}>
+          <span className="plano-bloco-duracao">{formatarCapacidadeMinutos(duracaoMinutos)}</span>
+          <span className={`plano-bloco-prioridade plano-bloco-prioridade--${prioridade.toLowerCase()}`}>
             {labelPrioridade(prioridade)}
           </span>
-          {projetoNome ? (
-            <>
-              {' · '}
-              <span className="badge badge--projeto">{projetoNome}</span>
-            </>
-          ) : null}
+          {projetoNome ? <span className="badge badge--projeto">{projetoNome}</span> : null}
           {statusExecucao ? (
-            <>
-              {' · '}
-              <span className={`status-execucao status-execucao-${statusExecucao.toLowerCase()}`}>
-                {labelStatusExecucao(statusExecucao)}
-              </span>
-            </>
+            <span className={`status-execucao status-execucao-${statusExecucao.toLowerCase()}`}>
+              {labelStatusExecucao(statusExecucao)}
+            </span>
           ) : null}
           {tempoRestanteLabel ? (
-            <>
-              {' · '}
-              <span aria-label="Tempo restante">Restante: {tempoRestanteLabel}</span>
-            </>
+            <span aria-label="Tempo restante">Restante: {tempoRestanteLabel}</span>
           ) : null}
         </p>
         {justificativa ? (
@@ -102,13 +115,14 @@ export function BlocoCard({
       {onRemover ? (
         <button
           type="button"
-          className="btn btn--secondary btn--sm plano-bloco-remover"
+          className="btn btn--ghost btn--sm plano-bloco-remover"
           onClick={onRemover}
           disabled={removendo}
           aria-busy={removendo}
           aria-label={`Remover ${titulo}`}
         >
-          {removendo ? 'Removendo…' : 'Remover'}
+          <XIcon aria-hidden />
+          <span className="plano-bloco-acao-rotulo">Remover</span>
         </button>
       ) : null}
       {acoes ? <div className="plano-bloco-acoes-execucao">{acoes}</div> : null}

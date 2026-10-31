@@ -38,7 +38,7 @@ describe('CadastroPage', () => {
     renderCadastro()
 
     expect(
-      screen.getByText(/diga o que precisa fazer; o sistema monta o plano/i),
+      screen.getByText('Diga o que precisa fazer; o plano do dia sai pronto.'),
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/requisitos da senha/i)).toBeInTheDocument()
 
@@ -60,6 +60,45 @@ describe('CadastroPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/senhas não conferem/i)
     expect(authApi.cadastrarUsuario).not.toHaveBeenCalled()
+  })
+
+  it('foca o primeiro campo inválido e usa autocomplete de cadastro', async () => {
+    const user = userEvent.setup()
+    renderCadastro()
+
+    expect(screen.getByLabelText(/^nome$/i)).toHaveAttribute('autocomplete', 'name')
+    expect(screen.getByLabelText(/^email$/i)).toHaveAttribute('autocomplete', 'email')
+    expect(screen.getByLabelText(/^senha$/i)).toHaveAttribute('autocomplete', 'new-password')
+    expect(screen.getByLabelText(/confirmar senha/i)).toHaveAttribute('autocomplete', 'new-password')
+
+    await user.type(screen.getByLabelText(/^nome$/i), 'Ana Silva')
+    await user.type(screen.getByLabelText(/^email$/i), 'ana@')
+    await user.type(screen.getByLabelText(/^senha$/i), 'Senha@123')
+    await user.type(screen.getByLabelText(/confirmar senha/i), 'Senha@123')
+    await user.click(screen.getByRole('button', { name: /criar conta/i }))
+
+    const email = screen.getByLabelText(/^email$/i)
+    expect(email).toHaveFocus()
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/^nome$/i)).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('email já cadastrado (409) vira erro no campo email', async () => {
+    vi.mocked(authApi.cadastrarUsuario).mockRejectedValue(
+      new authApi.ApiError(409, 'Este email já está cadastrado.'),
+    )
+    const user = userEvent.setup()
+    renderCadastro()
+
+    await user.type(screen.getByLabelText(/^nome$/i), 'Ana Silva')
+    await user.type(screen.getByLabelText(/^email$/i), 'ana@email.com')
+    await user.type(screen.getByLabelText(/^senha$/i), 'Senha@123')
+    await user.type(screen.getByLabelText(/confirmar senha/i), 'Senha@123')
+    await user.click(screen.getByRole('button', { name: /criar conta/i }))
+
+    const email = screen.getByLabelText(/^email$/i)
+    await waitFor(() => expect(email).toHaveFocus())
+    expect(email).toHaveAccessibleDescription('Este email já está cadastrado.')
   })
 
   it('mostra erro quando a senha é fraca', async () => {

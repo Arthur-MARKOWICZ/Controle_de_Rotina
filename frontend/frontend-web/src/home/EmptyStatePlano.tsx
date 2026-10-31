@@ -1,11 +1,15 @@
+import { SunHorizonIcon } from '@phosphor-icons/react'
+
 type EmptyStatePlanoProps = {
   gerando: boolean
   onGerar: () => void
+  onAjustarCapacidade: () => void
 }
 
-export function EmptyStatePlano({ gerando, onGerar }: EmptyStatePlanoProps) {
+export function EmptyStatePlano({ gerando, onGerar, onAjustarCapacidade }: EmptyStatePlanoProps) {
   return (
     <div className="plano-dia-vazio-bloco">
+      <SunHorizonIcon className="plano-dia-vazio-bloco__icone" aria-hidden weight="duotone" />
       <p className="plano-dia-vazio" role="status">
         Ainda não há plano para hoje.
       </p>
@@ -20,7 +24,10 @@ export function EmptyStatePlano({ gerando, onGerar }: EmptyStatePlanoProps) {
           disabled={gerando}
           aria-busy={gerando}
         >
-          {gerando ? 'Gerando…' : 'Gerar plano'}
+          {gerando ? 'Gerando…' : 'Gerar plano de hoje'}
+        </button>
+        <button type="button" className="btn btn--secondary" onClick={onAjustarCapacidade}>
+          Ajustar capacidade de hoje
         </button>
       </div>
     </div>

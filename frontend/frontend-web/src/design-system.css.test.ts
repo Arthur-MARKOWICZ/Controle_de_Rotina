@@ -86,3 +86,19 @@ describe('design system CSS contract (T2)', () => {
     )
   })
 })
+
+describe('fundação visual v2 (T3)', () => {
+  it('fundo de :root e .app-shell é liso, sem gradiente', () => {
+    const tokensCss = readFileSync(join(stylesDir, 'tokens.css'), 'utf8')
+    const shellCss = readFileSync(join(stylesDir, 'app-shell.css'), 'utf8')
+    const rootBlock = tokensCss.match(/:root\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+    const shellBlock = shellCss.match(/\.app-shell\s*\{[^}]+\}/)?.[0] ?? ''
+
+    expect(rootBlock).not.toMatch(/(radial|linear)-gradient/)
+    expect(shellBlock).not.toMatch(/(radial|linear)-gradient/)
+  })
+
+  it('não referencia a fonte Fraunces', () => {
+    expect(readAppCss()).not.toMatch(/Fraunces/)
+  })
+})

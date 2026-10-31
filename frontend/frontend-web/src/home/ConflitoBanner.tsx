@@ -1,3 +1,5 @@
+import { WarningCircleIcon } from '@phosphor-icons/react'
+
 type ConflitoBannerProps = {
   mensagem: string
   temConflito: boolean
@@ -23,7 +25,10 @@ export function ConflitoBanner({
       role="status"
       aria-label={temConflito ? 'Conflito no plano' : 'Mensagem do plano'}
     >
-      <p className="plano-dia-banner__texto">{mensagem}</p>
+      <div className="plano-dia-banner__corpo">
+        <WarningCircleIcon className="plano-dia-banner__icone" aria-hidden />
+        <p className="plano-dia-banner__texto">{mensagem}</p>
+      </div>
       {acionavel ? (
         <div className="plano-conflito-acoes">
           {onRemoverMenorPrioridade ? (

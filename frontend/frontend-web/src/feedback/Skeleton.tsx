@@ -1,9 +1,18 @@
-type SkeletonVariant = 'plano-blocos' | 'tarefas-lista' | 'capacidade-grade'
+type SkeletonVariant =
+  | 'plano-blocos'
+  | 'tarefas-lista'
+  | 'capacidade-grade'
+  | 'calendario-grade'
+  | 'historico-metricas'
+  | 'perfil-secoes'
 
 const VARIANT_ROWS: Record<SkeletonVariant, number> = {
   'plano-blocos': 3,
   'tarefas-lista': 4,
   'capacidade-grade': 7,
+  'calendario-grade': 7,
+  'historico-metricas': 4,
+  'perfil-secoes': 3,
 }
 
 type SkeletonProps = {

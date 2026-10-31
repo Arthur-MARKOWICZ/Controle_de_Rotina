@@ -12,9 +12,10 @@ import { AppShell } from './layout/AppShell'
 import { DocumentTitle } from './layout/DocumentTitle'
 import { HomePage } from './pages/HomePage'
 import { ProjetoFormPage } from './projeto/pages/ProjetoFormPage'
+import { ProjetoDrawer } from './projeto/ProjetoDrawer'
 import { ProjetosPage } from './projeto/pages/ProjetosPage'
-import { TarefaFormPage } from './tarefa/pages/TarefaFormPage'
 import { TarefasPage } from './tarefa/pages/TarefasPage'
+import { TarefaDrawer } from './tarefa/TarefaDrawer'
 import { ThemeProvider } from './theme/ThemeProvider'
 
 export default function App() {
@@ -35,11 +36,13 @@ export default function App() {
             >
               <Route path="/" element={<HomePage />} />
               <Route path="/perfil" element={<PerfilPage />} />
-              <Route path="/tarefas" element={<TarefasPage />} />
-              <Route path="/tarefas/nova" element={<TarefaFormPage />} />
-              <Route path="/tarefas/:id" element={<TarefaFormPage />} />
-              <Route path="/projetos" element={<ProjetosPage />} />
-              <Route path="/projetos/nova" element={<ProjetoFormPage />} />
+              <Route path="/tarefas" element={<TarefasPage />}>
+                <Route path="nova" element={<TarefaDrawer />} />
+                <Route path=":id" element={<TarefaDrawer />} />
+              </Route>
+              <Route path="/projetos" element={<ProjetosPage />}>
+                <Route path="nova" element={<ProjetoDrawer />} />
+              </Route>
               <Route path="/projetos/:id" element={<ProjetoFormPage />} />
               <Route path="/calendario" element={<CalendarioPage />} />
               <Route path="/capacidade" element={<CapacidadePage />} />

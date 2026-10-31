@@ -5,26 +5,42 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  min-height: 40px;
   margin: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  padding: 0.65rem 0.95rem;
+  padding: 0.5rem 1rem;
   font: inherit;
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1.25;
   text-decoration: none;
   cursor: pointer;
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.btn > svg {
+  flex-shrink: 0;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .btn:hover:not(:disabled) {
   background: var(--accent-hover);
-  color: var(--surface);
+  color: var(--on-accent);
+}
+
+.btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-hover) 85%, var(--ink));
 }
 
 .btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -34,7 +50,7 @@
 
 .btn--primary {
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
   border-color: transparent;
 }
 
@@ -43,57 +59,103 @@
 }
 
 .btn--secondary {
-  background: transparent;
+  background: var(--surface);
   color: var(--ink);
   border-color: var(--line);
 }
 
 .btn--secondary:hover:not(:disabled) {
-  background: var(--warning-bg);
+  background: var(--surface-muted);
   color: var(--ink);
+}
+
+.btn--secondary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-muted) 85%, var(--ink));
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: transparent;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.btn--ghost:active:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-muted) 85%, var(--ink));
 }
 
 .btn--danger {
   background: var(--danger);
-  color: var(--surface);
+  color: var(--on-accent);
   border-color: transparent;
 }
 
 .btn--danger:hover:not(:disabled) {
-  filter: brightness(0.92);
-  background: var(--danger);
-  color: var(--surface);
+  background: color-mix(in srgb, var(--danger) 88%, var(--ink));
+  color: var(--on-accent);
 }
 
-.btn--ghost {
-  background: var(--surface);
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-.btn--ghost:hover:not(:disabled) {
-  background: var(--warning-bg);
-  color: var(--ink);
+.btn--danger:active:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 78%, var(--ink));
 }
 
 .btn--ghost.btn--danger,
 .btn--danger.btn--sm.btn--ghost {
-  background: var(--surface);
+  background: transparent;
   color: var(--danger);
-  border-color: var(--danger-border);
+  border-color: transparent;
 }
 
 .btn--ghost.btn--danger:hover:not(:disabled),
-.btn--danger.btn--sm.btn--ghost:hover:not(:disabled) {
+.btn--danger.btn--sm.btn--ghost:hover:not(:disabled),
+.btn--ghost.btn--danger:active:not(:disabled) {
   background: var(--danger-bg);
   color: var(--danger);
-  filter: none;
+}
+
+.btn--cta {
+  background: var(--cta);
+  color: var(--on-cta);
+  border-color: transparent;
+}
+
+.btn--cta:hover:not(:disabled) {
+  background: var(--cta-hover);
+  color: var(--on-cta);
+}
+
+.btn--cta:active:not(:disabled) {
+  background: color-mix(in srgb, var(--cta-hover) 88%, var(--ink));
 }
 
 .btn--sm {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.85rem;
+  min-height: 32px;
+  padding: 0.3rem 0.65rem;
   border-radius: var(--radius-sm);
+}
+
+/* Sem texto visível: exige aria-label no elemento */
+.btn--icon {
+  min-width: 40px;
+  padding: 0;
+}
+
+.btn--icon > svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.btn--icon.btn--sm {
+  min-width: 32px;
+}
+
+.btn--icon.btn--sm > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 /* Alvos de toque ≥ 44×44 (ações principais) */
@@ -101,4 +163,10 @@
   min-height: var(--touch-min);
   min-width: var(--touch-min);
   padding-inline: 0.85rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
 }

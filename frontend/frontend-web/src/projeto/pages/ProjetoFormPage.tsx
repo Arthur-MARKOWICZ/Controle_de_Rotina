@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
@@ -10,57 +10,37 @@ import {
   arquivarProjeto,
   atualizarProjeto,
   buscarProjeto,
-  criarProjeto,
   reativarProjeto,
   type ProjetoResponse,
   type StatusProjeto,
 } from '../api/projetoApi'
-
-type FormValues = {
-  nome: string
-  descricao: string
-}
-
-const VAZIO: FormValues = {
-  nome: '',
-  descricao: '',
-}
+import { ProjetoCampos } from '../ProjetoCampos'
+import {
+  PROJETO_FORM_VAZIO,
+  validarProjetoForm,
+  type ProjetoFormValues,
+} from '../validation/projetoForm'
 
 const STATUS_LABEL: Record<StatusProjeto, string> = {
   ATIVO: 'Ativo',
   ARQUIVADO: 'Arquivado',
 }
 
-function validarForm(values: FormValues): string | null {
-  const nome = values.nome.trim()
-  if (!nome) {
-    return 'Informe o nome do projeto.'
-  }
-  if (nome.length > 80) {
-    return 'O nome deve ter no máximo 80 caracteres.'
-  }
-  if (values.descricao.length > 500) {
-    return 'A descrição deve ter no máximo 500 caracteres.'
-  }
-  return null
-}
-
+/** Hub do projeto (`/projetos/:id`): edição + atalhos. A criação fica em `ProjetoDrawer`. */
 export function ProjetoFormPage() {
   const { id } = useParams<{ id: string }>()
-  const modo: 'criar' | 'editar' = id ? 'editar' : 'criar'
-  const navigate = useNavigate()
   const toast = useToast()
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const [values, setValues] = useState<FormValues>(VAZIO)
+  const [values, setValues] = useState<ProjetoFormValues>(PROJETO_FORM_VAZIO)
   const [projeto, setProjeto] = useState<ProjetoResponse | null>(null)
-  const [carregando, setCarregando] = useState(modo === 'editar')
+  const [carregando, setCarregando] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [acaoCiclo, setAcaoCiclo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
-    if (modo !== 'editar' || !id) {
+    if (!id) {
       return
     }
 
@@ -96,52 +76,41 @@ export function ProjetoFormPage() {
     return () => {
       ativo = false
     }
-  }, [id, modo])
+  }, [id])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setErro(null)
 
-    const validacao = validarForm(values)
+    const validacao = validarProjetoForm(values)
     if (validacao) {
       setErro(validacao)
       return
     }
+    if (!id) {
+      return
+    }
 
-    const nome = values.nome.trim()
     const descricao = values.descricao.trim()
 
     setEnviando(true)
     try {
-      if (modo === 'criar') {
-        const criado = await criarProjeto({
-          nome,
-          descricao: descricao || null,
-        })
-        toast.success('Projeto criado')
-        navigate(`/projetos/${criado.id}`, { replace: true })
-      } else if (id) {
-        const atualizado = await atualizarProjeto(id, {
-          nome,
-          descricao: descricao || null,
-        })
-        setProjeto(atualizado)
-        setValues({
-          nome: atualizado.nome,
-          descricao: atualizado.descricao ?? '',
-        })
-        toast.success('Projeto atualizado')
-      }
+      const atualizado = await atualizarProjeto(id, {
+        nome: values.nome.trim(),
+        descricao: descricao || null,
+      })
+      setProjeto(atualizado)
+      setValues({
+        nome: atualizado.nome,
+        descricao: atualizado.descricao ?? '',
+      })
+      toast.success('Projeto atualizado')
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErro(error.message)
-      } else {
-        setErro(
-          modo === 'criar'
-            ? 'Não foi possível criar o projeto. Tente novamente.'
-            : 'Não foi possível atualizar o projeto. Tente novamente.',
-        )
-      }
+      setErro(
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível atualizar o projeto. Tente novamente.',
+      )
     } finally {
       setEnviando(false)
     }
@@ -200,61 +169,6 @@ export function ProjetoFormPage() {
     return (
       <main className="projetos-page">
         <Skeleton variant="tarefas-lista" />
-      </main>
-    )
-  }
-
-  if (modo === 'criar') {
-    return (
-      <main className="projetos-page">
-        <header className="projetos-header">
-          <div>
-            <h1>Novo projeto</h1>
-            <p className="projetos-subtitle">
-              O projeto inicia como ativo. Você pode arquivá-lo depois na lista.
-            </p>
-          </div>
-        </header>
-
-        <section className="projeto-form-panel">
-          <form className="projeto-form" onSubmit={handleSubmit} noValidate>
-            <div className="field">
-              <label htmlFor="nome">Nome</label>
-              <input
-                id="nome"
-                name="nome"
-                type="text"
-                maxLength={80}
-                value={values.nome}
-                onChange={(e) => setValues((a) => ({ ...a, nome: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="descricao">Descrição (opcional)</label>
-              <textarea
-                id="descricao"
-                name="descricao"
-                maxLength={500}
-                rows={4}
-                value={values.descricao}
-                onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
-              />
-            </div>
-
-            {erro ? <InlineAlert>{erro}</InlineAlert> : null}
-
-            <div className="projeto-form-acoes">
-              <button type="submit" className="btn btn--primary" disabled={enviando}>
-                {enviando ? 'Salvando…' : 'Criar projeto'}
-              </button>
-              <Link to="/projetos" className="btn btn--secondary">
-                Cancelar
-              </Link>
-            </div>
-          </form>
-        </section>
       </main>
     )
   }
@@ -321,30 +235,7 @@ export function ProjetoFormPage() {
       <section className="projeto-form-panel">
         <h2 className="projeto-hub__form-titulo">Editar</h2>
         <form className="projeto-form" onSubmit={handleSubmit} noValidate>
-          <div className="field">
-            <label htmlFor="nome">Nome</label>
-            <input
-              id="nome"
-              name="nome"
-              type="text"
-              maxLength={80}
-              value={values.nome}
-              onChange={(e) => setValues((a) => ({ ...a, nome: e.target.value }))}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="descricao">Descrição (opcional)</label>
-            <textarea
-              id="descricao"
-              name="descricao"
-              maxLength={500}
-              rows={4}
-              value={values.descricao}
-              onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
-            />
-          </div>
+          <ProjetoCampos values={values} onChange={setValues} />
 
           <div className="projeto-form-acoes">
             <button type="submit" className="btn btn--primary" disabled={enviando || acaoCiclo}>
