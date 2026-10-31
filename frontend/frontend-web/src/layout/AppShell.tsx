@@ -1,51 +1,54 @@
-import { useCallback, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import {
+  CalendarBlankIcon,
+  ChartLineUpIcon,
+  CheckCircleIcon,
+  CheckSquareIcon,
+  FolderSimpleIcon,
+  GaugeIcon,
+  PlusIcon,
+  SunHorizonIcon,
+  type Icon,
+} from '@phosphor-icons/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
-import { useAuth } from '../auth/session/AuthContext'
 import { ToastProvider } from '../feedback/ToastProvider'
-import { QuickAddTarefaDialog } from '../tarefa/QuickAddTarefaDialog'
 import { XpBar } from '../xp/XpBar'
 import { XpProgressProvider, useXpProgress } from '../xp/XpProgressContext'
 import { AtalhosAjudaDialog } from './AtalhosAjudaDialog'
+import { rotuloPorRota } from './documentTitle'
+import { MenuConta } from './MenuConta'
+import { MenuMais } from './MenuMais'
+import { QuickAddProvider, useQuickAdd } from './QuickAddContext'
 import { useAtalhosTeclado } from './useAtalhosTeclado'
 
-const NAV_PRINCIPAL: { to: string; label: string; end?: boolean }[] = [
-  { to: '/', label: 'Hoje', end: true },
-  { to: '/tarefas', label: 'Tarefas' },
-  { to: '/projetos', label: 'Projetos' },
-  { to: '/calendario', label: 'Calendário' },
-  { to: '/capacidade', label: 'Capacidade' },
-  { to: '/historico', label: 'Histórico' },
-]
+type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
+
+const HOJE: ItemNav = { to: '/', label: 'Hoje', Icon: SunHorizonIcon, end: true }
+const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
+const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
+const CALENDARIO: ItemNav = { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon }
+const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
+const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon }
+
+const NAV_SIDEBAR = [HOJE, TAREFAS, PROJETOS, CALENDARIO, CAPACIDADE, HISTORICO]
+const NAV_BOTTOM = [HOJE, TAREFAS, CALENDARIO, CAPACIDADE]
 
 function linkClassName({ isActive }: { isActive: boolean }) {
   return isActive ? 'app-shell__link app-shell__link--active' : 'app-shell__link'
 }
 
-function NavPrincipal({ className }: { className: string }) {
+function LinkNav({ item }: { item: ItemNav }) {
+  const { to, label, Icon, end } = item
   return (
-    <nav className={className} aria-label="Principal">
-      {NAV_PRINCIPAL.map((item) => (
-        <NavLink key={item.to} to={item.to} end={item.end === true} className={linkClassName}>
-          {item.label}
-        </NavLink>
-      ))}
-    </nav>
-  )
-}
-
-function ContaNav({ className }: { className: string }) {
-  const { logout } = useAuth()
-
-  return (
-    <div className={className}>
-      <NavLink to="/perfil" className={linkClassName}>
-        Perfil
-      </NavLink>
-      <button type="button" className="app-shell__logout" onClick={() => void logout()}>
-        Sair
-      </button>
-    </div>
+    <NavLink to={to} end={end === true} className={linkClassName}>
+      {({ isActive }) => (
+        <>
+          <Icon aria-hidden weight={isActive ? 'fill' : 'regular'} />
+          <span>{label}</span>
+        </>
+      )}
+    </NavLink>
   )
 }
 
@@ -63,51 +66,126 @@ function XpSlot() {
   )
 }
 
+function BarraSuperior() {
+  const { pathname } = useLocation()
+  const { abrir } = useQuickAdd()
+
+  return (
+    <header className="app-shell__top">
+      <p className="app-shell__titulo">{rotuloPorRota(pathname)}</p>
+      <div className="app-shell__top-acoes">
+        <XpSlot />
+        <button
+          type="button"
+          className="btn btn--primary app-shell__nova"
+          aria-label="Nova tarefa"
+          onClick={abrir}
+        >
+          <PlusIcon aria-hidden />
+          <span className="app-shell__nova-rotulo">Nova tarefa</span>
+        </button>
+      </div>
+    </header>
+  )
+}
+
+/** Páginas cujas rotas filhas abrem um drawer por cima: o foco é gerido pelo drawer. */
+const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
+  { base: '/tarefas', drawer: /^\/tarefas\/[^/]+$/ },
+  // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
+  { base: '/projetos', drawer: /^\/projetos\/nova$/ },
+]
+
+function naPagina(pathname: string, pagina: { base: string; drawer: RegExp }): boolean {
+  return pathname === pagina.base || pagina.drawer.test(pathname)
+}
+
+function mesmaPaginaComDrawer(anterior: string, atual: string): boolean {
+  return PAGINAS_COM_DRAWER.some(
+    (pagina) => naPagina(anterior, pagina) && naPagina(atual, pagina),
+  )
+}
+
+/** Ao trocar de rota, leva o foco ao h1 da página (ou ao conteúdo, se não houver h1). */
+function ConteudoRota() {
+  const { pathname } = useLocation()
+  const conteudoRef = useRef<HTMLDivElement>(null)
+  const rotaAnterior = useRef(pathname)
+
+  useEffect(() => {
+    if (rotaAnterior.current === pathname) {
+      return
+    }
+    const anterior = rotaAnterior.current
+    rotaAnterior.current = pathname
+    if (mesmaPaginaComDrawer(anterior, pathname)) {
+      return
+    }
+    const conteudo = conteudoRef.current
+    const alvo = conteudo?.querySelector<HTMLElement>('h1') ?? conteudo
+    if (!alvo) {
+      return
+    }
+    if (!alvo.hasAttribute('tabindex')) {
+      alvo.setAttribute('tabindex', '-1')
+    }
+    alvo.focus()
+  }, [pathname])
+
+  return (
+    <div ref={conteudoRef} className="app-shell__content">
+      <Outlet />
+    </div>
+  )
+}
+
 function ShellAtalhos() {
-  const [quickAddAberto, setQuickAddAberto] = useState(false)
+  const { abrir } = useQuickAdd()
   const [ajudaAberta, setAjudaAberta] = useState(false)
 
-  const abrirNova = useCallback(() => setQuickAddAberto(true), [])
   const abrirAjuda = useCallback(() => setAjudaAberta(true), [])
 
   useAtalhosTeclado({
-    onNovaTarefa: abrirNova,
+    onNovaTarefa: abrir,
     onAjuda: abrirAjuda,
   })
 
-  return (
-    <>
-      <QuickAddTarefaDialog open={quickAddAberto} onClose={() => setQuickAddAberto(false)} />
-      <AtalhosAjudaDialog open={ajudaAberta} onClose={() => setAjudaAberta(false)} />
-    </>
-  )
+  return <AtalhosAjudaDialog open={ajudaAberta} onClose={() => setAjudaAberta(false)} />
 }
 
 export function AppShell() {
   return (
     <ToastProvider>
       <XpProgressProvider>
-        <div className="app-shell">
-          <aside className="app-shell__sidebar" aria-label="Menu">
-            <p className="app-shell__brand">Controle de Rotina</p>
-            <NavPrincipal className="app-shell__nav app-shell__nav--sidebar" />
-            <ContaNav className="app-shell__conta app-shell__conta--sidebar" />
-          </aside>
+        <QuickAddProvider>
+          <div className="app-shell">
+            <aside className="app-shell__sidebar" aria-label="Menu">
+              <p className="app-shell__brand">
+                <CheckCircleIcon aria-hidden />
+                Rotina
+              </p>
+              <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">
+                {NAV_SIDEBAR.map((item) => (
+                  <LinkNav key={item.to} item={item} />
+                ))}
+              </nav>
+              <MenuConta />
+            </aside>
 
-          <div className="app-shell__main">
-            <header className="app-shell__top">
-              <XpSlot />
-              <ContaNav className="app-shell__conta app-shell__conta--mobile" />
-            </header>
-
-            <div className="app-shell__content">
-              <Outlet />
+            <div className="app-shell__main">
+              <BarraSuperior />
+              <ConteudoRota />
             </div>
-          </div>
 
-          <NavPrincipal className="app-shell__nav app-shell__nav--bottom" />
-          <ShellAtalhos />
-        </div>
+            <nav className="app-shell__nav app-shell__nav--bottom" aria-label="Principal">
+              {NAV_BOTTOM.map((item) => (
+                <LinkNav key={item.to} item={item} />
+              ))}
+              <MenuMais />
+            </nav>
+            <ShellAtalhos />
+          </div>
+        </QuickAddProvider>
       </XpProgressProvider>
     </ToastProvider>
   )

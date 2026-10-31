@@ -56,10 +56,21 @@ export function datasDaSemana(segundaIso: string): Record<DiaSemana, string> {
   return mapa
 }
 
+function mesCurtoPt(data: Date): string {
+  return data
+    .toLocaleDateString('pt-BR', { month: 'short' })
+    .replace(/\./g, '')
+    .trim()
+    .toLowerCase()
+}
+
+/** Ex.: "5–11 out" ou "28 set – 4 out" quando cruza mês. */
 export function formatarIntervaloSemana(segundaIso: string): string {
   const domingo = adicionarDiasIso(segundaIso, 6)
   const de = parseDataIsoLocal(segundaIso)
   const ate = parseDataIsoLocal(domingo)
-  const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit' }
-  return `${de.toLocaleDateString('pt-BR', opts)} – ${ate.toLocaleDateString('pt-BR', opts)}`
+  if (de.getMonth() === ate.getMonth() && de.getFullYear() === ate.getFullYear()) {
+    return `${de.getDate()}–${ate.getDate()} ${mesCurtoPt(ate)}`
+  }
+  return `${de.getDate()} ${mesCurtoPt(de)} – ${ate.getDate()} ${mesCurtoPt(ate)}`
 }

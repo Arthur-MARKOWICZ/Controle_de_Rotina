@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
 
 import { formatarCapacidadeMinutos } from '../planner/data'
 import type { TarefaResponse } from '../tarefa/api/tarefaApi'
@@ -12,6 +12,12 @@ type AdicionarTarefaFormProps = {
   adicionando: boolean
   onSelecionar: (tarefaId: string) => void
   onSubmit: (event: FormEvent) => void
+}
+
+const LISTBOX_ID = 'plano-tarefa-opcoes'
+
+function idOpcao(tarefaId: string): string {
+  return `plano-tarefa-opcao-${tarefaId}`
 }
 
 function textoBusca(tarefa: TarefaResponse): string {
@@ -36,6 +42,27 @@ export function AdicionarTarefaForm({
     return elegiveis.filter((tarefa) => textoBusca(tarefa).includes(termo))
   }, [elegiveis, filtro])
 
+  const selecionadaVisivel = filtradas.some((tarefa) => tarefa.id === tarefaSelecionadaId)
+
+  function handleTecla(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return
+    }
+    event.preventDefault()
+    if (filtradas.length === 0) {
+      return
+    }
+    const atual = filtradas.findIndex((tarefa) => tarefa.id === tarefaSelecionadaId)
+    const passo = event.key === 'ArrowDown' ? 1 : -1
+    const proximo =
+      atual === -1
+        ? passo === 1
+          ? 0
+          : filtradas.length - 1
+        : (atual + passo + filtradas.length) % filtradas.length
+    onSelecionar(filtradas[proximo].id)
+  }
+
   return (
     <form className="plano-adicionar" onSubmit={onSubmit}>
       <h3>Adicionar tarefa</h3>
@@ -50,8 +77,14 @@ export function AdicionarTarefaForm({
             <input
               id="plano-tarefa-busca"
               type="search"
+              role="combobox"
+              aria-expanded={filtradas.length > 0}
+              aria-controls={LISTBOX_ID}
+              aria-autocomplete="list"
+              aria-activedescendant={selecionadaVisivel ? idOpcao(tarefaSelecionadaId) : undefined}
               value={filtro}
               onChange={(event) => setFiltro(event.target.value)}
+              onKeyDown={handleTecla}
               placeholder="Título, prazo ou duração…"
               autoComplete="off"
             />
@@ -62,15 +95,22 @@ export function AdicionarTarefaForm({
               Nenhuma tarefa corresponde à busca.
             </p>
           ) : (
-            <ul className="plano-adicionar-lista" role="listbox" aria-label="Tarefas elegíveis">
+            <ul
+              id={LISTBOX_ID}
+              className="plano-adicionar-lista"
+              role="listbox"
+              aria-label="Tarefas elegíveis"
+            >
               {filtradas.map((tarefa) => {
                 const selecionada = tarefaSelecionadaId === tarefa.id
                 return (
                   <li key={tarefa.id}>
                     <button
+                      id={idOpcao(tarefa.id)}
                       type="button"
                       role="option"
                       aria-selected={selecionada}
+                      tabIndex={-1}
                       className={
                         selecionada
                           ? 'plano-adicionar-opcao plano-adicionar-opcao--ativa'

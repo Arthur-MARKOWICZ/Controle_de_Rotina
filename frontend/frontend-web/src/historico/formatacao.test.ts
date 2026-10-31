@@ -5,6 +5,7 @@ import {
   formatarDiaSemanaCurto,
   formatarMinutosTrabalhados,
   tituloDiaHistorico,
+  tituloSemanaHistorico,
 } from './formatacao'
 
 describe('formatarMinutosTrabalhados', () => {
@@ -27,6 +28,14 @@ describe('tituloDiaHistorico (T2)', () => {
 
   it('formata outra data em pt-BR (ex.: Segunda, 20/10)', () => {
     expect(tituloDiaHistorico('2026-10-20', '2026-10-27')).toBe('Terça, 20/10')
+  })
+})
+
+describe('tituloSemanaHistorico', () => {
+  it('distingue semana atual, passada e outras', () => {
+    expect(tituloSemanaHistorico('2026-10-26', '2026-10-26')).toBe('Esta semana')
+    expect(tituloSemanaHistorico('2026-10-19', '2026-10-26')).toBe('Semana passada')
+    expect(tituloSemanaHistorico('2026-10-12', '2026-10-26')).toBe('Semana selecionada')
   })
 })
 

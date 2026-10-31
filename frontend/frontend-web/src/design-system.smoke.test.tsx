@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,7 @@ import { CapacidadePage } from './capacidade/pages/CapacidadePage'
 import { ToastProvider } from './feedback/ToastProvider'
 import * as historicoApi from './historico/api/historicoApi'
 import { HistoricoPage } from './historico/pages/HistoricoPage'
+import { QuickAddProvider } from './layout/QuickAddContext'
 import { HomePage } from './pages/HomePage'
 import * as planoApi from './planner/api/planoApi'
 import * as tarefaApi from './tarefa/api/tarefaApi'
@@ -138,7 +139,7 @@ describe('design system smoke (T1)', () => {
     const entrar = screen.getByRole('button', { name: /entrar/i })
     expect(entrar).toHaveClass('btn', 'btn--primary')
     await user.click(entrar)
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0)
   })
 
   it('Home monta e CTA Gerar plano permanece clicável', async () => {
@@ -165,14 +166,16 @@ describe('design system smoke (T1)', () => {
         <ToastProvider>
           <XpProgressProvider>
             <MemoryRouter>
-              <HomePage />
+              <QuickAddProvider>
+                <HomePage />
+              </QuickAddProvider>
             </MemoryRouter>
           </XpProgressProvider>
         </ToastProvider>
       </AuthProvider>,
     )
 
-    const gerar = await screen.findByRole('button', { name: /^gerar plano$/i })
+    const gerar = await screen.findByRole('button', { name: /^gerar plano de hoje$/i })
     expect(gerar).toHaveClass('btn', 'btn--primary')
     await user.click(gerar)
     await waitFor(() => {
@@ -193,23 +196,29 @@ describe('design system smoke (T1)', () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/tarefas']}>
-          <Routes>
-            <Route path="/tarefas" element={<TarefasPage />} />
-          </Routes>
+          <QuickAddProvider>
+            <Routes>
+              <Route path="/tarefas" element={<TarefasPage />} />
+            </Routes>
+          </QuickAddProvider>
         </MemoryRouter>
       </ToastProvider>,
     )
 
-    const nova = await screen.findByRole('button', { name: /nova tarefa/i })
-    expect(nova).toHaveClass('btn', 'btn--primary')
-
-    await user.click(screen.getByRole('button', { name: /^filtros$/i }))
-    const aplicar = screen.getByRole('button', { name: /aplicar filtros/i })
-    expect(aplicar).toHaveClass('btn', 'btn--primary')
-    await user.click(aplicar)
+    const prioridade = await screen.findByRole('button', { name: /^prioridade$/i })
+    expect(prioridade).toHaveClass('btn', 'btn--secondary')
+    await user.click(prioridade)
+    await user.click(screen.getByLabelText(/^alta$/i))
     await waitFor(() => {
-      expect(vi.mocked(tarefaApi.listarTarefas).mock.calls.length).toBeGreaterThan(0)
+      expect(tarefaApi.listarTarefas).toHaveBeenLastCalledWith(
+        expect.objectContaining({ prioridade: ['ALTA'] }),
+        expect.any(AbortSignal),
+      )
     })
+    const empty = (await screen.findByText(/nada com estes filtros/i)).closest('.tarefas-empty')
+    expect(
+      within(empty as HTMLElement).getByRole('button', { name: /^limpar filtros$/i }),
+    ).toHaveClass('btn', 'btn--secondary')
   })
 
   it('Capacidade monta e CTA Salvar semana permanece clicável', async () => {
@@ -240,7 +249,7 @@ describe('design system smoke (T1)', () => {
     )
 
     await screen.findByRole('heading', { name: /capacidade/i })
-    await user.click(screen.getByRole('button', { name: /aumentar segunda/i }))
+    await user.click(screen.getByRole('button', { name: /aumentar horas de segunda/i }))
     const salvar = screen.getByRole('button', { name: /salvar semana/i })
     expect(salvar).toHaveClass('btn', 'btn--primary')
     await user.click(salvar)
@@ -277,11 +286,12 @@ describe('design system smoke (T1)', () => {
       </AuthProvider>,
     )
 
+    await user.click(await screen.findByRole('radio', { name: 'Dia' }))
     const diaAnterior = await screen.findByRole('button', { name: /dia anterior/i })
     expect(diaAnterior).toHaveClass('btn')
     await user.click(diaAnterior)
     await waitFor(() => {
-      expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-26')
+      expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-25')
     })
     vi.useRealTimers()
   })

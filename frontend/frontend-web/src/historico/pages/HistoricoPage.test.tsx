@@ -74,51 +74,71 @@ describe('HistoricoPage (T4)', () => {
     })
   })
 
-  it('renderiza título dinâmico Hoje e Esta semana a partir da API', async () => {
+  it('renderiza Esta semana por padrão e Hoje na visão Dia, a partir da API', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Hoje' })).toBeInTheDocument()
-    })
-    expect(screen.getByRole('heading', { name: 'Esta semana' })).toBeInTheDocument()
-    expect(screen.getByText('3h40')).toBeInTheDocument()
-    expect(screen.getByText('+280 XP')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Esta semana' })).toBeInTheDocument()
     expect(screen.getByText('+1120 XP')).toBeInTheDocument()
-    expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-27')
     expect(historicoApi.consultarHistoricoSemana).toHaveBeenCalledWith('2026-10-26')
     expect(historicoApi.consultarHistoricoSemana).toHaveBeenCalledWith('2026-10-19')
+
+    await user.click(screen.getByRole('radio', { name: 'Dia' }))
+
+    expect(await screen.findByRole('heading', { name: 'Hoje' })).toBeInTheDocument()
+    expect(screen.getByText('3h40')).toBeInTheDocument()
+    expect(screen.getByText('+280 XP')).toBeInTheDocument()
+    expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-27')
+    expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-26')
   })
 
-  it('mostra comparação vs semana passada nas métricas da semana', async () => {
+  it('mostra comparação vs semana passada com seta e sinal nas métricas da semana', async () => {
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('+12% vs. semana passada')).toBeInTheDocument()
-    })
     // XP: 1120 vs 1000 = +12%
-    expect(screen.getAllByText(/\+12% vs\. semana passada/).length).toBeGreaterThanOrEqual(1)
+    const variacao = await screen.findByText('+12% vs semana passada')
+    expect(variacao).toHaveClass('historico-variacao--alta')
+    expect(variacao.querySelector('svg')).not.toBeNull()
+  })
+
+  it('T3: variação negativa mostra seta para baixo e texto com sinal', async () => {
+    vi.mocked(historicoApi.consultarHistoricoSemana).mockImplementation(async (semanaInicio) => {
+      if (semanaInicio === '2026-10-19') {
+        return resumoSemanaAnterior
+      }
+      return { ...resumoSemana, xpGanho: 800 }
+    })
+    renderPage()
+
+    const variacao = await screen.findByText('-20% vs semana passada')
+    expect(variacao).toHaveClass('historico-variacao--queda')
+    expect(variacao).not.toHaveClass('historico-variacao--alta')
+    expect(variacao.querySelector('svg')).not.toBeNull()
   })
 
   it('navega dia e semana com query correta', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
 
+    await screen.findByRole('heading', { name: 'Esta semana' })
+    await user.click(screen.getByRole('button', { name: /semana anterior/i }))
     await waitFor(() => {
-      expect(historicoApi.consultarHistoricoDia).toHaveBeenCalled()
+      expect(historicoApi.consultarHistoricoSemana).toHaveBeenCalledWith('2026-10-12')
     })
+    expect(await screen.findByRole('heading', { name: 'Semana passada' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: 'Dia' }))
+    await screen.findByRole('heading', { name: 'Hoje' })
+    expect(screen.getByRole('button', { name: /próximo dia/i })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: /dia anterior/i }))
     await waitFor(() => {
-      expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-26')
+      expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-25')
     })
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Ontem' })).toBeInTheDocument()
-    })
+    expect(await screen.findByRole('heading', { name: 'Ontem' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /semana anterior/i }))
-    await waitFor(() => {
-      expect(historicoApi.consultarHistoricoSemana).toHaveBeenCalledWith('2026-10-19')
-    })
+    await user.click(screen.getByRole('button', { name: 'Hoje' }))
+    expect(await screen.findByRole('heading', { name: 'Hoje' })).toBeInTheDocument()
   })
 
   it('exibe gráfico com alternativa textual e empty motivacional', async () => {

@@ -5,8 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ThemeProvider } from '../../theme/ThemeProvider'
 import { THEME_STORAGE_KEY } from '../../theme/themePreference'
+import * as authApi from '../api/authApi'
 import * as meApi from '../api/meApi'
 import { ApiError } from '../api/authApi'
+import { AuthProvider } from '../session/AuthContext'
+import { clearAccessToken, getAccessToken, setAccessToken } from '../session/tokenStore'
 import { PerfilPage } from './PerfilPage'
 
 vi.mock('../api/meApi', () => ({
@@ -14,12 +17,19 @@ vi.mock('../api/meApi', () => ({
   atualizarMe: vi.fn(),
 }))
 
+vi.mock('../api/authApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/authApi')>()),
+  logout: vi.fn(),
+}))
+
 function renderPerfil() {
   return render(
     <ThemeProvider>
-      <MemoryRouter>
-        <PerfilPage />
-      </MemoryRouter>
+      <AuthProvider>
+        <MemoryRouter>
+          <PerfilPage />
+        </MemoryRouter>
+      </AuthProvider>
     </ThemeProvider>,
   )
 }
@@ -46,6 +56,51 @@ describe('PerfilPage', () => {
 
     expect(await screen.findByDisplayValue('Ana Silva')).toBeInTheDocument()
     expect(screen.getByDisplayValue('ana@email.com')).toBeInTheDocument()
+  })
+
+  it('T4: não monta main.auth-page e mantém troca de tema e logout', async () => {
+    clearAccessToken()
+    setAccessToken('jwt-ok')
+    vi.mocked(authApi.logout).mockReset()
+    vi.mocked(authApi.logout).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    expect(document.querySelector('main.auth-page')).not.toBeInTheDocument()
+    expect(document.querySelector('main.perfil-page')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Meu perfil' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Conta' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Progresso' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /escuro/i }))
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+
+    await user.click(screen.getByRole('button', { name: /sair/i }))
+    await waitFor(() => {
+      expect(authApi.logout).toHaveBeenCalledWith('jwt-ok')
+    })
+    expect(getAccessToken()).toBeNull()
+  })
+
+  it('seção Progresso mostra nível, XP no nível, quanto falta e total', async () => {
+    vi.mocked(meApi.buscarMe).mockResolvedValue({
+      id: '1',
+      nome: 'Ana Silva',
+      email: 'ana@email.com',
+      xpTotal: 340,
+      nivel: 3,
+      xpNoNivel: 40,
+      xpParaProximoNivel: 100,
+    })
+    renderPerfil()
+    await screen.findByDisplayValue('Ana Silva')
+
+    expect(screen.getByText('Nível 3')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
+    expect(screen.getByText('40 / 100 XP')).toBeInTheDocument()
+    expect(screen.getByText('60 XP')).toBeInTheDocument()
+    expect(screen.getByText('340 XP')).toBeInTheDocument()
   })
 
   it('T3: renderiza seções Dados, Confirmar identidade e Nova senha (opcional)', async () => {

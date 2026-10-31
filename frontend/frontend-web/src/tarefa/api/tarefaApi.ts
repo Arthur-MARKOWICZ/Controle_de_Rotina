@@ -109,8 +109,11 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   return `/tarefas?${params.toString()}`
 }
 
-export async function listarTarefas(filtro: ListarTarefasParams = {}): Promise<PageTarefa> {
-  const response = await apiFetch(buildTarefasQuery(filtro))
+export async function listarTarefas(
+  filtro: ListarTarefasParams = {},
+  signal?: AbortSignal,
+): Promise<PageTarefa> {
+  const response = await apiFetch(buildTarefasQuery(filtro), signal ? { signal } : undefined)
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível carregar as tarefas.')
   }

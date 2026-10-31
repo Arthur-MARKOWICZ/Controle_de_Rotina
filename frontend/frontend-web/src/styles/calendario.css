@@ -4,63 +4,22 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
-.calendario-header h1 {
-  margin: 0;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.85rem;
-  font-weight: 600;
-}
-
-.calendario-subtitle {
-  margin: 0.35rem 0 0;
-  color: var(--muted);
-}
-
-.calendario-controles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: center;
-  min-width: 0;
-}
-
-.calendario-toggle {
-  display: inline-flex;
-  gap: var(--space-1);
-  padding: 0.15rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel);
-}
-
-.calendario-toggle__btn {
-  margin: 0;
-}
-
-.calendario-toggle__btn--ativo {
-  pointer-events: none;
-}
-
-.calendario-nav-periodo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-  margin-left: auto;
-}
-
-.calendario-nav-periodo__label {
-  font-weight: 600;
-  min-width: 10rem;
-  text-align: center;
+.calendario-lente {
+  align-self: flex-start;
 }
 
 .calendario-semana,
 .calendario-mes {
   min-width: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.calendario--recarregando {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .calendario-semana__cabecalho,
@@ -70,9 +29,13 @@
   gap: var(--space-2);
   margin-bottom: var(--space-2);
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-align: center;
+}
+
+.calendario-mes__cabecalho {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .calendario-semana__grade {
@@ -89,31 +52,31 @@
   gap: var(--space-2);
   min-height: 9rem;
   min-width: 0;
-  width: 100%;
-  margin: 0;
   padding: var(--space-2);
-  text-align: left;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: var(--panel);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
   overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
-.calendario-semana__celula:hover,
-.calendario-semana__celula:focus-visible {
-  border-color: var(--accent);
-  outline: none;
+.calendario-semana__celula:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
 
-.calendario-semana__celula--selecionada {
+.calendario-semana__celula--hoje,
+.calendario-mes__celula--hoje {
+  background: var(--accent-soft);
+}
+
+.calendario-semana__celula--selecionada,
+.calendario-mes__celula--selecionada {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
 
-.calendario-semana__celula--sobrecarga {
+.calendario-semana__celula--sobrecarga,
+.calendario-mes__celula--sobrecarga {
   border-color: var(--danger);
 }
 
@@ -124,8 +87,42 @@
   gap: var(--space-1);
 }
 
-.calendario-semana__dia-num {
+.calendario-semana__dia {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-height: 32px;
+  min-width: 32px;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.calendario-semana__dia:hover {
+  background: var(--surface-muted);
+}
+
+.calendario-semana__dia-semana {
+  display: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.calendario-semana__dia-num,
+.calendario-mes__dia-num {
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendario-semana__celula--hoje .calendario-semana__dia-num,
+.calendario-mes__celula--hoje .calendario-mes__dia-num {
+  color: var(--accent);
 }
 
 .calendario-semana__lista {
@@ -134,32 +131,76 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1);
   min-width: 0;
   width: 100%;
 }
 
 .calendario-semana__lista li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
   min-width: 0;
-  font-size: 0.85rem;
 }
 
-.calendario-semana__titulo {
-  display: block;
+/* Pílula de bloco/prazo: cor de prioridade no ponto + texto acessível */
+.calendario-pilula {
+  --pilula-cor: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.calendario-pilula:hover {
+  background: color-mix(in srgb, var(--pilula-cor) 14%, var(--surface-muted));
+}
+
+.calendario-pilula--alta {
+  --pilula-cor: var(--priority-alta);
+}
+
+.calendario-pilula--media {
+  --pilula-cor: var(--priority-media);
+}
+
+.calendario-pilula--baixa {
+  --pilula-cor: var(--priority-baixa);
+}
+
+.calendario-pilula__ponto {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--pilula-cor);
+}
+
+.calendario-pilula__icone {
+  flex-shrink: 0;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--pilula-cor);
+}
+
+.calendario-pilula__titulo {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
-  line-height: 1.25;
 }
 
-.calendario-semana__duracao {
+.calendario-pilula__duracao {
+  flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .calendario-mes__grade {
@@ -177,11 +218,16 @@
   padding: var(--space-2);
   text-align: left;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--panel);
   color: inherit;
   cursor: pointer;
   font: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.calendario-mes__celula:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
 
 .calendario-mes__celula--fora {
@@ -191,23 +237,14 @@
   pointer-events: none;
 }
 
-.calendario-mes__celula--selecionada {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.calendario-mes__celula--sobrecarga {
-  border-color: var(--danger);
-}
-
 .calendario-mes__dia-num {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .calendario-mes__marcadores {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.3rem;
   margin-top: auto;
 }
@@ -220,28 +257,41 @@
   background: var(--accent);
 }
 
-.calendario-indicador--prazo {
-  background: var(--warning, #c48a2a);
+.calendario-indicador--icone {
+  display: inline-flex;
 }
 
-.calendario-indicador--sobrecarga {
-  width: auto;
-  height: auto;
-  border-radius: var(--radius-sm);
-  padding: 0.1rem 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  background: var(--danger-bg, #f8d7da);
+.calendario-indicador--icone > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.calendario-indicador--prazo {
+  color: var(--warning);
+}
+
+.calendario-indicador--sobrecarga-icone {
   color: var(--danger);
 }
 
-.calendario-indicador--sobrecarga:empty {
-  width: 0.55rem;
-  height: 0.55rem;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--danger);
-  color: transparent;
+.calendario-indicador--sobrecarga {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  width: auto;
+  height: auto;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.calendario-indicador--sobrecarga > svg {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .calendario-painel {
@@ -257,8 +307,7 @@
 
 .calendario-painel__header h2 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
 }
 
 .calendario-painel__lista {
@@ -300,15 +349,33 @@
   color: var(--muted);
 }
 
-@media (max-width: 639px) {
-  .calendario-nav-periodo {
-    margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
+/* Mobile: semana vira lista por dia */
+@media (max-width: 639.98px) {
+  .calendario-semana__cabecalho {
+    display: none;
   }
 
-  .calendario-semana__cabecalho,
   .calendario-semana__grade {
-    grid-template-columns: repeat(7, minmax(7rem, 1fr));
+    display: flex;
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .calendario-semana__celula {
+    min-height: 0;
+  }
+
+  .calendario-semana__dia-semana {
+    display: inline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendario-semana,
+  .calendario-mes,
+  .calendario-semana__celula,
+  .calendario-mes__celula,
+  .calendario-pilula {
+    transition: none;
   }
 }

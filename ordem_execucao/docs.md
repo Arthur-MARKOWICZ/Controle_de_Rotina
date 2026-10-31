@@ -187,13 +187,38 @@ ui-projetos (#40 UI) → ui-projetos-experiencia (#46)
 
 ---
 
+## Pós-MVP — UI/UX v2 (visual moderno + interação fluida)
+
+Índice do épico: [`ui-v2-epico.md`](../plans/ui/ui-v2-epico.md) (diagnóstico + direção visual gerada com a skill `ui-ux-pro-max`).  
+Resolve “UI com cara de velha” (paleta bege, serifa, sem ícones) e “UX travada” (cascata de cargas, refetch após toda ação, saída da lista para editar).
+
+| Ordem | Plano | Status | Dependências | Por que nesta posição |
+|------:|-------|--------|--------------|------------------------|
+| 39 | [`ui-v2-fundacao-visual.md`](../plans/ui/ui-v2-fundacao-visual.md) | feito | design system (#3) | Tokens/fonte/ícones: muda a cara do app inteiro de uma vez |
+| 40 | [`ui-v2-shell-nav.md`](../plans/ui/ui-v2-shell-nav.md) | feito | 39 | Nav com ícones, topo global (Nova tarefa, XP), `PageHeader` |
+| 41 | [`ui-v2-hoje-fluida.md`](../plans/ui/ui-v2-hoje-fluida.md) | feito | 39, 40 | Tela mais usada; maior ganho de fluidez |
+| 42 | [`ui-v2-tarefas-drawer.md`](../plans/ui/ui-v2-tarefas-drawer.md) | feito | 39, 40 | Drawer + filtros instantâneos; cria a primitive `Drawer` |
+| 43 | [`ui-v2-capacidade.md`](../plans/ui/ui-v2-capacidade.md) | feito | 39, 40 | Fim da recarga total a cada ação |
+| 44 | [`ui-v2-telas-secundarias.md`](../plans/ui/ui-v2-telas-secundarias.md) | feito | 39, 40, 42 | Calendário, Histórico, Perfil, Auth, criação de projeto |
+
+```text
+fundacao-visual → shell-nav → hoje-fluida
+                            ↘ tarefas-drawer → telas-secundarias
+                            ↘ capacidade
+```
+
+`ui-projetos-experiencia.md` (#46): executar depois do item 39 para já nascer no visual v2.
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
 
 **Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos (não bloqueia calendário/projetos de domínio).  
-Em seguida na fila de domínio: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md) — se ainda pendente.
+Em seguida na fila de domínio: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md) — se ainda pendente.  
+**Foco UI/UX:** épico v2 — itens 39–44 feitos (épico concluído).
 
 ---
 

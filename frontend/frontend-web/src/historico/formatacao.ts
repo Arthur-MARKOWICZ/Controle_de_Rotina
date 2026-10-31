@@ -47,3 +47,14 @@ export function tituloDiaHistorico(dataIso: string, hojeIso: string): string {
   const diaMes = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
   return `${capitalizado}, ${diaMes}`
 }
+
+/** Título do card da semana: "Esta semana", "Semana passada" ou "Semana selecionada". */
+export function tituloSemanaHistorico(semanaInicioIso: string, semanaAtualIso: string): string {
+  if (semanaInicioIso === semanaAtualIso) {
+    return 'Esta semana'
+  }
+  if (semanaInicioIso === adicionarDiasIso(semanaAtualIso, -7)) {
+    return 'Semana passada'
+  }
+  return 'Semana selecionada'
+}

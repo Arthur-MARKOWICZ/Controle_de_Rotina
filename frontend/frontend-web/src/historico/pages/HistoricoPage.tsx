@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { ArrowDownIcon, ArrowUpIcon } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
@@ -9,14 +10,40 @@ import {
   inicioSemana,
 } from '../../capacidade/semana'
 import { InlineAlert } from '../../feedback/InlineAlert'
+import { Skeleton } from '../../feedback/Skeleton'
+import { PageHeader } from '../../layout/PageHeader'
+import { PeriodoNav } from '../../layout/PeriodoNav'
 import {
   consultarHistoricoDia,
   consultarHistoricoSemana,
   type HistoricoResumoResponse,
 } from '../api/historicoApi'
-import { formatarDataCurtaPtBr, formatarMinutosTrabalhados, tituloDiaHistorico } from '../formatacao'
+import {
+  formatarDataCurtaPtBr,
+  formatarMinutosTrabalhados,
+  tituloDiaHistorico,
+  tituloSemanaHistorico,
+} from '../formatacao'
 import { GraficoXpSemana, type PontoXpDia } from '../GraficoXpSemana'
 import { formatarVariacaoPercentual, variacaoPercentual } from '../variacao'
+
+type VisaoHistorico = 'dia' | 'semana'
+
+const VISOES: { valor: VisaoHistorico; label: string }[] = [
+  { valor: 'dia', label: 'Dia' },
+  { valor: 'semana', label: 'Semana' },
+]
+
+const REFERENCIA_COMPARACAO: Record<VisaoHistorico, string> = {
+  dia: 'dia anterior',
+  semana: 'semana passada',
+}
+
+type Resumos = {
+  atual: HistoricoResumoResponse
+  anterior: HistoricoResumoResponse
+  pontosXp: PontoXpDia[] | null
+}
 
 function mensagemErro(error: unknown, fallback: string): string {
   if (error instanceof ApiError || error instanceof Error) {
@@ -25,14 +52,7 @@ function mensagemErro(error: unknown, fallback: string): string {
   return fallback
 }
 
-function labelVsSemanaPassada(atual: number, anterior: number): string {
-  return `${formatarVariacaoPercentual(variacaoPercentual(atual, anterior))} vs. semana passada`
-}
-
-function resumoVazio(resumo: HistoricoResumoResponse | null): boolean {
-  if (!resumo) {
-    return false
-  }
+function resumoVazio(resumo: HistoricoResumoResponse): boolean {
   return (
     resumo.tarefasFinalizadas === 0 &&
     resumo.blocosConcluidos === 0 &&
@@ -41,88 +61,122 @@ function resumoVazio(resumo: HistoricoResumoResponse | null): boolean {
   )
 }
 
+async function carregarDia(dataDia: string): Promise<Resumos> {
+  const [atual, anterior] = await Promise.all([
+    consultarHistoricoDia(dataDia),
+    consultarHistoricoDia(adicionarDiasIso(dataDia, -1)),
+  ])
+  return { atual, anterior, pontosXp: null }
+}
+
+async function carregarSemana(semanaInicio: string): Promise<Resumos> {
+  const datasSemana = Array.from({ length: 7 }, (_, i) => adicionarDiasIso(semanaInicio, i))
+  const [atual, anterior, resumosDias] = await Promise.all([
+    consultarHistoricoSemana(semanaInicio),
+    consultarHistoricoSemana(adicionarDiasIso(semanaInicio, -7)),
+    Promise.all(datasSemana.map((data) => consultarHistoricoDia(data))),
+  ])
+  const pontosXp = datasSemana.map((data, i) => ({ data, xp: resumosDias[i].xpGanho }))
+  return { atual, anterior, pontosXp }
+}
+
+function Variacao({
+  atual,
+  anterior,
+  referencia,
+}: {
+  atual: number
+  anterior: number
+  referencia: string
+}) {
+  const variacao = variacaoPercentual(atual, anterior)
+  const tendencia =
+    variacao == null || variacao === 0 ? 'estavel' : variacao > 0 ? 'alta' : 'queda'
+  return (
+    <span className={`historico-variacao historico-variacao--${tendencia}`}>
+      {tendencia === 'alta' ? <ArrowUpIcon aria-hidden weight="bold" /> : null}
+      {tendencia === 'queda' ? <ArrowDownIcon aria-hidden weight="bold" /> : null}
+      {`${formatarVariacaoPercentual(variacao)} vs ${referencia}`}
+    </span>
+  )
+}
+
 function Metrica({
   rotulo,
   valor,
-  comparacao,
+  atual,
+  anterior,
+  referencia,
 }: {
   rotulo: string
   valor: string | number
-  comparacao?: string
+  atual: number
+  anterior: number
+  referencia: string
 }) {
   return (
     <div className="historico-metrica">
       <dt>{rotulo}</dt>
       <dd>
         <span className="historico-metrica__valor">{valor}</span>
-        {comparacao ? <span className="historico-variacao">{comparacao}</span> : null}
+        <Variacao atual={atual} anterior={anterior} referencia={referencia} />
       </dd>
     </div>
   )
 }
 
 function ResumoCard({
-  headingId,
   titulo,
   subtitulo,
   resumo,
-  comparacao,
-  empty,
+  anterior,
+  referencia,
 }: {
-  headingId: string
   titulo: string
   subtitulo: string
-  resumo: HistoricoResumoResponse | null
-  comparacao?: HistoricoResumoResponse | null
-  empty?: ReactNode
+  resumo: HistoricoResumoResponse
+  anterior: HistoricoResumoResponse
+  referencia: string
 }) {
-  const mostrarEmpty = resumo != null && resumoVazio(resumo) && empty
-
   return (
-    <section className="historico-card card" aria-labelledby={headingId}>
+    <section className="historico-card card" aria-labelledby="historico-resumo-titulo">
       <header>
-        <h2 id={headingId}>{titulo}</h2>
+        <h2 id="historico-resumo-titulo">{titulo}</h2>
         <p className="historico-periodo">{subtitulo}</p>
       </header>
-      {resumo == null ? (
-        <p className="historico-vazio">Carregando…</p>
-      ) : mostrarEmpty ? (
-        empty
+      {resumoVazio(resumo) ? (
+        <p className="historico-vazio" role="status">
+          Ainda sem atividade neste período. <Link to="/">Ver o plano de hoje</Link>
+        </p>
       ) : (
         <dl className="historico-metricas">
           <Metrica
             rotulo="Tarefas finalizadas"
             valor={resumo.tarefasFinalizadas}
-            comparacao={
-              comparacao
-                ? labelVsSemanaPassada(resumo.tarefasFinalizadas, comparacao.tarefasFinalizadas)
-                : undefined
-            }
+            atual={resumo.tarefasFinalizadas}
+            anterior={anterior.tarefasFinalizadas}
+            referencia={referencia}
           />
           <Metrica
             rotulo="Blocos concluídos"
             valor={resumo.blocosConcluidos}
-            comparacao={
-              comparacao
-                ? labelVsSemanaPassada(resumo.blocosConcluidos, comparacao.blocosConcluidos)
-                : undefined
-            }
+            atual={resumo.blocosConcluidos}
+            anterior={anterior.blocosConcluidos}
+            referencia={referencia}
           />
           <Metrica
             rotulo="Tempo trabalhado"
             valor={formatarMinutosTrabalhados(resumo.minutosTrabalhados)}
-            comparacao={
-              comparacao
-                ? labelVsSemanaPassada(resumo.minutosTrabalhados, comparacao.minutosTrabalhados)
-                : undefined
-            }
+            atual={resumo.minutosTrabalhados}
+            anterior={anterior.minutosTrabalhados}
+            referencia={referencia}
           />
           <Metrica
             rotulo="XP ganho"
             valor={`+${resumo.xpGanho} XP`}
-            comparacao={
-              comparacao ? labelVsSemanaPassada(resumo.xpGanho, comparacao.xpGanho) : undefined
-            }
+            atual={resumo.xpGanho}
+            anterior={anterior.xpGanho}
+            referencia={referencia}
           />
         </dl>
       )}
@@ -131,142 +185,113 @@ function ResumoCard({
 }
 
 export function HistoricoPage() {
+  const [visao, setVisao] = useState<VisaoHistorico>('semana')
   const [dataDia, setDataDia] = useState(() => formatarDataIso(new Date()))
   const [semanaInicio, setSemanaInicio] = useState(() => inicioSemana())
-  const [dia, setDia] = useState<HistoricoResumoResponse | null>(null)
-  const [semana, setSemana] = useState<HistoricoResumoResponse | null>(null)
-  const [semanaAnterior, setSemanaAnterior] = useState<HistoricoResumoResponse | null>(null)
-  const [pontosXp, setPontosXp] = useState<PontoXpDia[] | null>(null)
+  const [resumos, setResumos] = useState<Resumos | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
+  const [jaCarregou, setJaCarregou] = useState(false)
 
   useEffect(() => {
     let ativo = true
     setCarregando(true)
     setErro(null)
-    const semanaPassadaInicio = adicionarDiasIso(semanaInicio, -7)
-    const datasSemana = Array.from({ length: 7 }, (_, i) => adicionarDiasIso(semanaInicio, i))
-
-    Promise.all([
-      consultarHistoricoDia(dataDia),
-      consultarHistoricoSemana(semanaInicio),
-      consultarHistoricoSemana(semanaPassadaInicio),
-      Promise.all(datasSemana.map((data) => consultarHistoricoDia(data))),
-    ])
-      .then(([resumoDia, resumoSemana, resumoSemanaAnterior, resumosDias]) => {
-        if (!ativo) {
-          return
+    const carga = visao === 'dia' ? carregarDia(dataDia) : carregarSemana(semanaInicio)
+    carga
+      .then((proximos) => {
+        if (ativo) {
+          setResumos(proximos)
         }
-        setDia(resumoDia)
-        setSemana(resumoSemana)
-        setSemanaAnterior(resumoSemanaAnterior)
-        setPontosXp(
-          datasSemana.map((data, i) => ({
-            data,
-            xp: resumosDias[i].xpGanho,
-          })),
-        )
       })
       .catch((error) => {
         if (!ativo) {
           return
         }
         setErro(mensagemErro(error, 'Não foi possível carregar o histórico.'))
-        setDia(null)
-        setSemana(null)
-        setSemanaAnterior(null)
-        setPontosXp(null)
+        setResumos(null)
       })
       .finally(() => {
         if (ativo) {
           setCarregando(false)
+          setJaCarregou(true)
         }
       })
     return () => {
       ativo = false
     }
-  }, [dataDia, semanaInicio])
+  }, [visao, dataDia, semanaInicio])
 
   const hoje = formatarDataIso(new Date())
-  const podeAvancarDia = dataDia < hoje
-  const emptyMotivacional = (
-    <p className="historico-vazio" role="status">
-      Ainda sem atividade neste período.{' '}
-      <Link to="/">Ver o plano de hoje</Link>
-    </p>
-  )
+  const ehDia = visao === 'dia'
+  const recarregando = carregando && jaCarregou
+
+  function andar(direcao: -1 | 1) {
+    if (ehDia) {
+      setDataDia((atual) => adicionarDiasIso(atual, direcao))
+    } else {
+      setSemanaInicio((atual) => adicionarDiasIso(atual, direcao * 7))
+    }
+  }
+
+  function irParaHoje() {
+    if (ehDia) {
+      setDataDia(hoje)
+    } else {
+      setSemanaInicio(inicioSemana())
+    }
+  }
 
   return (
     <main className="historico-page">
-      <header className="historico-header">
-        <h1>Histórico</h1>
-        <p className="historico-subtitle">Progresso do dia e da semana</p>
-      </header>
+      <PageHeader
+        title="Histórico"
+        description="Progresso do dia e da semana"
+        actions={
+          <PeriodoNav
+            opcoes={VISOES}
+            visao={visao}
+            onVisaoChange={setVisao}
+            rotulo={
+              ehDia
+                ? formatarDataCurtaPtBr(dataDia)
+                : `Semana ${formatarIntervaloSemana(semanaInicio)}`
+            }
+            onAnterior={() => andar(-1)}
+            onProximo={() => andar(1)}
+            onHoje={irParaHoje}
+            rotuloAnterior={ehDia ? 'Dia anterior' : 'Semana anterior'}
+            rotuloProximo={ehDia ? 'Próximo dia' : 'Próxima semana'}
+            podeAvancar={!ehDia || dataDia < hoje}
+          />
+        }
+      />
 
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
-      {carregando ? <p className="historico-subtitle">Atualizando resumos…</p> : null}
 
-      <section className="historico-bloco" aria-label="Resumo do dia">
-        <div className="historico-nav-periodo" aria-label="Navegação do dia">
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => setDataDia(adicionarDiasIso(dataDia, -1))}
-          >
-            Dia anterior
-          </button>
-          <span className="historico-nav-periodo__label">{formatarDataCurtaPtBr(dataDia)}</span>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            disabled={!podeAvancarDia}
-            onClick={() => setDataDia(adicionarDiasIso(dataDia, 1))}
-          >
-            Próximo dia
-          </button>
+      {!jaCarregou ? <Skeleton variant="historico-metricas" /> : null}
+
+      {jaCarregou && resumos ? (
+        <div
+          className={
+            recarregando ? 'historico-conteudo historico-conteudo--recarregando' : 'historico-conteudo'
+          }
+          aria-busy={recarregando || undefined}
+        >
+          <ResumoCard
+            titulo={
+              ehDia ? tituloDiaHistorico(dataDia, hoje) : tituloSemanaHistorico(semanaInicio, inicioSemana())
+            }
+            subtitulo={ehDia ? formatarDataCurtaPtBr(dataDia) : formatarIntervaloSemana(semanaInicio)}
+            resumo={resumos.atual}
+            anterior={resumos.anterior}
+            referencia={REFERENCIA_COMPARACAO[visao]}
+          />
+          {!ehDia && resumos.pontosXp ? (
+            <GraficoXpSemana pontos={resumos.pontosXp} hojeIso={hoje} />
+          ) : null}
         </div>
-
-        <ResumoCard
-          headingId="historico-dia-titulo"
-          titulo={tituloDiaHistorico(dataDia, hoje)}
-          subtitulo={formatarDataCurtaPtBr(dataDia)}
-          resumo={dia}
-          empty={emptyMotivacional}
-        />
-      </section>
-
-      <section className="historico-bloco" aria-label="Resumo da semana">
-        <div className="historico-nav-periodo" aria-label="Navegação da semana">
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => setSemanaInicio(adicionarDiasIso(semanaInicio, -7))}
-          >
-            Semana anterior
-          </button>
-          <span className="historico-nav-periodo__label">
-            Semana {formatarIntervaloSemana(semanaInicio)}
-          </span>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => setSemanaInicio(adicionarDiasIso(semanaInicio, 7))}
-          >
-            Próxima semana
-          </button>
-        </div>
-
-        <ResumoCard
-          headingId="historico-semana-titulo"
-          titulo="Esta semana"
-          subtitulo={formatarIntervaloSemana(semanaInicio)}
-          resumo={semana}
-          comparacao={semanaAnterior}
-          empty={emptyMotivacional}
-        />
-
-        {pontosXp ? <GraficoXpSemana pontos={pontosXp} /> : null}
-      </section>
+      ) : null}
     </main>
   )
 }

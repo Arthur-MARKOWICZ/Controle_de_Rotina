@@ -1,16 +1,79 @@
+import { LightningIcon, SignOutIcon } from '@phosphor-icons/react'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { InlineAlert } from '../../feedback/InlineAlert'
+import { Skeleton } from '../../feedback/Skeleton'
+import { PageHeader } from '../../layout/PageHeader'
 import { ThemePreferenceField } from '../../theme/ThemePreferenceField'
-import { ApiError } from '../api/authApi'
+import type { XpProgresso } from '../../xp/types'
+import { ApiError, type UsuarioResponse } from '../api/authApi'
 import { atualizarMe, buscarMe } from '../api/meApi'
 import { CampoSenha } from '../components/CampoSenha'
+import { useAuth } from '../session/AuthContext'
 import { isEmailValido } from '../validation/email'
 import { isSenhaForte } from '../validation/senhaForte'
 
+function progressoDe(usuario: UsuarioResponse): XpProgresso {
+  return {
+    xpTotal: usuario.xpTotal,
+    nivel: usuario.nivel,
+    xpNoNivel: usuario.xpNoNivel,
+    xpParaProximoNivel: usuario.xpParaProximoNivel,
+  }
+}
+
+function ProgressoXp({ progresso }: { progresso: XpProgresso }) {
+  const { nivel, xpNoNivel, xpParaProximoNivel, xpTotal } = progresso
+  const pct =
+    xpParaProximoNivel > 0 ? Math.min(100, Math.round((xpNoNivel / xpParaProximoNivel) * 100)) : 0
+  const faltam = Math.max(0, xpParaProximoNivel - xpNoNivel)
+
+  return (
+    <section className="card perfil-card" aria-labelledby="perfil-progresso-titulo">
+      <h2 id="perfil-progresso-titulo" className="perfil-card__titulo">
+        Progresso
+      </h2>
+      <div className="perfil-xp">
+        <p className="perfil-xp__nivel">
+          <LightningIcon aria-hidden weight="fill" />
+          Nível {nivel}
+        </p>
+        <div
+          className="perfil-xp__track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={xpParaProximoNivel}
+          aria-valuenow={xpNoNivel}
+          aria-label={`${xpNoNivel} de ${xpParaProximoNivel} XP no nível ${nivel}`}
+        >
+          <div className="perfil-xp__fill" style={{ width: `${pct}%` }} />
+        </div>
+        <dl className="perfil-xp__numeros">
+          <div>
+            <dt>No nível</dt>
+            <dd>
+              {xpNoNivel} / {xpParaProximoNivel} XP
+            </dd>
+          </div>
+          <div>
+            <dt>Para o nível {nivel + 1}</dt>
+            <dd>{faltam} XP</dd>
+          </div>
+          <div>
+            <dt>XP total</dt>
+            <dd>{xpTotal} XP</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  )
+}
+
 export function PerfilPage() {
+  const { logout } = useAuth()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
+  const [progresso, setProgresso] = useState<XpProgresso | null>(null)
   const [senhaAtual, setSenhaAtual] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
@@ -30,6 +93,7 @@ export function PerfilPage() {
         }
         setNome(me.nome)
         setEmail(me.email)
+        setProgresso(progressoDe(me))
       } catch {
         if (ativo) {
           setErro('Não foi possível carregar o perfil.')
@@ -87,6 +151,7 @@ export function PerfilPage() {
       })
       setNome(atualizado.nome)
       setEmail(atualizado.email)
+      setProgresso(progressoDe(atualizado))
       setSenhaAtual('')
       setNovaSenha('')
       setConfirmacao('')
@@ -104,103 +169,122 @@ export function PerfilPage() {
     }
   }
 
-  if (carregando) {
-    return (
-      <main className="auth-page">
-        <section className="auth-panel card" aria-busy="true">
-          <h1>Meu perfil</h1>
-          <ThemePreferenceField />
-          <p>Carregando perfil…</p>
-        </section>
-      </main>
-    )
-  }
-
   return (
-    <main className="auth-page">
-      <section className="auth-panel card">
-        <h1>Meu perfil</h1>
-        <p className="auth-subtitle">
-          Atualize seus dados. A senha atual é obrigatória para confirmar qualquer alteração.
-        </p>
+    <main className="perfil-page">
+      <PageHeader title="Meu perfil" description="Sua conta, a aparência do app e o seu progresso." />
 
-        <ThemePreferenceField />
-
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <fieldset className="perfil-secao">
-            <legend>Dados</legend>
-            <div className="field">
-              <label htmlFor="nome">Nome</label>
-              <input
-                id="nome"
-                name="nome"
-                type="text"
-                autoComplete="name"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </fieldset>
-
-          <fieldset className="perfil-secao">
-            <legend>Confirmar identidade</legend>
-            <CampoSenha
-              id="senhaAtual"
-              label="Senha atual"
-              value={senhaAtual}
-              onChange={setSenhaAtual}
-              autoComplete="current-password"
-              required
-            />
-          </fieldset>
-
-          <fieldset className="perfil-secao">
-            <legend>Nova senha (opcional)</legend>
-            <CampoSenha
-              id="novaSenha"
-              label="Nova senha"
-              value={novaSenha}
-              onChange={setNovaSenha}
-              autoComplete="new-password"
-              mostrarChecklist={novaSenha.length > 0}
-            />
-
-            <CampoSenha
-              id="confirmacao"
-              label="Confirmar nova senha"
-              value={confirmacao}
-              onChange={setConfirmacao}
-              autoComplete="new-password"
-            />
-          </fieldset>
-
-          {erro ? <InlineAlert>{erro}</InlineAlert> : null}
-
-          {sucesso ? (
-            <p className="auth-success" role="status">
-              {sucesso}
+      {carregando ? (
+        <Skeleton variant="perfil-secoes" />
+      ) : (
+        <div className="perfil-grid">
+          <section className="card perfil-card" aria-labelledby="perfil-conta-titulo">
+            <header className="perfil-card__header">
+              <h2 id="perfil-conta-titulo" className="perfil-card__titulo">
+                Conta
+              </h2>
+              <button
+                type="button"
+                className="btn btn--ghost btn--danger btn--sm"
+                onClick={() => void logout()}
+              >
+                <SignOutIcon aria-hidden />
+                Sair
+              </button>
+            </header>
+            <p className="perfil-card__descricao">
+              A senha atual é obrigatória para confirmar qualquer alteração.
             </p>
-          ) : null}
 
-          <button type="submit" className="btn btn--primary" disabled={enviando}>
-            {enviando ? 'Salvando…' : 'Salvar'}
-          </button>
-        </form>
-      </section>
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              <fieldset className="perfil-secao">
+                <legend>Dados</legend>
+                <div className="field">
+                  <label htmlFor="nome">Nome</label>
+                  <input
+                    id="nome"
+                    name="nome"
+                    type="text"
+                    autoComplete="name"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </fieldset>
+
+              <fieldset className="perfil-secao">
+                <legend>Confirmar identidade</legend>
+                <CampoSenha
+                  id="senhaAtual"
+                  label="Senha atual"
+                  value={senhaAtual}
+                  onChange={setSenhaAtual}
+                  autoComplete="current-password"
+                  required
+                />
+              </fieldset>
+
+              <fieldset className="perfil-secao">
+                <legend>Nova senha (opcional)</legend>
+                <CampoSenha
+                  id="novaSenha"
+                  label="Nova senha"
+                  value={novaSenha}
+                  onChange={setNovaSenha}
+                  autoComplete="new-password"
+                  mostrarChecklist={novaSenha.length > 0}
+                />
+
+                <CampoSenha
+                  id="confirmacao"
+                  label="Confirmar nova senha"
+                  value={confirmacao}
+                  onChange={setConfirmacao}
+                  autoComplete="new-password"
+                />
+              </fieldset>
+
+              {erro ? <InlineAlert>{erro}</InlineAlert> : null}
+
+              {sucesso ? (
+                <p className="auth-success" role="status">
+                  {sucesso}
+                </p>
+              ) : null}
+
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={enviando}
+                aria-busy={enviando}
+              >
+                {enviando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </form>
+          </section>
+
+          <div className="perfil-grid__lateral">
+            {progresso ? <ProgressoXp progresso={progresso} /> : null}
+
+            <section className="card perfil-card perfil-card--aparencia">
+              <ThemePreferenceField />
+            </section>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

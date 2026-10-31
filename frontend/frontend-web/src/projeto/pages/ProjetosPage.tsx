@@ -1,5 +1,6 @@
+import { CheckIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
@@ -13,6 +14,9 @@ import {
   type PageProjeto,
   type StatusProjeto,
 } from '../api/projetoApi'
+import type { ProjetoDrawerState } from '../ProjetoDrawer'
+
+const DRAWER_STATE: ProjetoDrawerState = { daLista: true }
 
 const STATUS_LABEL: Record<StatusProjeto, string> = {
   ATIVO: 'Ativo',
@@ -46,6 +50,7 @@ function truncarDescricao(descricao: string | null, max = 120): string | null {
 export function ProjetosPage() {
   const toast = useToast()
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const status = lerStatusDaUrl(searchParams)
   const page = lerPageDaUrl(searchParams)
@@ -148,6 +153,7 @@ export function ProjetosPage() {
   const listaVazia = !carregando && resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && status === 'ATIVO'
   const totalPages = resultado?.totalPages ?? 0
+  const novoProjeto = { pathname: '/projetos/nova', search: location.search }
 
   return (
     <main className="projetos-page">
@@ -163,7 +169,7 @@ export function ProjetosPage() {
           <Link to="/capacidade" className="btn btn--secondary">
             Capacidade
           </Link>
-          <Link to="/projetos/nova" className="btn btn--primary">
+          <Link to={novoProjeto} state={DRAWER_STATE} className="btn btn--primary">
             Novo projeto
           </Link>
         </div>
@@ -178,6 +184,7 @@ export function ProjetosPage() {
             aria-pressed={status === visao.id}
             onClick={() => aplicarVisao(visao.id)}
           >
+            {status === visao.id ? <CheckIcon aria-hidden /> : null}
             {visao.label}
           </button>
         ))}
@@ -198,7 +205,7 @@ export function ProjetosPage() {
               {emptyPrimeira ? (
                 <>
                   <p>Nenhum projeto ainda.</p>
-                  <Link to="/projetos/nova" className="btn btn--primary">
+                  <Link to={novoProjeto} state={DRAWER_STATE} className="btn btn--primary">
                     Criar primeiro projeto
                   </Link>
                 </>
@@ -248,6 +255,7 @@ export function ProjetosPage() {
                         to={`/projetos/${projeto.id}`}
                         className="btn btn--ghost btn--sm"
                       >
+                        <PencilSimpleIcon aria-hidden />
                         Editar
                       </Link>
                       <Link
@@ -310,6 +318,8 @@ export function ProjetosPage() {
           ) : null}
         </>
       ) : null}
+
+      <Outlet />
     </main>
   )
 }

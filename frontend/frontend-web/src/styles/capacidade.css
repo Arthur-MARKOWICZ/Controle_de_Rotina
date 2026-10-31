@@ -4,40 +4,14 @@
   min-width: 0;
 }
 
-.capacidade-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.capacidade-header h1 {
-  margin: 0;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.85rem;
-  font-weight: 600;
-}
-
-.capacidade-subtitle {
-  margin: 0.35rem 0 0;
-  color: var(--muted);
+.capacidade-page--sujo {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0));
 }
 
 .capacidade-total {
-  margin: 0;
-  font-size: 1.15rem;
   font-weight: 650;
+  color: var(--ink);
   white-space: nowrap;
-}
-
-.capacidade-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
 }
 
 .capacidade-presets {
@@ -48,15 +22,25 @@
 
 .capacidade-grade {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0.65rem;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.capacidade-grade--recarregando {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .capacidade-celula {
   display: grid;
+  min-width: 0;
   gap: var(--space-2);
   align-content: start;
   padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
 }
 
 .capacidade-celula-topo {
@@ -91,38 +75,62 @@
   min-height: 0;
   background: var(--accent);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: height 160ms ease;
+  transition: height var(--dur-base) var(--ease-out);
 }
 
 .capacidade-celula-override .capacidade-barra {
-  background: color-mix(in srgb, var(--accent) 70%, var(--danger));
+  background: color-mix(in srgb, var(--accent) 70%, var(--warning));
 }
 
 .capacidade-horas {
   margin: 0;
   text-align: center;
-  font-size: 1.1rem;
-  font-weight: 650;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .capacidade-stepper {
   display: flex;
   justify-content: center;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.capacidade-horas-input {
+  display: flex;
+  align-items: center;
+}
+
+.capacidade-horas-input input {
+  width: 3.25rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  padding: 0.35rem 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .capacidade-semana-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin: var(--space-4) 0;
 }
 
 .capacidade-semana-label {
   margin: 0;
-  font-weight: 600;
+  min-width: 7rem;
+  text-align: center;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .capacidade-data-celula {
@@ -140,7 +148,7 @@
 }
 
 .capacidade-celula-override {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   box-shadow: var(--shadow-inset-accent);
 }
 
@@ -151,8 +159,15 @@
   padding: 0.15rem 0.4rem;
 }
 
+.badge-padrao {
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--muted);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+}
+
 .capacidade-hint {
-  margin: 0.5rem 0 0;
+  margin: 0 0 var(--space-3);
   font-size: 0.9rem;
   color: var(--muted);
   max-width: 36rem;
@@ -169,6 +184,21 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--accent-soft);
+}
+
+.capacidade-proposta-cta__corpo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.capacidade-proposta-cta__icone {
+  flex-shrink: 0;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  margin-top: 0.1rem;
+  color: var(--accent);
 }
 
 .capacidade-proposta-cta p {
@@ -217,6 +247,10 @@
   gap: 0.35rem;
 }
 
+.capacidade-reservas__item--pendente {
+  opacity: 0.7;
+}
+
 .capacidade-reservas__nome {
   font-size: 0.82rem;
   font-weight: 600;
@@ -247,29 +281,72 @@
   gap: 0.35rem;
 }
 
-@media (max-width: 48rem) {
+.capacidade-salvar-barra {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow-md);
+}
+
+.capacidade-salvar-barra__texto {
+  margin: 0;
+  font-weight: 650;
+}
+
+.capacidade-salvar-barra__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 639.98px) {
+  .capacidade-page--sujo {
+    padding-bottom: calc(
+      4.5rem + var(--app-shell-bottom-height, 4rem) + env(safe-area-inset-bottom, 0)
+    );
+  }
+
+  .capacidade-salvar-barra {
+    bottom: calc(var(--app-shell-bottom-height, 4rem) + env(safe-area-inset-bottom, 0));
+  }
+
   .capacidade-grade {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.35rem;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
   }
 
   .capacidade-dia-longo {
-    display: none;
-  }
-
-  .capacidade-dia-curto {
     display: inline;
   }
 
-  .capacidade-celula {
-    padding: var(--space-2);
+  .capacidade-dia-curto {
+    display: none;
   }
 
   .capacidade-barra-wrap {
     height: 4.5rem;
   }
+}
 
-  .capacidade-celula .btn--sm {
-    padding-inline: 0.45rem;
+@media (min-width: 640px) and (max-width: 48rem) {
+  .capacidade-barra-wrap {
+    height: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capacidade-grade,
+  .capacidade-barra {
+    transition: none;
   }
 }

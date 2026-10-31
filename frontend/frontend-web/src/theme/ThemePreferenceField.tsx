@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 import { useTheme } from './ThemeProvider'
 import type { PreferenciaTema } from './themePreference'
 
@@ -9,6 +11,7 @@ const OPCOES: { value: PreferenciaTema; label: string; hint: string }[] = [
 
 export function ThemePreferenceField() {
   const { preferencia, setPreferencia } = useTheme()
+  const grupo = useId()
 
   return (
     <fieldset className="perfil-secao">
@@ -18,7 +21,7 @@ export function ThemePreferenceField() {
           <label key={opcao.value} className="theme-option">
             <input
               type="radio"
-              name="tema"
+              name={grupo}
               value={opcao.value}
               checked={preferencia === opcao.value}
               onChange={() => setPreferencia(opcao.value)}

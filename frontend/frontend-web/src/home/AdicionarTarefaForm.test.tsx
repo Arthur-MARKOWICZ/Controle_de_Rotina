@@ -55,4 +55,27 @@ describe('AdicionarTarefaForm', () => {
     expect(screen.getByRole('option', { name: /correr no parque/i })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /ler docs/i })).not.toBeInTheDocument()
   })
+
+  it('combobox: setas do teclado selecionam entre as opções filtradas', async () => {
+    const user = userEvent.setup()
+    const onSelecionar = vi.fn()
+
+    render(
+      <AdicionarTarefaForm
+        elegiveis={elegiveis}
+        tarefaSelecionadaId="t-2"
+        carregandoElegiveis={false}
+        adicionando={false}
+        onSelecionar={onSelecionar}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+
+    const combobox = screen.getByRole('combobox', { name: /buscar tarefa/i })
+    expect(combobox).toHaveAttribute('aria-activedescendant', 'plano-tarefa-opcao-t-2')
+
+    combobox.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(onSelecionar).toHaveBeenLastCalledWith('t-3')
+  })
 })

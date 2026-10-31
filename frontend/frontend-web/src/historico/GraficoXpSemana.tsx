@@ -7,9 +7,17 @@ export type PontoXpDia = {
 
 type GraficoXpSemanaProps = {
   pontos: PontoXpDia[]
+  hojeIso?: string
 }
 
-export function GraficoXpSemana({ pontos }: GraficoXpSemanaProps) {
+function classeBarra(ponto: PontoXpDia, hoje: boolean): string {
+  if (ponto.xp <= 0) {
+    return 'historico-grafico__barra historico-grafico__barra--vazia'
+  }
+  return hoje ? 'historico-grafico__barra historico-grafico__barra--hoje' : 'historico-grafico__barra'
+}
+
+export function GraficoXpSemana({ pontos, hojeIso }: GraficoXpSemanaProps) {
   const maxXp = Math.max(1, ...pontos.map((p) => p.xp))
 
   return (
@@ -19,16 +27,20 @@ export function GraficoXpSemana({ pontos }: GraficoXpSemanaProps) {
 
       <div className="historico-grafico__plot" role="img" aria-hidden="true">
         {pontos.map((ponto) => {
+          const hoje = ponto.data === hojeIso
           const alturaPct = ponto.xp > 0 ? Math.max((ponto.xp / maxXp) * 100, 4) : 0
           return (
-            <div key={ponto.data} className="historico-grafico__coluna" title={`${ponto.xp} XP`}>
+            <div
+              key={ponto.data}
+              className={
+                hoje ? 'historico-grafico__coluna historico-grafico__coluna--hoje' : 'historico-grafico__coluna'
+              }
+              title={`${ponto.xp} XP`}
+            >
+              <span className="historico-grafico__valor">{ponto.xp}</span>
               <div className="historico-grafico__trilha">
                 <div
-                  className={
-                    ponto.xp > 0
-                      ? 'historico-grafico__barra'
-                      : 'historico-grafico__barra historico-grafico__barra--vazia'
-                  }
+                  className={classeBarra(ponto, hoje)}
                   style={{ height: ponto.xp > 0 ? `${alturaPct}%` : '2px' }}
                 />
               </div>

@@ -39,11 +39,13 @@ describe('LoginPage', () => {
     vi.mocked(authApi.login).mockReset()
   })
 
-  it('exibe proposta de valor na tela pública', () => {
+  it('exibe marca e proposta de valor na tela pública', () => {
     renderLogin()
+    expect(screen.getByText('Rotina')).toBeInTheDocument()
     expect(
-      screen.getByText(/diga o que precisa fazer; o sistema monta o plano/i),
+      screen.getByText('Diga o que precisa fazer; o plano do dia sai pronto.'),
     ).toBeInTheDocument()
+    expect(document.querySelector('main.auth-page')).toBeInTheDocument()
   })
 
   it('mostra erro genérico quando as credenciais são inválidas', async () => {
@@ -57,6 +59,56 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/credenciais inválidas/i)
     expect(getAccessToken()).toBeNull()
+  })
+
+  it('T5: erro de credencial foca o primeiro campo inválido; inputs têm autocomplete corretos', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new authApi.ApiError(401, 'Credenciais inválidas.'))
+    const user = userEvent.setup()
+    renderLogin()
+
+    const email = screen.getByLabelText(/^email$/i)
+    const senha = screen.getByLabelText(/^senha$/i)
+    expect(email).toHaveAttribute('autocomplete', 'email')
+    expect(senha).toHaveAttribute('autocomplete', 'current-password')
+
+    await user.type(email, 'ana@email.com')
+    await user.type(senha, 'Errada@123')
+    await user.click(screen.getByRole('button', { name: /entrar/i }))
+
+    await waitFor(() => expect(senha).toHaveFocus())
+    expect(senha).toHaveAttribute('aria-invalid', 'true')
+    expect(senha).toHaveAccessibleDescription(/credenciais inválidas/i)
+    expect(email).not.toHaveAttribute('aria-invalid')
+    expect(senha).toBeEnabled()
+
+    await user.type(senha, 'x')
+    expect(senha).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('validação local mostra erros por campo e foca o primeiro (email)', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+
+    await user.click(screen.getByRole('button', { name: /entrar/i }))
+
+    const email = screen.getByLabelText(/^email$/i)
+    expect(email).toHaveFocus()
+    expect(email).toHaveAccessibleDescription('Informe um email válido.')
+    expect(screen.getByLabelText(/^senha$/i)).toHaveAccessibleDescription('Informe a senha.')
+    expect(authApi.login).not.toHaveBeenCalled()
+  })
+
+  it('mostrar/ocultar senha usa botão com nome acessível', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+
+    const senha = screen.getByLabelText(/^senha$/i)
+    await user.click(screen.getByRole('button', { name: 'Mostrar senha' }))
+    expect(senha).toHaveAttribute('type', 'text')
+    expect(screen.getByRole('button', { name: 'Ocultar senha' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('guarda access token e redireciona após login', async () => {

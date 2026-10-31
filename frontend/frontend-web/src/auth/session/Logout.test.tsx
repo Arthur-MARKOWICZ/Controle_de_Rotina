@@ -9,6 +9,7 @@ import * as meApi from '../api/meApi'
 import { AuthProvider } from './AuthContext'
 import { clearAccessToken, getAccessToken, setAccessToken } from '../session/tokenStore'
 import { AppShell } from '../../layout/AppShell'
+import { ThemeProvider } from '../../theme/ThemeProvider'
 
 vi.mock('../api/authApi', () => ({
   logout: vi.fn(),
@@ -50,25 +51,28 @@ describe('Logout', () => {
     const user = userEvent.setup()
 
     render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <Routes>
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppShell />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<p>Conteúdo protegido</p>} />
-            </Route>
-            <Route path="/login" element={<p>Tela de login</p>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
     )
 
-    await user.click(screen.getAllByRole('button', { name: /sair/i })[0])
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    await user.click(screen.getByRole('button', { name: /sair/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Tela de login')).toBeInTheDocument()
