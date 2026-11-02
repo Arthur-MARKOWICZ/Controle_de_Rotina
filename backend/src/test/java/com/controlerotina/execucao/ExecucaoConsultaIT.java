@@ -153,6 +153,20 @@ class ExecucaoConsultaIT {
         assertThat(((Map) itens.get(1).get("bloco")).get("id")).isEqualTo(bloco2.toString());
         assertThat(((Map) itens.get(1).get("execucao")).get("status")).isEqualTo("NAO_INICIADO");
         assertThat(((Map) itens.get(0).get("tarefaResumo")).get("id")).isEqualTo(tarefaId.toString());
+
+        // Rascunho com versão maior torna o APROVADO não-corrente: listagem fica vazia.
+        planoRepository.save(new Plano(
+                UUID.randomUUID(), usuarioId, DIA, 2, StatusPlano.RASCUNHO,
+                false, null, null, AGORA, AGORA, AGORA
+        ));
+        ResponseEntity<Map> comRascunhoMaisNovo = restTemplate.exchange(
+                "/execucoes?data=" + DIA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(comRascunhoMaisNovo.getStatusCode()).isEqualTo(OK);
+        assertThat(comRascunhoMaisNovo.getBody().get("planoAprovado")).isNull();
+        assertThat((List<?>) comRascunhoMaisNovo.getBody().get("itens")).isEmpty();
     }
 
     private UUID salvarTarefa(String titulo, int duracaoMinutos) {

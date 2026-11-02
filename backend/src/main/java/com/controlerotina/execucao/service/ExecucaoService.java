@@ -56,6 +56,11 @@ import com.controlerotina.xp.service.XpConcessaoService;
 @Service
 public class ExecucaoService {
 
+    private static final List<StatusPlano> STATUS_CORRENTE = List.of(
+            StatusPlano.RASCUNHO,
+            StatusPlano.APROVADO
+    );
+
     private static final Set<StatusTarefa> STATUS_PARA_EM_PROGRESSO = Set.of(
             StatusTarefa.PENDENTE,
             StatusTarefa.ATRASADA
@@ -329,11 +334,12 @@ public class ExecucaoService {
                 : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
 
         Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
-                        usuarioId, dataConsulta, StatusPlano.APROVADO)
+                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        usuarioId, dataConsulta, STATUS_CORRENTE)
                 .orElse(null);
 
-        if (corrente == null) {
+        // Corrente = maior versão RASCUNHO/APROVADO; só lista se essa corrente estiver APROVADO.
+        if (corrente == null || corrente.getStatus() != StatusPlano.APROVADO) {
             return new ExecucoesDoDiaResponse(null, List.of());
         }
 
@@ -483,12 +489,13 @@ public class ExecucaoService {
             throw new PlanoNaoExecutavelException();
         }
 
-        Plano vigente = planoRepository
-                .findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
-                        plano.getUsuarioId(), plano.getData(), StatusPlano.APROVADO)
+        // Corrente do dia = maior versão entre RASCUNHO/APROVADO (não o maior APROVADO isolado).
+        Plano corrente = planoRepository
+                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        plano.getUsuarioId(), plano.getData(), STATUS_CORRENTE)
                 .orElseThrow(PlanoNaoExecutavelException::new);
 
-        if (!vigente.getId().equals(plano.getId())) {
+        if (!corrente.getId().equals(plano.getId())) {
             throw new PlanoNaoExecutavelException();
         }
         return plano;
