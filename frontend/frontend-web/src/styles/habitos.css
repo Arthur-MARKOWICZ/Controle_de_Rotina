@@ -302,7 +302,7 @@
 }
 
 .calendario-pilula--habito {
-  --pilula-accent: var(--accent, #2f6fed);
+  --pilula-accent: var(--accent);
 }
 
 .calendario-pilula--cumprido {
@@ -313,9 +313,9 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 999px;
-  background: var(--accent, #2f6fed);
+  background: var(--accent);
 }
 
 .calendario-indicador--habito-ok {
-  background: var(--success, #1f8a4c);
+  background: var(--success);
 }
