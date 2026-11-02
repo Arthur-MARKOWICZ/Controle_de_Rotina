@@ -1,0 +1,60 @@
+# Produção na VPS (GitHub Actions). Dev local continua em docker-compose.yml.
+# Isolado do controle-gastos: project-name, volume, portas e pasta /srv distintos.
+name: controle-rotina
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-controle_rotina}
+      POSTGRES_USER: ${POSTGRES_USER:-controle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-test-only}
+    ports:
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    image: controle-rotina-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-controle_rotina}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-controle}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-change-me-test-only}
+      APP_SECURITY_JWT_SECRET: ${APP_SECURITY_JWT_SECRET:-}
+    ports:
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    image: controle-rotina-frontend:latest
+    build:
+      context: ./frontend/frontend-web
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:9080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

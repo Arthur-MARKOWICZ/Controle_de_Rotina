@@ -1,0 +1,271 @@
+name: Validar e implantar aplicação
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-controle-rotina-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validar e testar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Configurar Java 25
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Configurar Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/frontend-web/package-lock.json
+
+      - name: Testar backend
+        working-directory: backend
+        run: mvn -B test
+
+      - name: Testar frontend
+        working-directory: frontend/frontend-web
+        run: |
+          set -Eeuo pipefail
+          npm ci
+          npm test
+          npm run build
+
+  deploy:
+    name: Construir e publicar em produção
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Construir imagens
+        env:
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$PUBLIC_APP_URL"
+          case "$PUBLIC_APP_URL" in
+            https://*) ;;
+            *) echo "PUBLIC_APP_URL deve iniciar com https://" >&2; exit 1 ;;
+          esac
+          APP_DOMAIN="${PUBLIC_APP_URL#https://}"
+          case "$APP_DOMAIN" in
+            ""|*/*|*:*|*\?*|*\#*)
+              echo "PUBLIC_APP_URL deve conter somente https:// seguido do domínio" >&2
+              exit 1
+              ;;
+          esac
+          printf '%s' "$APP_DOMAIN" \
+            | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$' \
+            || { echo "PUBLIC_APP_URL deve conter um domínio completo válido" >&2; exit 1; }
+          docker build --pull --tag controle-rotina-backend:latest backend &
+          backend_pid=$!
+          docker build --pull --tag controle-rotina-frontend:latest frontend/frontend-web &
+          frontend_pid=$!
+          wait "$backend_pid"
+          wait "$frontend_pid"
+
+      - name: Configurar SSH
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$DEPLOY_SSH_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          umask 077
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Preparar diretório na VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_PORT"
+          test -n "$DEPLOY_USER"
+          test "$DEPLOY_USER" = deploy
+          readonly SSH=(ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST")
+          "${SSH[@]}" true
+          "${SSH[@]}" '
+            set -eu
+            if [ ! -d /srv/controle-rotina ]; then
+              sudo -n /usr/bin/install -d -o deploy -g deploy -m 0750 /srv/controle-rotina || {
+                echo "Não foi possível criar /srv/controle-rotina. Configure o sudo NOPASSWD documentado." >&2
+                exit 1
+              }
+            fi
+            if [ ! -w /srv/controle-rotina ]; then
+              echo "O usuário deploy não pode escrever em /srv/controle-rotina." >&2
+              exit 1
+            fi
+          '
+
+      - name: Enviar e validar Compose
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -Eeuo pipefail
+          readonly SSH=(ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST")
+          readonly SCP=(scp -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT")
+          "${SCP[@]}" compose.yaml "$DEPLOY_USER@$DEPLOY_HOST:/srv/controle-rotina/compose.yaml.next"
+          "${SSH[@]}" '
+            set -eu
+            cd /srv/controle-rotina
+            trap "rm -f compose.yaml.next" EXIT
+            chmod 0640 compose.yaml.next
+            COMPOSE_DISABLE_ENV_FILE=1 \
+            POSTGRES_DB=controle_rotina \
+            POSTGRES_USER=controle \
+            POSTGRES_PASSWORD=validation-only-password \
+            POSTGRES_BIND_ADDRESS=127.0.0.1 \
+            BACKEND_BIND_ADDRESS=127.0.0.1 \
+            FRONTEND_BIND_ADDRESS=127.0.0.1 \
+            SPRING_PROFILES_ACTIVE=prod \
+            APP_SECURITY_JWT_SECRET=validation-only-jwt-secret-at-least-32-bytes \
+              docker compose --project-name controle-rotina -f compose.yaml.next config --quiet
+            mv -f compose.yaml.next compose.yaml
+            trap - EXIT
+          '
+
+      - name: Enviar imagens e atualizar containers
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_SECURITY_JWT_SECRET: ${{ secrets.APP_SECURITY_JWT_SECRET }}
+        run: |
+          set -Eeuo pipefail
+          set +x
+          test -n "$PUBLIC_APP_URL"
+          test -n "$POSTGRES_DB"
+          test -n "$POSTGRES_USER"
+          test -n "$POSTGRES_PASSWORD"
+          test "${#APP_SECURITY_JWT_SECRET}" -ge 32
+          case "$PUBLIC_APP_URL" in
+            https://*) ;;
+            *) echo "PUBLIC_APP_URL deve iniciar com https://" >&2; exit 1 ;;
+          esac
+          APP_DOMAIN="${PUBLIC_APP_URL#https://}"
+          printf '%s' "$APP_DOMAIN" \
+            | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$' \
+            || { echo "PUBLIC_APP_URL deve conter um domínio completo válido" >&2; exit 1; }
+          case "$POSTGRES_DB" in
+            *[!A-Za-z0-9_]*) echo "POSTGRES_DB aceita apenas letras, números e underscore" >&2; exit 1 ;;
+          esac
+          case "$POSTGRES_USER" in
+            *[!A-Za-z0-9_]*) echo "POSTGRES_USER aceita apenas letras, números e underscore" >&2; exit 1 ;;
+          esac
+          for VALUE in "$PUBLIC_APP_URL" "$POSTGRES_DB" "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$APP_SECURITY_JWT_SECRET"; do
+            case "$VALUE" in
+              *$'\n'*) echo "Variáveis de produção não podem conter quebra de linha" >&2; exit 1 ;;
+            esac
+          done
+          readonly SSH=(ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST")
+          echo ">>> Enviando imagem backend..."
+          docker image save controle-rotina-backend:latest | gzip -1 | "${SSH[@]}" 'docker image load --quiet'
+          echo ">>> Enviando imagem frontend..."
+          docker image save controle-rotina-frontend:latest | gzip -1 | "${SSH[@]}" 'docker image load --quiet'
+          echo ">>> Atualizando containers..."
+
+          {
+            printf 'export PUBLIC_APP_URL=%q\n' "$PUBLIC_APP_URL"
+            printf 'export POSTGRES_DB=%q\n' "$POSTGRES_DB"
+            printf 'export POSTGRES_USER=%q\n' "$POSTGRES_USER"
+            printf 'export POSTGRES_PASSWORD=%q\n' "$POSTGRES_PASSWORD"
+            printf 'export APP_SECURITY_JWT_SECRET=%q\n' "$APP_SECURITY_JWT_SECRET"
+            cat <<'REMOTE_SCRIPT'
+            set -Eeuo pipefail
+            set +x
+            cd /srv/controle-rotina
+            export COMPOSE_DISABLE_ENV_FILE=1
+            export POSTGRES_BIND_ADDRESS=127.0.0.1
+            export BACKEND_BIND_ADDRESS=127.0.0.1
+            export FRONTEND_BIND_ADDRESS=127.0.0.1
+            export SPRING_PROFILES_ACTIVE=prod
+
+            set -eu
+            docker image inspect controle-rotina-backend:latest >/dev/null
+            docker image inspect controle-rotina-frontend:latest >/dev/null
+            docker image inspect postgres:16-alpine >/dev/null 2>&1 || docker pull postgres:16-alpine
+            docker compose --project-name controle-rotina -f compose.yaml config --quiet
+            docker compose --project-name controle-rotina -f compose.yaml up \
+              --detach \
+              --no-build \
+              --pull never \
+              --wait \
+              --wait-timeout 120 \
+              postgres
+            printf '%s\n' \
+              '\getenv role POSTGRES_USER' \
+              '\getenv password POSTGRES_PASSWORD' \
+              "SELECT format('ALTER ROLE %I WITH PASSWORD %L', :'role', :'password') \gexec" \
+              | docker compose --project-name controle-rotina -f compose.yaml exec --no-TTY postgres \
+                  psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --no-password --set ON_ERROR_STOP=1
+            docker compose --project-name controle-rotina -f compose.yaml up \
+              --detach \
+              --no-deps \
+              --no-build \
+              --pull never \
+              --force-recreate \
+              --remove-orphans \
+              --wait \
+              --wait-timeout 180 \
+              backend frontend
+            docker compose --project-name controle-rotina -f compose.yaml ps
+            command -v curl >/dev/null 2>&1 || {
+              echo "curl não está instalado na VPS" >&2
+              exit 1
+            }
+            wait_for_http() {
+              url=$1
+              service=$2
+              attempt=1
+              while ! curl --fail --silent --show-error "$url" >/dev/null 2>&1; do
+                if [ "$attempt" -ge 60 ]; then
+                  echo "$service não respondeu após 120 segundos" >&2
+                  return 1
+                fi
+                attempt=$((attempt + 1))
+                sleep 2
+              done
+            }
+            wait_for_http http://127.0.0.1:8081/actuator/health/readiness backend
+            wait_for_http http://127.0.0.1:9080/ frontend
+          REMOTE_SCRIPT
+          } | "${SSH[@]}" 'bash -se'

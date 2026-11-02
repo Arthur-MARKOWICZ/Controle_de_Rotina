@@ -1,0 +1,9 @@
+{
+  "domain": "rotina.arthurmlopes.systems",
+  "type": "docker-compose-vps",
+  "vps_id": 1940758,
+  "vps_ipv4": "103.199.187.185",
+  "project_name": "controle-rotina",
+  "deploy_path": "/srv/controle-rotina",
+  "notes": "Isolado de gastos.arthurmlopes.systems no mesmo VPS; não sobrescrever /srv/controle-gastos."
+}
