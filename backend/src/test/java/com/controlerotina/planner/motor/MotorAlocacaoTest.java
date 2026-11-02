@@ -27,8 +27,10 @@ class MotorAlocacaoTest {
         ResultadoAlocacao resultado = MotorAlocacao.alocar(List.of(tarefa), 0, DIA_D);
 
         assertThat(resultado.blocos()).isEmpty();
-        assertThat(resultado.temConflito()).isFalse();
-        assertThat(resultado.mensagem()).isEqualTo(MotorAlocacao.MENSAGEM_SEM_TEMPO);
+        assertThat(resultado.temConflito()).isTrue();
+        assertThat(resultado.itensNaoAlocados()).hasSize(1);
+        assertThat(resultado.itensNaoAlocados().get(0).tipo()).isEqualTo(TipoOrigemAlocacao.TAREFA);
+        assertThat(resultado.mensagem()).isEqualTo(MotorAlocacao.MENSAGEM_PARCIAL);
     }
 
     @Test
@@ -79,19 +81,20 @@ class MotorAlocacaoTest {
     }
 
     @Test
-    void deveDesempatarPorPrazoMaisCedoDepoisCreatedAt() {
+    void deveDesempatarPorCreatedAtQuandoScoreEmpata() {
         Instant criadoCedo = Instant.parse("2026-10-01T10:00:00Z");
         Instant criadoTarde = Instant.parse("2026-10-02T10:00:00Z");
         Instant prazoCedo = prazoEmDias(2);
         Instant prazoTarde = prazoEmDias(3);
 
+        // Mesmo score (urgência na mesma faixa): empate resolve por createdAt asc.
         Tarefa mesmaScorePrazoTarde = tarefa("tardia", Prioridade.MEDIA, StatusTarefa.PENDENTE, prazoTarde, 60, criadoCedo);
         Tarefa mesmaScorePrazoCedo = tarefa("cedo", Prioridade.MEDIA, StatusTarefa.PENDENTE, prazoCedo, 60, criadoTarde);
 
-        ResultadoAlocacao porPrazo = MotorAlocacao.alocar(
+        ResultadoAlocacao porCreatedAt = MotorAlocacao.alocar(
                 List.of(mesmaScorePrazoTarde, mesmaScorePrazoCedo), 120, DIA_D);
 
-        assertThat(porPrazo.blocos().get(0).tarefaId()).isEqualTo(mesmaScorePrazoCedo.getId());
+        assertThat(porCreatedAt.blocos().get(0).tarefaId()).isEqualTo(mesmaScorePrazoTarde.getId());
 
         Tarefa empateA = tarefa("a", Prioridade.MEDIA, StatusTarefa.PENDENTE, prazoCedo, 60, criadoCedo);
         Tarefa empateB = tarefa("b", Prioridade.MEDIA, StatusTarefa.PENDENTE, prazoCedo, 60, criadoTarde);
@@ -403,8 +406,9 @@ class MotorAlocacaoTest {
     }
 
     @Test
-    void t2_capacidadeApertadaAlocaComPrazoAntesDaSemPrazo() {
+    void t2_capacidadeApertadaPoolUnificadoPorScore() {
         Instant criado = Instant.parse("2026-10-01T10:00:00Z");
+        // BAIXA + prazo D+1 ≈ 75; ALTA sem prazo = 115 → sem prazo vence no pool unificado.
         Tarefa comPrazo = tarefa(
                 "ComPrazo", Prioridade.BAIXA, StatusTarefa.PENDENTE, prazoEmDias(1), 60, criado);
         Tarefa semPrazo = tarefa(
@@ -413,11 +417,11 @@ class MotorAlocacaoTest {
         ResultadoAlocacao resultado = MotorAlocacao.alocar(List.of(semPrazo, comPrazo), 60, DIA_D);
 
         assertThat(resultado.blocos()).hasSize(1);
-        assertThat(resultado.blocos().get(0).tarefaId()).isEqualTo(comPrazo.getId());
+        assertThat(resultado.blocos().get(0).tarefaId()).isEqualTo(semPrazo.getId());
     }
 
     @Test
-    void t3_semPrazoNaoGeraConflitoDePrazoNaJanela() {
+    void t3_semPrazoResidualNaoGeraMensagemDePrazo() {
         Instant criado = Instant.parse("2026-10-01T10:00:00Z");
         Tarefa semPrazo = tarefa(
                 "SemPrazo", Prioridade.ALTA, StatusTarefa.PENDENTE, null, 180, criado);
@@ -433,8 +437,10 @@ class MotorAlocacaoTest {
 
         ResultadoAlocacao dia = janela.get(DIA_D);
         assertThat(dia.blocos()).hasSize(1);
-        assertThat(dia.temConflito()).isFalse();
-        assertThat(dia.mensagem()).isNull();
+        assertThat(dia.temConflito()).isTrue();
+        assertThat(dia.itensNaoAlocados()).anySatisfy(i ->
+                assertThat(i.tipo()).isEqualTo(TipoOrigemAlocacao.TAREFA));
+        assertThat(dia.mensagem()).doesNotContain("Não cabe até o prazo");
         assertThat(MotorAlocacao.fimJanela(DIA_D, List.of(semPrazo))).isEqualTo(DIA_D);
     }
 

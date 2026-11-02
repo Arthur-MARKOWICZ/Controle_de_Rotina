@@ -8,6 +8,9 @@ backend/.mvn/wrapper/maven-wrapper.jar
 frontend/frontend-web/node_modules/
 frontend/frontend-web/dist/
 
+# Segredos locais (modelo versionado: .env.example)
+.env
+
 # IDE / OS
 .idea/
 *.iml

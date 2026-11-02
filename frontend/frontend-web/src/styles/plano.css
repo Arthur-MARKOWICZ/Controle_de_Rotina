@@ -1,5 +1,13 @@
 /* ——— Plano do dia ——— */
 
+.home-visao {
+  margin: 0 0 var(--space-4);
+}
+
+.home-habitos .habito-do-dia {
+  margin: 0;
+}
+
 .plano-dia {
   width: 100%;
 }

@@ -5,11 +5,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
+import com.controlerotina.capacidade.entity.DiaSemana;
+import com.controlerotina.habito.entity.Habito;
+import com.controlerotina.habito.entity.StatusHabito;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.tarefa.entity.Tarefa;
 
@@ -18,6 +23,8 @@ public final class MotorAlocacao {
     public static final String MENSAGEM_SEM_TEMPO = "Sem tempo neste dia. Nada planejado.";
     public static final String MENSAGEM_PARCIAL =
             "Capacidade insuficiente: ao menos uma tarefa foi alocada parcialmente.";
+    public static final String MENSAGEM_HABITO_OMITIDO =
+            "Capacidade insuficiente: um ou mais hábitos do dia não couberam por completo.";
 
     private static final DateTimeFormatter PRAZO_MSG = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -78,7 +85,7 @@ public final class MotorAlocacao {
 
     /** Compatível com estimativa cheia (sem execuções concluídas). */
     public static ResultadoAlocacao alocar(List<Tarefa> elegiveis, int capacidadeMinutos, LocalDate diaD) {
-        return alocar(elegiveis, capacidadeMinutos, diaD, List.of());
+        return alocar(elegiveis, capacidadeMinutos, diaD, List.of(), List.of());
     }
 
     public static ResultadoAlocacao alocar(
@@ -87,11 +94,21 @@ public final class MotorAlocacao {
             LocalDate diaD,
             List<ReservaPedido> reservas
     ) {
+        return alocar(elegiveis, capacidadeMinutos, diaD, reservas, List.of());
+    }
+
+    public static ResultadoAlocacao alocar(
+            List<Tarefa> elegiveis,
+            int capacidadeMinutos,
+            LocalDate diaD,
+            List<ReservaPedido> reservas,
+            List<Habito> habitos
+    ) {
         Map<UUID, Integer> saldoPorTarefa = new HashMap<>();
         for (Tarefa tarefa : elegiveis) {
             saldoPorTarefa.put(tarefa.getId(), tarefa.getDuracaoMinutos());
         }
-        return alocar(elegiveis, saldoPorTarefa, capacidadeMinutos, diaD, reservas);
+        return alocar(elegiveis, saldoPorTarefa, capacidadeMinutos, diaD, reservas, habitos);
     }
 
     public static ResultadoAlocacao alocar(
@@ -100,7 +117,7 @@ public final class MotorAlocacao {
             int capacidadeMinutos,
             LocalDate diaD
     ) {
-        return alocar(elegiveis, saldoMinutosPorTarefa, capacidadeMinutos, diaD, List.of());
+        return alocar(elegiveis, saldoMinutosPorTarefa, capacidadeMinutos, diaD, List.of(), List.of());
     }
 
     public static ResultadoAlocacao alocar(
@@ -110,20 +127,49 @@ public final class MotorAlocacao {
             LocalDate diaD,
             List<ReservaPedido> reservas
     ) {
+        return alocar(elegiveis, saldoMinutosPorTarefa, capacidadeMinutos, diaD, reservas, List.of());
+    }
+
+    public static ResultadoAlocacao alocar(
+            List<Tarefa> elegiveis,
+            Map<UUID, Integer> saldoMinutosPorTarefa,
+            int capacidadeMinutos,
+            LocalDate diaD,
+            List<ReservaPedido> reservas,
+            List<Habito> habitos
+    ) {
+        List<Habito> habitosEntrada = habitos == null ? List.of() : habitos;
+        Map<UUID, Integer> saldoRestante = new HashMap<>(saldoMinutosPorTarefa);
+        List<ItemNaoAlocado> omitidos = new ArrayList<>();
+
         if (capacidadeMinutos <= 0) {
-            return new ResultadoAlocacao(List.of(), false, MENSAGEM_SEM_TEMPO);
+            registrarHabitosOmitidos(filtrarHabitosElegiveis(habitosEntrada, diaD), Set.of(), omitidos);
+            registrarTarefasOmitidas(elegiveis, saldoRestante, omitidos);
+            boolean temConflito = !omitidos.isEmpty();
+            String mensagem = temConflito
+                    ? montarMensagemConflito(temConflitoTarefa(omitidos), temConflitoHabito(omitidos))
+                    : MENSAGEM_SEM_TEMPO;
+            return new ResultadoAlocacao(List.of(), temConflito, mensagem, omitidos);
         }
 
-        Map<UUID, Integer> saldoRestante = new HashMap<>(saldoMinutosPorTarefa);
         List<BlocoAlocado> blocos = alocarDia(
-                elegiveis, saldoRestante, capacidadeMinutos, diaD, false, reservas);
+                elegiveis,
+                saldoRestante,
+                capacidadeMinutos,
+                diaD,
+                false,
+                reservas,
+                habitosEntrada,
+                omitidos
+        );
+        registrarTarefasOmitidas(elegiveis, saldoRestante, omitidos);
 
-        boolean temConflito = elegiveis.stream()
+        boolean temConflitoTarefa = elegiveis.stream()
                 .anyMatch(t -> saldoRestante.getOrDefault(t.getId(), 0) > 0
                         && saldoMinutosPorTarefa.getOrDefault(t.getId(), 0) > 0);
-        if (temConflito && !blocos.isEmpty()) {
+        if (temConflitoTarefa && !blocos.isEmpty()) {
             BlocoAlocado ultimo = blocos.get(blocos.size() - 1);
-            if (saldoRestante.getOrDefault(ultimo.tarefaId(), 0) > 0) {
+            if (ultimo.tarefaId() != null && saldoRestante.getOrDefault(ultimo.tarefaId(), 0) > 0) {
                 blocos.set(blocos.size() - 1, new BlocoAlocado(
                         ultimo.tarefaId(),
                         ultimo.duracaoMinutos(),
@@ -133,8 +179,35 @@ public final class MotorAlocacao {
             }
         }
 
-        String mensagem = temConflito ? MENSAGEM_PARCIAL : null;
-        return new ResultadoAlocacao(List.copyOf(blocos), temConflito, mensagem);
+        boolean temConflito = temConflitoTarefa || !omitidos.isEmpty();
+        String mensagem = montarMensagemConflito(temConflitoTarefa, temConflitoHabito(omitidos));
+        return new ResultadoAlocacao(List.copyOf(blocos), temConflito, mensagem, omitidos);
+    }
+
+    static String montarMensagemConflito(boolean conflitoTarefa, boolean conflitoHabito) {
+        if (conflitoTarefa && conflitoHabito) {
+            return MENSAGEM_PARCIAL + " " + MENSAGEM_HABITO_OMITIDO;
+        }
+        if (conflitoHabito) {
+            return MENSAGEM_HABITO_OMITIDO;
+        }
+        if (conflitoTarefa) {
+            return MENSAGEM_PARCIAL;
+        }
+        return null;
+    }
+
+    /** Hábitos ATIVO, não deletados, com o weekday de {@code dia} na agenda. */
+    public static List<Habito> filtrarHabitosElegiveis(List<Habito> habitos, LocalDate dia) {
+        if (habitos == null || habitos.isEmpty()) {
+            return List.of();
+        }
+        DiaSemana weekday = DiaSemana.de(dia);
+        return habitos.stream()
+                .filter(h -> h.getDeletedAt() == null)
+                .filter(h -> h.getStatus() == StatusHabito.ATIVO)
+                .filter(h -> h.getDiasSemana().contains(weekday))
+                .toList();
     }
 
     /**
@@ -163,12 +236,34 @@ public final class MotorAlocacao {
             Map<UUID, Integer> saldoMinutosPorTarefa,
             List<DiaCapacidade> dias
     ) {
+        return alocarJanela(elegiveis, saldoMinutosPorTarefa, dias, List.of());
+    }
+
+    public static Map<LocalDate, ResultadoAlocacao> alocarJanela(
+            List<Tarefa> elegiveis,
+            Map<UUID, Integer> saldoMinutosPorTarefa,
+            List<DiaCapacidade> dias,
+            List<Habito> habitos
+    ) {
         Map<UUID, Integer> saldoRestante = new HashMap<>(saldoMinutosPorTarefa);
         Map<LocalDate, ResultadoAlocacao> porDia = new LinkedHashMap<>();
+        List<Habito> habitosEntrada = habitos == null ? List.of() : habitos;
 
         for (DiaCapacidade dia : dias) {
+            List<ItemNaoAlocado> omitidos = new ArrayList<>();
             if (dia.capacidadeMinutos() <= 0) {
-                porDia.put(dia.data(), new ResultadoAlocacao(List.of(), false, MENSAGEM_SEM_TEMPO));
+                registrarHabitosOmitidos(
+                        filtrarHabitosElegiveis(habitosEntrada, dia.data()), Set.of(), omitidos);
+                boolean conflitoHabito = !omitidos.isEmpty();
+                porDia.put(
+                        dia.data(),
+                        new ResultadoAlocacao(
+                                List.of(),
+                                conflitoHabito,
+                                conflitoHabito ? MENSAGEM_HABITO_OMITIDO : MENSAGEM_SEM_TEMPO,
+                                omitidos
+                        )
+                );
                 continue;
             }
 
@@ -178,9 +273,20 @@ public final class MotorAlocacao {
                     dia.capacidadeMinutos(),
                     dia.data(),
                     true,
-                    dia.reservas()
+                    dia.reservas(),
+                    habitosEntrada,
+                    omitidos
             );
-            porDia.put(dia.data(), new ResultadoAlocacao(List.copyOf(blocos), false, null));
+            boolean conflitoHabito = temConflitoHabito(omitidos);
+            porDia.put(
+                    dia.data(),
+                    new ResultadoAlocacao(
+                            List.copyOf(blocos),
+                            conflitoHabito,
+                            conflitoHabito ? MENSAGEM_HABITO_OMITIDO : null,
+                            omitidos
+                    )
+            );
         }
 
         return aplicarConflitosDePrazo(porDia, elegiveis, saldoRestante, dias);
@@ -223,7 +329,9 @@ public final class MotorAlocacao {
             int capacidadeMinutos,
             LocalDate dia,
             boolean filtrarPrazo,
-            List<ReservaPedido> reservas
+            List<ReservaPedido> reservas,
+            List<Habito> habitos,
+            List<ItemNaoAlocado> omitidos
     ) {
         List<BlocoAlocado> blocos = new ArrayList<>();
         int ordem = 1;
@@ -232,67 +340,97 @@ public final class MotorAlocacao {
             List<Tarefa> doProjeto = elegiveis.stream()
                     .filter(t -> fatia.projetoId().equals(t.getProjetoId()))
                     .toList();
-            ordem = alocarComPrazoDepoisSemPrazo(
-                    doProjeto, saldoRestante, fatia.minutosReservados(), dia, filtrarPrazo, blocos, ordem);
+            // Reservas de projeto: só tarefas do projeto (sem hábitos).
+            ordem = alocarPoolUnificado(
+                    doProjeto,
+                    List.of(),
+                    saldoRestante,
+                    fatia.minutosReservados(),
+                    dia,
+                    filtrarPrazo,
+                    blocos,
+                    ordem,
+                    omitidos
+            );
         }
 
+        // Pool livre (após reservas): tarefas com/sem prazo + hábitos, ordenados por score.
         int poolLivre = capacidadeMinutos - minutosAlocados(blocos);
-        alocarComPrazoDepoisSemPrazo(
-                elegiveis, saldoRestante, poolLivre, dia, filtrarPrazo, blocos, ordem);
+        alocarPoolUnificado(
+                elegiveis,
+                filtrarHabitosElegiveis(habitos, dia),
+                saldoRestante,
+                poolLivre,
+                dia,
+                filtrarPrazo,
+                blocos,
+                ordem,
+                omitidos
+        );
         return blocos;
     }
 
-    private static int alocarComPrazoDepoisSemPrazo(
+    /**
+     * Pool unificado por score: tarefas elegíveis com saldo + hábitos do dia.
+     * Empate: TAREFA antes de HABITO; depois createdAt asc.
+     */
+    private static int alocarPoolUnificado(
             List<Tarefa> candidatas,
+            List<Habito> habitosElegiveis,
             Map<UUID, Integer> saldoRestante,
             int capacidade,
             LocalDate dia,
             boolean filtrarPrazo,
             List<BlocoAlocado> blocos,
-            int ordemInicial
+            int ordemInicial,
+            List<ItemNaoAlocado> omitidos
     ) {
-        if (capacidade <= 0 || candidatas.isEmpty()) {
+        if (capacidade <= 0) {
+            registrarHabitosOmitidos(habitosElegiveis, Set.of(), omitidos);
             return ordemInicial;
         }
-        List<Tarefa> comPrazo = candidatas.stream().filter(t -> t.getPrazo() != null).toList();
-        List<Tarefa> semPrazo = candidatas.stream().filter(t -> t.getPrazo() == null).toList();
 
-        int usadoAntes = minutosAlocados(blocos);
-        int ordem = alocarFase(
-                comPrazo, saldoRestante, capacidade, dia, filtrarPrazo, true, blocos, ordemInicial);
-        int restante = capacidade - (minutosAlocados(blocos) - usadoAntes);
-        return alocarFase(
-                semPrazo, saldoRestante, restante, dia, filtrarPrazo, false, blocos, ordem);
-    }
-
-    private static int minutosAlocados(List<BlocoAlocado> blocos) {
-        return blocos.stream().mapToInt(BlocoAlocado::duracaoMinutos).sum();
-    }
-
-    private static int alocarFase(
-            List<Tarefa> candidatasBase,
-            Map<UUID, Integer> saldoRestante,
-            int capacidadeRestante,
-            LocalDate dia,
-            boolean filtrarPrazo,
-            boolean exigirPrazoNoDia,
-            List<BlocoAlocado> blocos,
-            int ordemInicial
-    ) {
-        int restante = capacidadeRestante;
+        int restante = capacidade;
         int ordem = ordemInicial;
+        Set<UUID> habitosAlocados = new HashSet<>();
+        Set<UUID> habitosDescartados = new HashSet<>();
 
         while (restante >= PISO_BLOCO_MINUTOS) {
-            List<Tarefa> candidatas = candidatasBase.stream()
+            List<Tarefa> tarefasCandidatas = candidatas.stream()
                     .filter(t -> saldoRestante.getOrDefault(t.getId(), 0) > 0)
-                    .filter(t -> !exigirPrazoNoDia
-                            || !filtrarPrazo
+                    .filter(t -> !filtrarPrazo
+                            || t.getPrazo() == null
                             || !dia.isAfter(prazoEmDiaLocal(t)))
-                    .sorted(comparadorPorScore(dia))
+                    .toList();
+            List<Habito> habitosCandidatos = habitosElegiveis.stream()
+                    .filter(h -> !habitosAlocados.contains(h.getId()))
+                    .filter(h -> !habitosDescartados.contains(h.getId()))
                     .toList();
 
+            List<CandidatoPool> fila = new ArrayList<>();
+            for (Tarefa t : tarefasCandidatas) {
+                fila.add(CandidatoPool.tarefa(t, ScoreV1.calcular(t, dia)));
+            }
+            for (Habito h : habitosCandidatos) {
+                fila.add(CandidatoPool.habito(h, ScoreV1.calcularHabito(h.getDuracaoMinutos())));
+            }
+            fila.sort(CandidatoPool.COMPARADOR);
+
             boolean alocou = false;
-            for (Tarefa tarefa : candidatas) {
+            for (CandidatoPool candidato : fila) {
+                if (candidato.habito() != null) {
+                    Habito habito = candidato.habito();
+                    if (habito.getDuracaoMinutos() <= restante) {
+                        blocos.add(BlocoAlocado.deHabito(habito.getId(), habito.getDuracaoMinutos(), ordem++));
+                        restante -= habito.getDuracaoMinutos();
+                        habitosAlocados.add(habito.getId());
+                        alocou = true;
+                        break;
+                    }
+                    habitosDescartados.add(habito.getId());
+                    continue;
+                }
+                Tarefa tarefa = candidato.tarefa();
                 int saldo = saldoRestante.getOrDefault(tarefa.getId(), 0);
                 Integer usar = minutosDoProximoBloco(saldo, restante);
                 if (usar == null) {
@@ -308,12 +446,102 @@ public final class MotorAlocacao {
                 break;
             }
         }
+
+        registrarHabitosOmitidos(habitosElegiveis, habitosAlocados, omitidos);
         return ordem;
+    }
+
+    private static void registrarHabitosOmitidos(
+            List<Habito> elegiveis,
+            Set<UUID> alocados,
+            List<ItemNaoAlocado> omitidos
+    ) {
+        if (elegiveis == null || elegiveis.isEmpty()) {
+            return;
+        }
+        Set<UUID> jaRegistrados = new HashSet<>();
+        for (ItemNaoAlocado item : omitidos) {
+            if (item.tipo() == TipoOrigemAlocacao.HABITO) {
+                jaRegistrados.add(item.id());
+            }
+        }
+        for (Habito habito : elegiveis) {
+            if (alocados.contains(habito.getId()) || jaRegistrados.contains(habito.getId())) {
+                continue;
+            }
+            omitidos.add(new ItemNaoAlocado(
+                    TipoOrigemAlocacao.HABITO,
+                    habito.getId(),
+                    habito.getTitulo(),
+                    habito.getDuracaoMinutos(),
+                    MotivoNaoAlocado.CAPACIDADE
+            ));
+        }
+    }
+
+    private static void registrarTarefasOmitidas(
+            List<Tarefa> elegiveis,
+            Map<UUID, Integer> saldoRestante,
+            List<ItemNaoAlocado> omitidos
+    ) {
+        if (elegiveis == null || elegiveis.isEmpty()) {
+            return;
+        }
+        Set<UUID> jaRegistrados = new HashSet<>();
+        for (ItemNaoAlocado item : omitidos) {
+            if (item.tipo() == TipoOrigemAlocacao.TAREFA) {
+                jaRegistrados.add(item.id());
+            }
+        }
+        for (Tarefa tarefa : elegiveis) {
+            if (jaRegistrados.contains(tarefa.getId())) {
+                continue;
+            }
+            if (saldoRestante.getOrDefault(tarefa.getId(), 0) <= 0) {
+                continue;
+            }
+            omitidos.add(new ItemNaoAlocado(
+                    TipoOrigemAlocacao.TAREFA,
+                    tarefa.getId(),
+                    tarefa.getTitulo(),
+                    tarefa.getDuracaoMinutos(),
+                    MotivoNaoAlocado.CAPACIDADE
+            ));
+        }
+    }
+
+    private static boolean temConflitoHabito(List<ItemNaoAlocado> omitidos) {
+        return omitidos.stream().anyMatch(i -> i.tipo() == TipoOrigemAlocacao.HABITO);
+    }
+
+    private static boolean temConflitoTarefa(List<ItemNaoAlocado> omitidos) {
+        return omitidos.stream().anyMatch(i -> i.tipo() == TipoOrigemAlocacao.TAREFA);
+    }
+
+    private record CandidatoPool(Tarefa tarefa, Habito habito, int score, java.time.Instant createdAt) {
+        static CandidatoPool tarefa(Tarefa t, int score) {
+            return new CandidatoPool(t, null, score, t.getCreatedAt());
+        }
+
+        static CandidatoPool habito(Habito h, int score) {
+            return new CandidatoPool(null, h, score, h.getCreatedAt());
+        }
+
+        static final Comparator<CandidatoPool> COMPARADOR = Comparator
+                .comparingInt(CandidatoPool::score).reversed()
+                .thenComparing(c -> c.habito() != null) // tarefa (false) antes de hábito (true)
+                .thenComparing(CandidatoPool::createdAt);
+    }
+
+    private static int minutosAlocados(List<BlocoAlocado> blocos) {
+        return blocos.stream().mapToInt(BlocoAlocado::duracaoMinutos).sum();
     }
 
     /**
      * Tarefas com prazo dentro da janela e saldo ainda positivo → conflito
      * (minutos que não caberam até o prazo). Mensagem agregada nos planos da proposta.
+     * Tarefas com saldo residual entram em {@code itensNaoAlocados} no dia da última chance
+     * (prazo na janela ou último dia), sem listar em D o que ainda cabe em D+1.
      */
     static Map<LocalDate, ResultadoAlocacao> aplicarConflitosDePrazo(
             Map<LocalDate, ResultadoAlocacao> porDia,
@@ -328,37 +556,58 @@ public final class MotorAlocacao {
         LocalDate inicio = dias.get(0).data();
         LocalDate fim = dias.get(dias.size() - 1).data();
 
+        Map<LocalDate, List<ItemNaoAlocado>> tarefasOmitidasPorDia = new HashMap<>();
         List<String> itens = new ArrayList<>();
         for (Tarefa tarefa : elegiveis) {
-            if (tarefa.getPrazo() == null) {
-                continue;
-            }
-            LocalDate prazo = prazoEmDiaLocal(tarefa);
-            if (prazo.isBefore(inicio) || prazo.isAfter(fim)) {
-                continue;
-            }
             int fora = saldoRestante.getOrDefault(tarefa.getId(), 0);
             if (fora <= 0) {
                 continue;
             }
-            itens.add(formatarItemConflitoPrazo(tarefa.getTitulo(), fora, prazo));
+            LocalDate diaOmitido;
+            if (tarefa.getPrazo() != null) {
+                LocalDate prazo = prazoEmDiaLocal(tarefa);
+                if (prazo.isBefore(inicio) || prazo.isAfter(fim)) {
+                    continue;
+                }
+                diaOmitido = prazo;
+                itens.add(formatarItemConflitoPrazo(tarefa.getTitulo(), fora, prazo));
+            } else {
+                diaOmitido = fim;
+            }
+            tarefasOmitidasPorDia
+                    .computeIfAbsent(diaOmitido, d -> new ArrayList<>())
+                    .add(new ItemNaoAlocado(
+                            TipoOrigemAlocacao.TAREFA,
+                            tarefa.getId(),
+                            tarefa.getTitulo(),
+                            tarefa.getDuracaoMinutos(),
+                            MotivoNaoAlocado.CAPACIDADE
+                    ));
         }
 
-        if (itens.isEmpty()) {
-            return Map.copyOf(porDia);
-        }
-
-        String mensagem = String.join(" ", itens);
+        String mensagemPrazo = itens.isEmpty() ? null : String.join(" ", itens);
         Map<LocalDate, ResultadoAlocacao> comConflito = new LinkedHashMap<>();
         for (Map.Entry<LocalDate, ResultadoAlocacao> entry : porDia.entrySet()) {
             ResultadoAlocacao atual = entry.getValue();
+            List<ItemNaoAlocado> omitidos = new ArrayList<>(atual.itensNaoAlocados());
+            List<ItemNaoAlocado> extras = tarefasOmitidasPorDia.getOrDefault(entry.getKey(), List.of());
+            omitidos.addAll(extras);
+
+            boolean temConflito = atual.temConflito() || !extras.isEmpty() || mensagemPrazo != null;
             String mensagemDia = atual.mensagem();
-            if (mensagemDia == null || mensagemDia.isBlank() || MENSAGEM_SEM_TEMPO.equals(mensagemDia)) {
-                mensagemDia = mensagem;
-            } else if (!mensagemDia.contains(mensagem)) {
-                mensagemDia = mensagemDia + " " + mensagem;
+            if (mensagemPrazo != null) {
+                if (mensagemDia == null || mensagemDia.isBlank() || MENSAGEM_SEM_TEMPO.equals(mensagemDia)) {
+                    mensagemDia = mensagemPrazo;
+                } else if (!mensagemDia.contains(mensagemPrazo)) {
+                    mensagemDia = mensagemDia + " " + mensagemPrazo;
+                }
+            } else if (temConflito && (mensagemDia == null || mensagemDia.isBlank())) {
+                mensagemDia = montarMensagemConflito(temConflitoTarefa(omitidos), temConflitoHabito(omitidos));
             }
-            comConflito.put(entry.getKey(), new ResultadoAlocacao(atual.blocos(), true, mensagemDia));
+            comConflito.put(
+                    entry.getKey(),
+                    new ResultadoAlocacao(atual.blocos(), temConflito, mensagemDia, omitidos)
+            );
         }
         return Map.copyOf(comConflito);
     }
@@ -370,13 +619,6 @@ public final class MotorAlocacao {
 
     static LocalDate prazoEmDiaLocal(Tarefa tarefa) {
         return tarefa.getPrazo().atZone(PeriodoBRT.ZONE).toLocalDate();
-    }
-
-    static Comparator<Tarefa> comparadorPorScore(LocalDate diaD) {
-        return Comparator
-                .comparingInt((Tarefa t) -> ScoreV1.calcular(t, diaD)).reversed()
-                .thenComparing(Tarefa::getPrazo, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(Tarefa::getCreatedAt);
     }
 
     public static int capacidadeMinutos(Integer horas) {

@@ -67,14 +67,17 @@ const PRIORIDADE_PESO: Record<Prioridade, number> = {
   ALTA: 3,
 }
 
-/** Menor prioridade; em empate, maior `ordem` (menos prioritária na lista). */
+/** Menor prioridade; em empate, maior `ordem` (menos prioritária na lista). Ignora blocos sem tarefa. */
 export function escolherBlocoMenorPrioridade<
-  T extends { id: string; ordem: number; tarefa: { prioridade: Prioridade } },
+  T extends { id: string; ordem: number; tarefa?: { prioridade: Prioridade } | null },
 >(blocos: T[]): T | null {
-  if (blocos.length === 0) {
+  const comTarefa = blocos.filter(
+    (bloco): bloco is T & { tarefa: { prioridade: Prioridade } } => bloco.tarefa != null,
+  )
+  if (comTarefa.length === 0) {
     return null
   }
-  return blocos.reduce((menor, atual) => {
+  return comTarefa.reduce((menor, atual) => {
     const pesoMenor = PRIORIDADE_PESO[menor.tarefa.prioridade]
     const pesoAtual = PRIORIDADE_PESO[atual.tarefa.prioridade]
     if (pesoAtual < pesoMenor) {

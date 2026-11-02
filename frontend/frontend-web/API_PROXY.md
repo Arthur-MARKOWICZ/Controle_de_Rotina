@@ -76,8 +76,9 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/historico/dia`, `/historico/semana` | resumo de progresso (a tela SPA é `/historico` exato) |
 | `/calendario`   | visão agregada do plano/prazos (SPA e API no mesmo path; ver nota abaixo) |
 | `/projetos`     | CRUD de projetos (SPA e API no mesmo path; ver nota abaixo) |
+| `/habitos`      | CRUD de hábitos (SPA e API no mesmo path; ver nota abaixo) |
 
-**Nota `/calendario` e `/projetos`:** a tela React e a API compartilham o path.  
+**Nota `/calendario`, `/projetos` e `/habitos`:** a tela React e a API compartilham o path.  
 No Vite, o proxy usa `bypass` quando `Accept` contém `text/html` (navegação → SPA).  
 No Nginx, `map $http_accept` + `error_page 418` encaminha só pedidos com `application/json` ao backend.  
 O `apiFetch` já envia `Accept: application/json`.
@@ -116,6 +117,8 @@ Use a UI logada (`/capacidade`, `/`) ou o DevTools → Network com a sessão ati
 | `/calendario?dataDe&dataAte` (Accept JSON) | API (proxy → backend) |
 | `/projetos` (navegação HTML) | Tela React (SPA) |
 | `/projetos`, `/projetos/{id}`, … (Accept JSON) | API (proxy → backend) |
+| `/habitos` (navegação HTML) | Tela React (SPA) |
+| `/habitos`, `/habitos/{id}`, … (Accept JSON) | API (proxy → backend) |
 
 ## Erro “API devolveu a página do front (SPA)”
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +20,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import com.controlerotina.capacidade.entity.DiaSemana;
+import com.controlerotina.habito.entity.Habito;
+import com.controlerotina.habito.entity.StatusHabito;
+import com.controlerotina.habito.repository.HabitoRepository;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
@@ -52,6 +57,9 @@ class PlanoPersistenciaIT {
     TarefaRepository tarefaRepository;
 
     @Autowired
+    HabitoRepository habitoRepository;
+
+    @Autowired
     JdbcTemplate jdbcTemplate;
 
     private UUID usuarioId;
@@ -62,6 +70,8 @@ class PlanoPersistenciaIT {
     void limparEPreparar() {
         jdbcTemplate.update("delete from bloco_plano");
         jdbcTemplate.update("delete from plano");
+        jdbcTemplate.update("delete from habito_dia_semana");
+        jdbcTemplate.update("delete from habito");
         jdbcTemplate.update("delete from tarefa");
         jdbcTemplate.update("delete from refresh_token");
         jdbcTemplate.update("delete from capacidade_override");
@@ -191,7 +201,8 @@ class PlanoPersistenciaIT {
     }
 
     @Test
-    void deveRejeitarMesmaTarefaDuasVezesNoMesmoPlano() {
+    void devePermitirMesmaTarefaDuasVezesNoMesmoPlano() {
+        // V10 removeu uk (plano, tarefa) para permitir quebra ≤ 90 min.
         LocalDate data = LocalDate.of(2026, 10, 20);
         Instant agora = Instant.parse("2026-10-20T09:00:00Z");
         UUID planoId = UUID.randomUUID();
@@ -212,9 +223,53 @@ class PlanoPersistenciaIT {
         blocoPlanoRepository.saveAndFlush(new BlocoPlano(
                 UUID.randomUUID(), planoId, tarefaId, 60, 1, agora, agora
         ));
+        blocoPlanoRepository.saveAndFlush(new BlocoPlano(
+                UUID.randomUUID(), planoId, tarefaId, 30, 2, agora, agora
+        ));
+
+        assertThat(blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(planoId)).hasSize(2);
+    }
+
+    @Test
+    void deveRejeitarMesmoHabitoDuasVezesNoMesmoPlano() {
+        LocalDate data = LocalDate.of(2026, 10, 20);
+        Instant agora = Instant.parse("2026-10-20T09:00:00Z");
+        UUID planoId = UUID.randomUUID();
+        UUID habitoId = UUID.randomUUID();
+
+        habitoRepository.saveAndFlush(new Habito(
+                habitoId,
+                usuarioId,
+                "Academia",
+                null,
+                60,
+                EnumSet.of(DiaSemana.TERCA),
+                null,
+                StatusHabito.ATIVO,
+                0,
+                0,
+                agora,
+                agora
+        ));
+        planoRepository.saveAndFlush(new Plano(
+                planoId,
+                usuarioId,
+                data,
+                1,
+                StatusPlano.RASCUNHO,
+                false,
+                null,
+                null,
+                agora,
+                agora,
+                agora
+        ));
+        blocoPlanoRepository.saveAndFlush(new BlocoPlano(
+                UUID.randomUUID(), planoId, null, habitoId, 60, 1, agora, agora
+        ));
 
         assertThatThrownBy(() -> blocoPlanoRepository.saveAndFlush(new BlocoPlano(
-                UUID.randomUUID(), planoId, tarefaId, 30, 2, agora, agora
+                UUID.randomUUID(), planoId, null, habitoId, 60, 2, agora, agora
         ))).isInstanceOf(DataIntegrityViolationException.class);
     }
 

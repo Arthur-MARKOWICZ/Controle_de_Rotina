@@ -91,7 +91,7 @@ public class PlanoController {
             @PathVariable UUID id,
             @Valid @RequestBody AdicionarBlocoRequest request
     ) {
-        return planoAjusteService.adicionarBloco(usuarioId, id, request.tarefaId());
+        return planoAjusteService.adicionarBloco(usuarioId, id, request);
     }
 
     @DeleteMapping("/{id}/blocos/{blocoId}")

@@ -20,9 +20,23 @@ public record PlanoResponse(
         Instant geradoEm,
         Instant createdAt,
         Instant updatedAt,
-        List<BlocoPlanoResponse> blocos
+        List<BlocoPlanoResponse> blocos,
+        List<ItemNaoAlocadoResponse> itensNaoAlocados
 ) {
-    public static PlanoResponse from(Plano plano, List<BlocoPlanoResponse> blocos, boolean propostaPendente) {
+    public static PlanoResponse from(
+            Plano plano,
+            List<BlocoPlanoResponse> blocos,
+            boolean propostaPendente
+    ) {
+        return from(plano, blocos, propostaPendente, List.of());
+    }
+
+    public static PlanoResponse from(
+            Plano plano,
+            List<BlocoPlanoResponse> blocos,
+            boolean propostaPendente,
+            List<ItemNaoAlocadoResponse> itensNaoAlocados
+    ) {
         return new PlanoResponse(
                 plano.getId(),
                 plano.getData(),
@@ -35,7 +49,8 @@ public record PlanoResponse(
                 plano.getGeradoEm(),
                 plano.getCreatedAt(),
                 plano.getUpdatedAt(),
-                blocos
+                blocos,
+                itensNaoAlocados == null ? List.of() : List.copyOf(itensNaoAlocados)
         );
     }
 }

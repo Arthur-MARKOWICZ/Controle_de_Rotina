@@ -7,7 +7,7 @@ import {
 } from '../capacidade/semana'
 
 export type VisaoCalendario = 'semana' | 'mes'
-export type LenteCalendario = 'plano' | 'prazos'
+export type LenteCalendario = 'plano' | 'prazos' | 'habitos'
 
 export type IntervaloCalendario = { dataDe: string; dataAte: string }
 
@@ -101,5 +101,11 @@ export function parseVisao(valor: string | null): VisaoCalendario {
 }
 
 export function parseLente(valor: string | null): LenteCalendario {
-  return valor === 'prazos' ? 'prazos' : 'plano'
+  if (valor === 'prazos') {
+    return 'prazos'
+  }
+  if (valor === 'habitos') {
+    return 'habitos'
+  }
+  return 'plano'
 }

@@ -4,6 +4,8 @@ import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaFor
 
 export type StatusPlano = 'RASCUNHO' | 'APROVADO' | 'DESCARTADO'
 
+export type OrigemBloco = 'TAREFA' | 'HABITO'
+
 export type TarefaResumoResponse = {
   id: string
   titulo: string
@@ -15,11 +17,31 @@ export type TarefaResumoResponse = {
   projetoNome?: string | null
 }
 
+export type HabitoResumoResponse = {
+  id: string
+  titulo: string
+  horarioPreferencial: string | null
+  streakAtual: number
+}
+
+export type ItemNaoAlocadoResponse = {
+  tipo: OrigemBloco
+  id: string
+  titulo: string
+  duracaoMinutos: number
+  motivo: string
+}
+
 export type BlocoPlanoResponse = {
   id: string
   duracaoMinutos: number
   ordem: number
-  tarefa: TarefaResumoResponse
+  /** Ausente em fixtures antigas → trata como TAREFA. */
+  origem?: OrigemBloco
+  tarefaId?: string | null
+  habitoId?: string | null
+  tarefa?: TarefaResumoResponse | null
+  habito?: HabitoResumoResponse | null
 }
 
 export type PlanoResponse = {
@@ -35,6 +57,7 @@ export type PlanoResponse = {
   createdAt: string
   updatedAt: string
   blocos: BlocoPlanoResponse[]
+  itensNaoAlocados?: ItemNaoAlocadoResponse[]
 }
 
 export type BuscarPlanoParams = {
@@ -127,6 +150,21 @@ export async function adicionarBloco(
   })
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível adicionar a tarefa ao plano.')
+  }
+  return readApiJson<PlanoResponse>(response)
+}
+
+export async function adicionarBlocoHabito(
+  planoId: string,
+  habitoId: string,
+): Promise<PlanoResponse> {
+  const response = await apiFetch(`/planos/${planoId}/blocos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ habitoId }),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível adicionar o hábito ao plano.')
   }
   return readApiJson<PlanoResponse>(response)
 }

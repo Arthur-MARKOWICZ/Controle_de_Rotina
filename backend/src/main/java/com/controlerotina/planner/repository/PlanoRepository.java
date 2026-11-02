@@ -33,6 +33,12 @@ public interface PlanoRepository extends JpaRepository<Plano, UUID> {
             StatusPlano status
     );
 
+    Optional<Plano> findByUsuarioIdAndDataAndStatus(
+            UUID usuarioId,
+            LocalDate data,
+            StatusPlano status
+    );
+
     List<Plano> findByUsuarioIdAndPropostaIdAndStatus(
             UUID usuarioId,
             UUID propostaId,

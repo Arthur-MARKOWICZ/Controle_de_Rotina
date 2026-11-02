@@ -1,6 +1,7 @@
 package com.controlerotina.execucao.repository;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -80,5 +81,35 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
             @Param("status") StatusExecucao status,
             @Param("inicio") Instant inicio,
             @Param("fim") Instant fim
+    );
+
+    @Query("""
+            SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END
+              FROM Execucao e, BlocoPlano b, Plano p
+             WHERE e.blocoPlanoId = b.id
+               AND b.planoId = p.id
+               AND b.habitoId = :habitoId
+               AND p.data = :data
+               AND e.status = :status
+            """)
+    boolean existsCumprimentoHabitoNaData(
+            @Param("habitoId") UUID habitoId,
+            @Param("data") LocalDate data,
+            @Param("status") StatusExecucao status
+    );
+
+    @Query("""
+            SELECT DISTINCT b.habitoId, p.data
+              FROM Execucao e, BlocoPlano b, Plano p
+             WHERE e.blocoPlanoId = b.id
+               AND b.planoId = p.id
+               AND b.habitoId IN :habitoIds
+               AND p.data IN :datas
+               AND e.status = :status
+            """)
+    List<Object[]> listarCumprimentosHabitoNasDatas(
+            @Param("habitoIds") Collection<UUID> habitoIds,
+            @Param("datas") Collection<LocalDate> datas,
+            @Param("status") StatusExecucao status
     );
 }

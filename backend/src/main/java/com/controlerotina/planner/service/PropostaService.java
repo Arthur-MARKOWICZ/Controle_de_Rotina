@@ -106,14 +106,24 @@ public class PropostaService {
         }
 
         Set<UUID> tarefasConcluidas = new HashSet<>();
+        Set<UUID> habitosConcluidos = new HashSet<>();
         for (BlocoPlano concluido : concluidos) {
-            tarefasConcluidas.add(concluido.getTarefaId());
+            if (concluido.getTarefaId() != null) {
+                tarefasConcluidas.add(concluido.getTarefaId());
+            }
+            if (concluido.getHabitoId() != null) {
+                habitosConcluidos.add(concluido.getHabitoId());
+            }
         }
 
         List<BlocoPlano> blocosProposta = new ArrayList<>(
                 blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(propostaDia.getId()));
         for (BlocoPlano blocoProposta : blocosProposta) {
-            if (tarefasConcluidas.contains(blocoProposta.getTarefaId())) {
+            boolean mesmaTarefa = blocoProposta.getTarefaId() != null
+                    && tarefasConcluidas.contains(blocoProposta.getTarefaId());
+            boolean mesmoHabito = blocoProposta.getHabitoId() != null
+                    && habitosConcluidos.contains(blocoProposta.getHabitoId());
+            if (mesmaTarefa || mesmoHabito) {
                 blocoPlanoRepository.delete(blocoProposta);
             }
         }
@@ -129,6 +139,7 @@ public class PropostaService {
                     UUID.randomUUID(),
                     propostaDia.getId(),
                     concluido.getTarefaId(),
+                    concluido.getHabitoId(),
                     concluido.getDuracaoMinutos(),
                     ordem++,
                     agora,
