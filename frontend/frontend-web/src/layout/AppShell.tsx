@@ -6,6 +6,7 @@ import {
   FolderSimpleIcon,
   GaugeIcon,
   PlusIcon,
+  RepeatIcon,
   SunHorizonIcon,
   type Icon,
 } from '@phosphor-icons/react'
@@ -26,13 +27,14 @@ type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
 
 const HOJE: ItemNav = { to: '/', label: 'Hoje', Icon: SunHorizonIcon, end: true }
 const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
+const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
 const CALENDARIO: ItemNav = { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon }
 const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
 const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon }
 
-const NAV_SIDEBAR = [HOJE, TAREFAS, PROJETOS, CALENDARIO, CAPACIDADE, HISTORICO]
-const NAV_BOTTOM = [HOJE, TAREFAS, CALENDARIO, CAPACIDADE]
+const NAV_SIDEBAR = [HOJE, TAREFAS, HABITOS, PROJETOS, CALENDARIO, CAPACIDADE, HISTORICO]
+const NAV_BOTTOM = [HOJE, TAREFAS, HABITOS, CALENDARIO]
 
 function linkClassName({ isActive }: { isActive: boolean }) {
   return isActive ? 'app-shell__link app-shell__link--active' : 'app-shell__link'
@@ -94,6 +96,7 @@ const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
   { base: '/tarefas', drawer: /^\/tarefas\/[^/]+$/ },
   // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
   { base: '/projetos', drawer: /^\/projetos\/nova$/ },
+  { base: '/habitos', drawer: /^\/habitos\/[^/]+$/ },
 ]
 
 function naPagina(pathname: string, pagina: { base: string; drawer: RegExp }): boolean {

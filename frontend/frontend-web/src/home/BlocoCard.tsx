@@ -13,12 +13,16 @@ export type BlocoDiffMarker = 'novo' | 'removido'
 type BlocoCardProps = {
   ordem: number
   titulo: string
-  tarefaId: string
+  origem?: 'TAREFA' | 'HABITO'
+  tarefaId?: string | null
+  habitoId?: string | null
   duracaoMinutos: number
-  prioridade: Prioridade
+  prioridade?: Prioridade | null
   /** API: `string | null`. Não use só `string | undefined` — ver README (null vs undefined). */
   prazo?: string | null
   projetoNome?: string | null
+  horarioPreferencial?: string | null
+  motivoRecorrencia?: string | null
   mostrarJustificativa?: boolean
   diff?: BlocoDiffMarker | null
   statusExecucao?: StatusExecucao
@@ -48,14 +52,33 @@ function Marcador({ ordem, status }: { ordem: number; status?: StatusExecucao })
   return <span className="plano-bloco-ordem">{ordem}</span>
 }
 
+function linkDoTitulo(
+  origem: 'TAREFA' | 'HABITO',
+  tarefaId: string | null | undefined,
+  habitoId: string | null | undefined,
+  titulo: string,
+) {
+  if (origem === 'HABITO' && habitoId) {
+    return <Link to={`/habitos/${habitoId}`}>{titulo}</Link>
+  }
+  if (tarefaId) {
+    return <Link to={`/tarefas/${tarefaId}`}>{titulo}</Link>
+  }
+  return titulo
+}
+
 export function BlocoCard({
   ordem,
   titulo,
-  tarefaId,
+  origem = 'TAREFA',
+  tarefaId = null,
+  habitoId = null,
   duracaoMinutos,
-  prioridade,
+  prioridade = null,
   prazo,
   projetoNome = null,
+  horarioPreferencial = null,
+  motivoRecorrencia = null,
   mostrarJustificativa = false,
   diff = null,
   statusExecucao,
@@ -66,10 +89,13 @@ export function BlocoCard({
   acoes,
 }: BlocoCardProps) {
   const justificativa =
-    mostrarJustificativa && prazo ? formatarJustificativaBloco(prazo, prioridade) : null
+    mostrarJustificativa && origem === 'TAREFA' && prazo && prioridade
+      ? formatarJustificativaBloco(prazo, prioridade)
+      : null
 
   const className = [
     'plano-bloco',
+    origem === 'HABITO' ? 'plano-bloco--habito' : null,
     diff === 'novo' ? 'plano-bloco--novo' : null,
     diff === 'removido' ? 'plano-bloco--removido' : null,
     statusExecucao === 'CONCLUIDO' ? 'plano-bloco--concluido' : null,
@@ -84,7 +110,8 @@ export function BlocoCard({
       <Marcador ordem={ordem} status={statusExecucao} />
       <div className="plano-bloco-corpo">
         <p className="plano-bloco-titulo">
-          <Link to={`/tarefas/${tarefaId}`}>{titulo}</Link>
+          {origem === 'HABITO' ? <span className="plano-bloco-origem">Hábito</span> : null}
+          {linkDoTitulo(origem, tarefaId, habitoId, titulo)}
           {diff === 'novo' ? (
             <span className="plano-bloco-diff" aria-label="Bloco novo nesta versão">
               Novo
@@ -93,10 +120,17 @@ export function BlocoCard({
         </p>
         <p className="plano-bloco-meta">
           <span className="plano-bloco-duracao">{formatarCapacidadeMinutos(duracaoMinutos)}</span>
-          <span className={`plano-bloco-prioridade plano-bloco-prioridade--${prioridade.toLowerCase()}`}>
-            {labelPrioridade(prioridade)}
-          </span>
+          {origem === 'TAREFA' && prioridade ? (
+            <span className={`plano-bloco-prioridade plano-bloco-prioridade--${prioridade.toLowerCase()}`}>
+              {labelPrioridade(prioridade)}
+            </span>
+          ) : null}
           {projetoNome ? <span className="badge badge--projeto">{projetoNome}</span> : null}
+          {horarioPreferencial ? (
+            <span aria-label="Horário preferencial">
+              Pref. {horarioPreferencial.slice(0, 5)}
+            </span>
+          ) : null}
           {statusExecucao ? (
             <span className={`status-execucao status-execucao-${statusExecucao.toLowerCase()}`}>
               {labelStatusExecucao(statusExecucao)}
@@ -109,6 +143,11 @@ export function BlocoCard({
         {justificativa ? (
           <p className="plano-bloco-justificativa" title={justificativa}>
             {justificativa}
+          </p>
+        ) : null}
+        {origem === 'HABITO' && motivoRecorrencia ? (
+          <p className="plano-bloco-justificativa" title={motivoRecorrencia}>
+            {motivoRecorrencia}
           </p>
         ) : null}
       </div>

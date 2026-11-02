@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { HabitoDoDia } from '../../habito/api/habitoApi'
 import type { StatusPlano } from '../../planner/api/planoApi'
 import type { OrigemCapacidade } from '../../capacidade/api/capacidadeResolvidaApi'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
@@ -38,6 +39,7 @@ export type CalendarioDia = {
   statusPlano: StatusPlano | null
   plano: CalendarioPlano | null
   tarefasComPrazo: CalendarioTarefaPrazo[]
+  habitosDoDia: HabitoDoDia[]
 }
 
 export type CalendarioResponse = {
@@ -58,5 +60,12 @@ export async function consultarCalendario(
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível carregar o calendário.')
   }
-  return readApiJson(response)
+  const payload = await readApiJson<CalendarioResponse>(response)
+  return {
+    ...payload,
+    dias: payload.dias.map((dia) => ({
+      ...dia,
+      habitosDoDia: dia.habitosDoDia ?? [],
+    })),
+  }
 }

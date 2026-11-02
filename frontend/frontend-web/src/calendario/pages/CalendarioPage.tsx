@@ -13,6 +13,8 @@ import { PeriodoNav } from '../../layout/PeriodoNav'
 import { formatarCapacidadeMinutos } from '../../planner/data'
 import type { TarefaDrawerState } from '../../tarefa/TarefaDrawer'
 import type { Prioridade } from '../../tarefa/validation/tarefaForm'
+import { HabitoDoDiaLista } from '../../habito/HabitoDoDiaLista'
+import type { HabitoDoDia } from '../../habito/api/habitoApi'
 import {
   consultarCalendario,
   type CalendarioDia,
@@ -38,6 +40,7 @@ const VISOES: { valor: VisaoCalendario; label: string }[] = [
 const LENTES: { valor: LenteCalendario; label: string }[] = [
   { valor: 'plano', label: 'Plano' },
   { valor: 'prazos', label: 'Prazos' },
+  { valor: 'habitos', label: 'Hábitos' },
 ]
 
 const DRAWER_STATE: TarefaDrawerState = { daLista: true }
@@ -252,6 +255,13 @@ export function CalendarioPage() {
           dia={diaDetalhe}
           lente={lente}
           onFechar={() => setDiaSelecionado(null)}
+          onHabitosChange={(habitos) => {
+            setDias((atual) =>
+              atual.map((d) =>
+                d.data === diaSelecionado ? { ...d, habitosDoDia: habitos } : d,
+              ),
+            )
+          }}
         />
       ) : null}
     </main>
@@ -317,6 +327,7 @@ function CelulaSemana({
   const chipAprovado = dia?.statusPlano === 'APROVADO'
   const blocos = dia?.plano?.blocos ?? []
   const prazos = dia?.tarefasComPrazo ?? []
+  const habitos = dia?.habitosDoDia ?? []
 
   return (
     <div
@@ -359,7 +370,8 @@ function CelulaSemana({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : null}
+      {lente === 'prazos' ? (
         <ul className="calendario-semana__lista">
           {prazos.map((tarefa) => (
             <li key={tarefa.id}>
@@ -372,7 +384,33 @@ function CelulaSemana({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
+      {lente === 'habitos' ? (
+        <ul className="calendario-semana__lista">
+          {habitos.map((habito) => (
+            <li key={habito.id}>
+              <Link
+                to={`/habitos/${habito.id}`}
+                className={
+                  habito.cumprido
+                    ? 'calendario-pilula calendario-pilula--habito calendario-pilula--cumprido'
+                    : 'calendario-pilula calendario-pilula--habito'
+                }
+                title={habito.titulo}
+              >
+                <span className="calendario-pilula__ponto" aria-hidden="true" />
+                <span className="calendario-pilula__titulo">{habito.titulo}</span>
+                <span className="calendario-pilula__duracao">
+                  {formatarCapacidadeMinutos(habito.duracaoMinutos)}
+                </span>
+                {habito.cumprido ? (
+                  <span className="visually-hidden">, cumprido</span>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   )
 }
@@ -392,6 +430,9 @@ function CelulaMes({
 }) {
   const temPlano = dia?.statusPlano === 'APROVADO'
   const temPrazo = (dia?.tarefasComPrazo.length ?? 0) > 0
+  const habitos = dia?.habitosDoDia ?? []
+  const temHabito = habitos.length > 0
+  const todosHabitosCumpridos = temHabito && habitos.every((h) => h.cumprido)
   const sobrecarga = dia?.sobrecarga === true
   const nBlocos = dia?.plano?.blocos.length ?? 0
 
@@ -417,6 +458,20 @@ function CelulaMes({
             <FlagIcon aria-hidden weight="fill" />
           </span>
         ) : null}
+        {temHabito ? (
+          <span
+            className={
+              todosHabitosCumpridos
+                ? 'calendario-indicador calendario-indicador--habito calendario-indicador--habito-ok'
+                : 'calendario-indicador calendario-indicador--habito'
+            }
+            aria-label={
+              todosHabitosCumpridos
+                ? `Hábitos cumpridos, ${habitos.length}`
+                : `Tem hábito, ${habitos.length}`
+            }
+          />
+        ) : null}
         {sobrecarga ? (
           <span
             className="calendario-indicador--icone calendario-indicador--sobrecarga-icone"
@@ -435,11 +490,13 @@ function PainelDia({
   dia,
   lente,
   onFechar,
+  onHabitosChange,
 }: {
   data: string
   dia: CalendarioDia
   lente: LenteCalendario
   onFechar: () => void
+  onHabitosChange: (habitos: HabitoDoDia[]) => void
 }) {
   return (
     <section
@@ -481,26 +538,36 @@ function PainelDia({
             ))}
           </ul>
         )
-      ) : dia.tarefasComPrazo.length === 0 ? (
-        <p className="calendario-painel__vazio" role="status">
-          Nenhuma tarefa com prazo neste dia.
-        </p>
-      ) : (
-        <ul className="calendario-painel__lista">
-          {dia.tarefasComPrazo.map((tarefa) => (
-            <li key={tarefa.id}>
-              <Link
-                to={`/tarefas/${tarefa.id}`}
-                state={DRAWER_STATE}
-                className="calendario-painel__titulo"
-              >
-                {tarefa.titulo}
-              </Link>
-              <span>{formatarCapacidadeMinutos(tarefa.duracaoMinutos)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      ) : null}
+
+      {lente === 'prazos' ? (
+        dia.tarefasComPrazo.length === 0 ? (
+          <p className="calendario-painel__vazio" role="status">
+            Nenhuma tarefa com prazo neste dia.
+          </p>
+        ) : (
+          <ul className="calendario-painel__lista">
+            {dia.tarefasComPrazo.map((tarefa) => (
+              <li key={tarefa.id}>
+                <Link
+                  to={`/tarefas/${tarefa.id}`}
+                  state={DRAWER_STATE}
+                  className="calendario-painel__titulo"
+                >
+                  {tarefa.titulo}
+                </Link>
+                <span>{formatarCapacidadeMinutos(tarefa.duracaoMinutos)}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+
+      <HabitoDoDiaLista
+        habitos={dia.habitosDoDia ?? []}
+        data={data}
+        onAtualizado={onHabitosChange}
+      />
     </section>
   )
 }

@@ -25,7 +25,11 @@ import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.habito.entity.Habito;
+import com.controlerotina.habito.repository.HabitoRepository;
+import com.controlerotina.habito.service.HabitoStreakService;
 import com.controlerotina.historico.PeriodoBRT;
+import com.controlerotina.planner.dto.HabitoResumoResponse;
 import com.controlerotina.planner.dto.TarefaResumoResponse;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
@@ -40,6 +44,7 @@ import com.controlerotina.shared.exception.ExecucaoJaConcluidaException;
 import com.controlerotina.shared.exception.ExecucaoJaEmAndamentoException;
 import com.controlerotina.shared.exception.ExecucaoNaoEmAndamentoException;
 import com.controlerotina.shared.exception.ExecucaoNaoEncontradaException;
+import com.controlerotina.shared.exception.HabitoNaoEncontradoException;
 import com.controlerotina.shared.exception.PlanoNaoExecutavelException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.tarefa.entity.StatusTarefa;
@@ -60,8 +65,10 @@ public class ExecucaoService {
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final PlanoRepository planoRepository;
     private final TarefaRepository tarefaRepository;
+    private final HabitoRepository habitoRepository;
     private final ProjetoRepository projetoRepository;
     private final XpConcessaoService xpConcessaoService;
+    private final HabitoStreakService habitoStreakService;
     private final Clock clock;
 
     public ExecucaoService(
@@ -69,23 +76,27 @@ public class ExecucaoService {
             BlocoPlanoRepository blocoPlanoRepository,
             PlanoRepository planoRepository,
             TarefaRepository tarefaRepository,
+            HabitoRepository habitoRepository,
             ProjetoRepository projetoRepository,
             XpConcessaoService xpConcessaoService,
+            HabitoStreakService habitoStreakService,
             Clock clock
     ) {
         this.execucaoRepository = execucaoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.planoRepository = planoRepository;
         this.tarefaRepository = tarefaRepository;
+        this.habitoRepository = habitoRepository;
         this.projetoRepository = projetoRepository;
         this.xpConcessaoService = xpConcessaoService;
+        this.habitoStreakService = habitoStreakService;
         this.clock = clock;
     }
 
     @Transactional
     public ResultadoInicio iniciar(UUID usuarioId, UUID blocoId) {
         BlocoPlano bloco = carregarBlocoDoUsuario(usuarioId, blocoId);
-        garantirPlanoAprovadoCorrente(bloco.getPlanoId(), usuarioId);
+        garantirPlanoExecutavel(bloco, usuarioId);
 
         Instant agora = clock.instant();
         var existente = execucaoRepository.findByBlocoPlanoId(bloco.getId());
@@ -98,10 +109,9 @@ public class ExecucaoService {
                         bloco.getId(),
                         agora
                 ));
-                marcarTarefaEmProgressoSeAplicavel(bloco.getTarefaId(), usuarioId, agora);
+                marcarTarefaEmProgressoSeAplicavel(bloco, usuarioId, agora);
                 return new ResultadoInicio(criada, true);
             } catch (DataIntegrityViolationException ex) {
-                // Corrida: unique uk_execucao_bloco_plano — conflito de domínio, sem duplicar.
                 if (violaUniqueExecucaoBloco(ex)) {
                     throw new ExecucaoBlocoConflitoException();
                 }
@@ -113,16 +123,10 @@ public class ExecucaoService {
         return switch (execucao.getStatus()) {
             case EM_ANDAMENTO -> throw new ExecucaoJaEmAndamentoException();
             case CONCLUIDO -> throw new ExecucaoJaConcluidaException();
-            case ABORTADO -> {
+            case ABORTADO, NAO_INICIADO -> {
                 execucao.reiniciar(agora);
                 Execucao salva = execucaoRepository.save(execucao);
-                marcarTarefaEmProgressoSeAplicavel(bloco.getTarefaId(), usuarioId, agora);
-                yield new ResultadoInicio(salva, false);
-            }
-            case NAO_INICIADO -> {
-                execucao.reiniciar(agora);
-                Execucao salva = execucaoRepository.save(execucao);
-                marcarTarefaEmProgressoSeAplicavel(bloco.getTarefaId(), usuarioId, agora);
+                marcarTarefaEmProgressoSeAplicavel(bloco, usuarioId, agora);
                 yield new ResultadoInicio(salva, false);
             }
         };
@@ -149,7 +153,7 @@ public class ExecucaoService {
     public Execucao abortar(UUID usuarioId, UUID execucaoId) {
         Execucao execucao = carregarExecucaoDoUsuario(usuarioId, execucaoId);
         BlocoPlano bloco = carregarBlocoDoUsuario(usuarioId, execucao.getBlocoPlanoId());
-        garantirPlanoAprovadoCorrente(bloco.getPlanoId(), usuarioId);
+        garantirPlanoExecutavel(bloco, usuarioId);
 
         if (execucao.getStatus() != StatusExecucao.EM_ANDAMENTO) {
             throw new ExecucaoNaoEmAndamentoException();
@@ -164,22 +168,27 @@ public class ExecucaoService {
     public ResultadoConclusao concluir(UUID usuarioId, UUID execucaoId) {
         Execucao execucao = carregarExecucaoDoUsuario(usuarioId, execucaoId);
         BlocoPlano bloco = carregarBlocoDoUsuario(usuarioId, execucao.getBlocoPlanoId());
-        garantirPlanoAprovadoCorrente(bloco.getPlanoId(), usuarioId);
+        Plano plano = garantirPlanoExecutavel(bloco, usuarioId);
 
         if (execucao.getStatus() != StatusExecucao.EM_ANDAMENTO) {
             throw new ExecucaoNaoEmAndamentoException();
         }
 
         Instant agora = clock.instant();
+        int minutosEfetivos = XpMotor.minutosEfetivos(
+                bloco.getDuracaoMinutos(),
+                execucao.getIniciadoEm(),
+                agora
+        );
+
+        if (bloco.getHabitoId() != null) {
+            return concluirBlocoHabito(usuarioId, bloco, plano, execucao, minutosEfetivos, agora);
+        }
+
         execucao.concluir(agora);
         execucaoRepository.save(execucao);
 
         Tarefa tarefa = atualizarTarefaAposConcluir(bloco.getTarefaId(), usuarioId, agora);
-        int minutosEfetivos = XpMotor.minutosEfetivos(
-                bloco.getDuracaoMinutos(),
-                execucao.getIniciadoEm(),
-                execucao.getConcluidoEm()
-        );
         int somaEfetivosTarefa = somarMinutosEfetivosConcluidos(bloco.getTarefaId(), usuarioId);
         XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederAoConcluir(
                 usuarioId,
@@ -187,6 +196,113 @@ public class ExecucaoService {
                 minutosEfetivos,
                 somaEfetivosTarefa,
                 tarefa
+        );
+        return new ResultadoConclusao(execucao, xp);
+    }
+
+    /**
+     * Conclui execução de hábito já materializada (avulso ou plano), inclusive direto
+     * sem passar por EM_ANDAMENTO.
+     */
+    @Transactional
+    public ResultadoConclusao concluirHabitoDiretoNoBloco(
+            UUID usuarioId,
+            BlocoPlano bloco,
+            Plano plano,
+            Habito habito
+    ) {
+        if (bloco.getHabitoId() == null || !bloco.getHabitoId().equals(habito.getId())) {
+            throw new PlanoNaoExecutavelException();
+        }
+        Instant agora = clock.instant();
+        var existente = execucaoRepository.findByBlocoPlanoId(bloco.getId());
+
+        if (existente.isPresent()) {
+            Execucao execucao = existente.get();
+            return switch (execucao.getStatus()) {
+                case CONCLUIDO -> throw new ExecucaoJaConcluidaException();
+                case EM_ANDAMENTO -> {
+                    int minutosEfetivos = XpMotor.minutosEfetivos(
+                            bloco.getDuracaoMinutos(),
+                            execucao.getIniciadoEm(),
+                            agora
+                    );
+                    yield concluirBlocoHabito(usuarioId, bloco, plano, execucao, minutosEfetivos, agora);
+                }
+                case ABORTADO, NAO_INICIADO -> {
+                    boolean jaCumprido = execucaoRepository.existsCumprimentoHabitoNaData(
+                            habito.getId(), plano.getData(), StatusExecucao.CONCLUIDO);
+                    execucao.concluirDireto(agora);
+                    Execucao salva = execucaoRepository.save(execucao);
+                    yield finalizarHabitoAposConclusao(
+                            usuarioId, habito, plano.getData(), salva, bloco.getDuracaoMinutos(), jaCumprido);
+                }
+            };
+        }
+
+        boolean jaCumprido = execucaoRepository.existsCumprimentoHabitoNaData(
+                habito.getId(), plano.getData(), StatusExecucao.CONCLUIDO);
+        try {
+            Execucao criada = execucaoRepository.saveAndFlush(Execucao.concluirDiretoNova(
+                    UUID.randomUUID(),
+                    usuarioId,
+                    bloco.getId(),
+                    agora
+            ));
+            return finalizarHabitoAposConclusao(
+                    usuarioId, habito, plano.getData(), criada, bloco.getDuracaoMinutos(), jaCumprido);
+        } catch (DataIntegrityViolationException ex) {
+            if (violaUniqueExecucaoBloco(ex)) {
+                throw new ExecucaoBlocoConflitoException();
+            }
+            throw ex;
+        }
+    }
+
+    private ResultadoConclusao concluirBlocoHabito(
+            UUID usuarioId,
+            BlocoPlano bloco,
+            Plano plano,
+            Execucao execucao,
+            int minutosEfetivos,
+            Instant agora
+    ) {
+        boolean jaCumprido = execucaoRepository.existsCumprimentoHabitoNaData(
+                bloco.getHabitoId(), plano.getData(), StatusExecucao.CONCLUIDO);
+        execucao.concluir(agora);
+        execucaoRepository.save(execucao);
+
+        Habito habito = habitoRepository.findByIdAndUsuarioId(bloco.getHabitoId(), usuarioId)
+                .orElseThrow(HabitoNaoEncontradoException::new);
+        habitoStreakService.registrarCumprimento(habito, plano.getData(), jaCumprido);
+
+        XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederBlocoHabito(
+                usuarioId,
+                execucao.getId(),
+                minutosEfetivos
+        );
+        return new ResultadoConclusao(execucao, xp);
+    }
+
+    private ResultadoConclusao finalizarHabitoAposConclusao(
+            UUID usuarioId,
+            Habito habito,
+            LocalDate dataPlano,
+            Execucao execucao,
+            int duracaoMinutos,
+            boolean jaCumpridoAntes
+    ) {
+        habitoStreakService.registrarCumprimento(habito, dataPlano, jaCumpridoAntes);
+
+        int minutosEfetivos = XpMotor.minutosEfetivos(
+                duracaoMinutos,
+                execucao.getIniciadoEm(),
+                execucao.getConcluidoEm()
+        );
+        XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederBlocoHabito(
+                usuarioId,
+                execucao.getId(),
+                minutosEfetivos
         );
         return new ResultadoConclusao(execucao, xp);
     }
@@ -222,10 +338,23 @@ public class ExecucaoService {
         }
 
         List<BlocoPlano> blocos = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(corrente.getId());
-        Map<UUID, Tarefa> tarefas = tarefaRepository.findAllById(
-                        blocos.stream().map(BlocoPlano::getTarefaId).distinct().toList()
-                ).stream()
-                .collect(Collectors.toMap(Tarefa::getId, Function.identity()));
+        Set<UUID> tarefaIds = blocos.stream()
+                .map(BlocoPlano::getTarefaId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<UUID> habitoIds = blocos.stream()
+                .map(BlocoPlano::getHabitoId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, Tarefa> tarefas = tarefaIds.isEmpty()
+                ? Map.of()
+                : tarefaRepository.findAllById(tarefaIds).stream()
+                        .collect(Collectors.toMap(Tarefa::getId, Function.identity()));
+        Map<UUID, Habito> habitos = habitoIds.isEmpty()
+                ? Map.of()
+                : habitoRepository.findAllById(habitoIds).stream()
+                        .collect(Collectors.toMap(Habito::getId, Function.identity()));
 
         Map<UUID, Execucao> execucoes = blocos.isEmpty()
                 ? Map.of()
@@ -246,26 +375,46 @@ public class ExecucaoService {
                         .collect(Collectors.toMap(Projeto::getId, Projeto::getNome));
 
         List<ItemExecucaoResponse> itens = blocos.stream()
-                .map(bloco -> {
-                    Tarefa tarefa = tarefas.get(bloco.getTarefaId());
-                    if (tarefa == null) {
-                        throw new TarefaNaoEncontradaException();
-                    }
-                    Execucao execucao = execucoes.get(bloco.getId());
-                    String projetoNome = tarefa.getProjetoId() == null
-                            ? null
-                            : nomesProjeto.get(tarefa.getProjetoId());
-                    return new ItemExecucaoResponse(
-                            BlocoExecucaoResponse.from(bloco),
-                            TarefaResumoResponse.from(tarefa, projetoNome),
-                            ExecucaoResponse.efetiva(execucao)
-                    );
-                })
+                .map(bloco -> mapearItem(bloco, tarefas, habitos, nomesProjeto, execucoes))
                 .toList();
 
         return new ExecucoesDoDiaResponse(
                 PlanoAprovadoResumoResponse.from(corrente),
                 itens
+        );
+    }
+
+    private ItemExecucaoResponse mapearItem(
+            BlocoPlano bloco,
+            Map<UUID, Tarefa> tarefas,
+            Map<UUID, Habito> habitos,
+            Map<UUID, String> nomesProjeto,
+            Map<UUID, Execucao> execucoes
+    ) {
+        Execucao execucao = execucoes.get(bloco.getId());
+        if (bloco.getHabitoId() != null) {
+            Habito habito = habitos.get(bloco.getHabitoId());
+            if (habito == null) {
+                throw new HabitoNaoEncontradoException();
+            }
+            return new ItemExecucaoResponse(
+                    BlocoExecucaoResponse.from(bloco),
+                    null,
+                    HabitoResumoResponse.from(habito),
+                    ExecucaoResponse.efetiva(execucao)
+            );
+        }
+        Tarefa tarefa = tarefas.get(bloco.getTarefaId());
+        if (tarefa == null) {
+            throw new TarefaNaoEncontradaException();
+        }
+        String projetoNome = tarefa.getProjetoId() == null
+                ? null
+                : nomesProjeto.get(tarefa.getProjetoId());
+        return new ItemExecucaoResponse(
+                BlocoExecucaoResponse.from(bloco),
+                TarefaResumoResponse.from(tarefa, projetoNome),
+                ExecucaoResponse.efetiva(execucao)
         );
     }
 
@@ -291,8 +440,11 @@ public class ExecucaoService {
         return tarefaRepository.save(tarefa);
     }
 
-    private void marcarTarefaEmProgressoSeAplicavel(UUID tarefaId, UUID usuarioId, Instant agora) {
-        Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(tarefaId, usuarioId)
+    private void marcarTarefaEmProgressoSeAplicavel(BlocoPlano bloco, UUID usuarioId, Instant agora) {
+        if (bloco.getTarefaId() == null) {
+            return;
+        }
+        Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(bloco.getTarefaId(), usuarioId)
                 .orElseThrow(TarefaNaoEncontradaException::new);
 
         if (!STATUS_PARA_EM_PROGRESSO.contains(tarefa.getStatus())) {
@@ -316,9 +468,16 @@ public class ExecucaoService {
                 .orElseThrow(ExecucaoNaoEncontradaException::new);
     }
 
-    private void garantirPlanoAprovadoCorrente(UUID planoId, UUID usuarioId) {
-        Plano plano = planoRepository.findByIdAndUsuarioId(planoId, usuarioId)
+    private Plano garantirPlanoExecutavel(BlocoPlano bloco, UUID usuarioId) {
+        Plano plano = planoRepository.findByIdAndUsuarioId(bloco.getPlanoId(), usuarioId)
                 .orElseThrow(BlocoPlanoNaoEncontradoException::new);
+
+        if (plano.getStatus() == StatusPlano.HABITO_AVULSO) {
+            if (bloco.getHabitoId() == null || bloco.getTarefaId() != null) {
+                throw new PlanoNaoExecutavelException();
+            }
+            return plano;
+        }
 
         if (plano.getStatus() != StatusPlano.APROVADO) {
             throw new PlanoNaoExecutavelException();
@@ -332,5 +491,6 @@ public class ExecucaoService {
         if (!vigente.getId().equals(plano.getId())) {
             throw new PlanoNaoExecutavelException();
         }
+        return plano;
     }
 }

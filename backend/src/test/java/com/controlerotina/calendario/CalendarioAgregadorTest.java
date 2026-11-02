@@ -74,6 +74,32 @@ class CalendarioAgregadorTest {
     }
 
     @Test
+    void t5_planoHabitoAvulsoNaoEntraEmMinutosAlocadosNemStatusPlano() {
+        CalendarioAgregador.PlanoCandidato avulso = new CalendarioAgregador.PlanoCandidato(
+                UUID.randomUUID(),
+                StatusPlano.HABITO_AVULSO,
+                9,
+                false,
+                List.of(new CalendarioAgregador.BlocoInput(
+                        UUID.randomUUID(),
+                        null,
+                        "Correr",
+                        45,
+                        1,
+                        null
+                ))
+        );
+
+        CalendarioAgregador.DiaMontado dia = CalendarioAgregador.montarDia(
+                DIA, 240, OrigemCapacidade.SEMANAL, List.of(avulso), List.of());
+
+        assertThat(dia.statusPlano()).isNull();
+        assertThat(dia.plano()).isNull();
+        assertThat(dia.minutosAlocados()).isZero();
+        assertThat(dia.sobrecarga()).isFalse();
+    }
+
+    @Test
     void t2_deveMarcarSobrecargaQuandoAlocadoExcedeCapacidade() {
         CalendarioAgregador.PlanoCandidato aprovado = planoComBlocos(180);
 

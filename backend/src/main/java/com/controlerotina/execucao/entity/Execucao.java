@@ -148,6 +148,34 @@ public class Execucao {
         this.updatedAt = agora;
     }
 
+    /** Conclusão sem passar por EM_ANDAMENTO (concluir-direto de hábito). */
+    public static Execucao concluirDiretoNova(
+            UUID id,
+            UUID usuarioId,
+            UUID blocoPlanoId,
+            Instant agora
+    ) {
+        return new Execucao(
+                id,
+                usuarioId,
+                blocoPlanoId,
+                StatusExecucao.CONCLUIDO,
+                agora,
+                agora,
+                null,
+                agora,
+                agora
+        );
+    }
+
+    public void concluirDireto(Instant agora) {
+        this.status = StatusExecucao.CONCLUIDO;
+        this.iniciadoEm = agora;
+        this.concluidoEm = agora;
+        this.abortadoEm = null;
+        this.updatedAt = agora;
+    }
+
     public void reatribuirBloco(UUID novoBlocoPlanoId, Instant agora) {
         this.blocoPlanoId = novoBlocoPlanoId;
         this.updatedAt = agora;

@@ -48,6 +48,7 @@ describe('periodo calendário', () => {
     expect(parseVisao('mes')).toBe('mes')
     expect(parseLente(null)).toBe('plano')
     expect(parseLente('prazos')).toBe('prazos')
+    expect(parseLente('habitos')).toBe('habitos')
   })
 
   it('labelPeriodo formata semana e mês', () => {

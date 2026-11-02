@@ -61,6 +61,12 @@
   color: var(--status-deletada);
 }
 
+.badge.status-pausado,
+.status-pausado {
+  background: var(--status-deletada-bg);
+  color: var(--status-deletada);
+}
+
 .badge.status-plano-rascunho,
 .status-plano-rascunho {
   background: var(--status-plano-rascunho-bg);

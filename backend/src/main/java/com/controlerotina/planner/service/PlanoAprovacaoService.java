@@ -19,15 +19,18 @@ public class PlanoAprovacaoService {
 
     private final PlanoRepository planoRepository;
     private final PlanoConsultaService planoConsultaService;
+    private final PropostaService propostaService;
     private final Clock clock;
 
     public PlanoAprovacaoService(
             PlanoRepository planoRepository,
             PlanoConsultaService planoConsultaService,
+            PropostaService propostaService,
             Clock clock
     ) {
         this.planoRepository = planoRepository;
         this.planoConsultaService = planoConsultaService;
+        this.propostaService = propostaService;
         this.clock = clock;
     }
 
@@ -36,6 +39,11 @@ public class PlanoAprovacaoService {
         Plano plano = planoRepository.findByIdAndUsuarioId(planoId, usuarioId)
                 .orElseThrow(PlanoNaoEncontradoException::new);
         garantirRascunhoCorrente(plano);
+
+        // Rascunho de proposta: /aprovar equivale a aceitar (preserva concluídos).
+        if (plano.getPropostaId() != null) {
+            return propostaService.aceitar(usuarioId, plano.getPropostaId());
+        }
 
         Instant agora = clock.instant();
         plano.aprovar(agora);

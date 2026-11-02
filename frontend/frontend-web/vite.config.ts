@@ -45,6 +45,7 @@ export default defineConfig({
       ...Object.fromEntries(API_PROXY_PREFIXES.map((path) => [path, backendProxy])),
       '/calendario': spaApiSharedProxy,
       '/projetos': spaApiSharedProxy,
+      '/habitos': spaApiSharedProxy,
     },
   },
   test: {

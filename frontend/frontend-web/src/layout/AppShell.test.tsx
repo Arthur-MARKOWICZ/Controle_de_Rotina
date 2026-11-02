@@ -61,6 +61,7 @@ function renderShell(path: string) {
           <Route element={<AppShell />}>
             <Route path="/" element={<PaginaHoje />} />
             <Route path="/tarefas" element={<h1>página tarefas</h1>} />
+            <Route path="/habitos" element={<p>página hábitos</p>} />
             <Route path="/projetos" element={<p>página projetos</p>} />
             <Route path="/calendario" element={<p>página calendário</p>} />
             <Route path="/capacidade" element={<p>página capacidade</p>} />
@@ -93,11 +94,12 @@ describe('AppShell', () => {
     localStorage.clear()
   })
 
-  it('renderiza links Hoje, Tarefas, Projetos, Calendário, Capacidade e Histórico', () => {
+  it('renderiza links Hoje, Tarefas, Hábitos, Projetos, Calendário, Capacidade e Histórico', () => {
     renderShell('/')
 
     expect(screen.getAllByRole('link', { name: 'Hoje' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Tarefas' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Hábitos' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Projetos' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Calendário' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Capacidade' }).length).toBeGreaterThan(0)
@@ -131,6 +133,7 @@ describe('AppShell', () => {
     expect(within(sidebar).getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Hoje',
       'Tarefas',
+      'Hábitos',
       'Projetos',
       'Calendário',
       'Capacidade',
@@ -139,13 +142,13 @@ describe('AppShell', () => {
     expect(within(bottom).getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Hoje',
       'Tarefas',
+      'Hábitos',
       'Calendário',
-      'Capacidade',
     ])
     expect(within(bottom).getByRole('button', { name: 'Mais' })).toBeInTheDocument()
   })
 
-  it('T2: "Mais" abre sheet com Projetos, Histórico, Perfil e Sair; Esc fecha e devolve o foco', async () => {
+  it('T2: "Mais" abre sheet com Projetos, Capacidade, Histórico, Perfil e Sair; Esc fecha e devolve o foco', async () => {
     const user = userEvent.setup()
     renderShell('/')
 
@@ -154,6 +157,7 @@ describe('AppShell', () => {
 
     const sheet = screen.getByRole('dialog', { name: 'Mais opções' })
     const projetos = within(sheet).getByRole('link', { name: 'Projetos' })
+    expect(within(sheet).getByRole('link', { name: 'Capacidade' })).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Histórico' })).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Perfil' })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Sair' })).toBeInTheDocument()

@@ -25,6 +25,7 @@ import { useQuickAdd } from '../layout/QuickAddContext'
 import {
   aceitarProposta,
   adicionarBloco,
+  adicionarBlocoHabito,
   aprovarPlano,
   buscarPlano,
   descartarProposta,
@@ -32,8 +33,15 @@ import {
   listarDatasDaProposta,
   removerBloco,
   type BlocoPlanoResponse,
+  type ItemNaoAlocadoResponse,
   type PlanoResponse,
 } from '../planner/api/planoApi'
+import {
+  chaveOrigemBloco,
+  ehBlocoHabito,
+  tarefaIdsNoPlano,
+  tituloDoBloco,
+} from '../planner/blocoOrigem'
 import {
   dataHojeIso,
   filtrarElegiveisForaDoPlano,
@@ -58,9 +66,9 @@ import {
 } from './otimista'
 
 type SnapshotBlocos = {
-  /** IDs de tarefa (bloco.id muda a cada versão). */
-  tarefaIds: Set<string>
-  titulosPorTarefaId: Map<string, string>
+  /** Chaves de origem (`T:` / `H:`) — bloco.id muda a cada versão. */
+  origemIds: Set<string>
+  titulosPorOrigem: Map<string, string>
 }
 
 export type TarefaEmAdicao = { id: string; titulo: string }
@@ -85,17 +93,17 @@ function mensagemErro(error: unknown, fallback: string): string {
 
 function snapshotDeBlocos(blocos: BlocoPlanoResponse[]): SnapshotBlocos {
   return {
-    tarefaIds: new Set(blocos.map((bloco) => bloco.tarefa.id)),
-    titulosPorTarefaId: new Map(blocos.map((bloco) => [bloco.tarefa.id, bloco.tarefa.titulo])),
+    origemIds: new Set(blocos.map((bloco) => chaveOrigemBloco(bloco))),
+    titulosPorOrigem: new Map(blocos.map((bloco) => [chaveOrigemBloco(bloco), tituloDoBloco(bloco)])),
   }
 }
 
 function titulosRemovidos(anterior: SnapshotBlocos, novo: PlanoResponse): string[] {
-  const tarefaIdsNovos = new Set(novo.blocos.map((bloco) => bloco.tarefa.id))
+  const origemIdsNovos = new Set(novo.blocos.map((bloco) => chaveOrigemBloco(bloco)))
   const removidos: string[] = []
-  for (const tarefaId of anterior.tarefaIds) {
-    if (!tarefaIdsNovos.has(tarefaId)) {
-      removidos.push(anterior.titulosPorTarefaId.get(tarefaId) ?? 'Tarefa removida')
+  for (const origemId of anterior.origemIds) {
+    if (!origemIdsNovos.has(origemId)) {
+      removidos.push(anterior.titulosPorOrigem.get(origemId) ?? 'Item removido')
     }
   }
   return removidos
@@ -287,7 +295,7 @@ export function usePlanoDoDia() {
     }
 
     let cancelado = false
-    const idsNoPlano = plano.blocos.map((bloco) => bloco.tarefa.id)
+    const idsNoPlano = tarefaIdsNoPlano(plano.blocos)
 
     async function carregarElegiveis() {
       setCarregandoElegiveis(true)
@@ -535,6 +543,29 @@ export function usePlanoDoDia() {
     }
   }
 
+  async function adicionarHabitoAoPlano(
+    planoId: string,
+    habito: { id: string; titulo: string },
+  ): Promise<boolean> {
+    const atual = novaRequisicao()
+    setTarefaEmAdicao(habito)
+    try {
+      const atualizado = await adicionarBlocoHabito(planoId, habito.id)
+      if (atual()) {
+        setPlano(atualizado)
+      }
+      return true
+    } catch (error) {
+      erroComRetry(
+        mensagemErro(error, 'Não foi possível adicionar o hábito ao plano.'),
+        () => void adicionarHabitoAoPlano(planoId, habito),
+      )
+      return false
+    } finally {
+      setTarefaEmAdicao(null)
+    }
+  }
+
   async function handleRemover(blocoId: string) {
     if (!plano || !ehRascunho) {
       return
@@ -544,6 +575,7 @@ export function usePlanoDoDia() {
     if (!bloco) {
       return
     }
+    const titulo = tituloDoBloco(bloco)
     remocoesEmVoo.current += 1
     marcarPendente(blocoId, true)
     setPlano((atual) =>
@@ -551,14 +583,22 @@ export function usePlanoDoDia() {
     )
     try {
       await removerBloco(planoId, blocoId)
-      toast.success(`Removido: ${bloco.tarefa.titulo}`, {
+      toast.success(`Removido: ${titulo}`, {
         action: {
           label: 'Desfazer',
-          onClick: () =>
-            void adicionarTarefaAoPlano(planoId, {
-              id: bloco.tarefa.id,
-              titulo: bloco.tarefa.titulo,
-            }),
+          onClick: () => {
+            if (ehBlocoHabito(bloco)) {
+              const habitoId = bloco.habitoId ?? bloco.habito?.id
+              if (habitoId) {
+                void adicionarHabitoAoPlano(planoId, { id: habitoId, titulo })
+              }
+              return
+            }
+            const tarefaId = bloco.tarefaId ?? bloco.tarefa?.id
+            if (tarefaId) {
+              void adicionarTarefaAoPlano(planoId, { id: tarefaId, titulo })
+            }
+          },
         },
       })
       remocoesEmVoo.current -= 1
@@ -575,6 +615,17 @@ export function usePlanoDoDia() {
     } finally {
       marcarPendente(blocoId, false)
     }
+  }
+
+  async function handleAdicionarOmitido(item: ItemNaoAlocadoResponse) {
+    if (!plano || !ehRascunho) {
+      return
+    }
+    if (item.tipo === 'HABITO') {
+      await adicionarHabitoAoPlano(plano.id, { id: item.id, titulo: item.titulo })
+      return
+    }
+    await adicionarTarefaAoPlano(plano.id, { id: item.id, titulo: item.titulo })
   }
 
   async function handleRemoverMenorPrioridade() {
@@ -623,6 +674,14 @@ export function usePlanoDoDia() {
     } finally {
       marcarPendente(blocoId, false)
     }
+  }
+
+  async function recarregarExecucoes() {
+    if (plano?.status !== 'APROVADO') {
+      return
+    }
+    const execucoes = await listarExecucoes(dataSelecionada)
+    setItensExecucao(execucoes.itens)
   }
 
   async function handleIniciar(item: ItemExecucaoResponse) {
@@ -727,8 +786,10 @@ export function usePlanoDoDia() {
     handleRemover,
     handleRemoverMenorPrioridade,
     handleAdicionar,
+    handleAdicionarOmitido,
     handleIniciar,
     handleConcluir,
     handleAbortar,
+    recarregarExecucoes,
   }
 }

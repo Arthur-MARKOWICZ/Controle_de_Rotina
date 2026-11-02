@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.controlerotina.calendario.CalendarioAgregador;
 import com.controlerotina.capacidade.entity.OrigemCapacidade;
+import com.controlerotina.habito.dto.HabitoDoDiaResponse;
 import com.controlerotina.planner.entity.StatusPlano;
 
 public record CalendarioDiaResponse(
@@ -15,9 +16,13 @@ public record CalendarioDiaResponse(
         boolean sobrecarga,
         StatusPlano statusPlano,
         CalendarioPlanoResponse plano,
-        List<CalendarioTarefaPrazoResponse> tarefasComPrazo
+        List<CalendarioTarefaPrazoResponse> tarefasComPrazo,
+        List<HabitoDoDiaResponse> habitosDoDia
 ) {
-    public static CalendarioDiaResponse from(CalendarioAgregador.DiaMontado dia) {
+    public static CalendarioDiaResponse from(
+            CalendarioAgregador.DiaMontado dia,
+            List<HabitoDoDiaResponse> habitosDoDia
+    ) {
         return new CalendarioDiaResponse(
                 dia.data(),
                 dia.capacidadeMinutos(),
@@ -26,7 +31,8 @@ public record CalendarioDiaResponse(
                 dia.sobrecarga(),
                 dia.statusPlano(),
                 dia.plano() == null ? null : CalendarioPlanoResponse.from(dia.plano()),
-                dia.tarefasComPrazo().stream().map(CalendarioTarefaPrazoResponse::from).toList()
+                dia.tarefasComPrazo().stream().map(CalendarioTarefaPrazoResponse::from).toList(),
+                habitosDoDia == null ? List.of() : habitosDoDia
         );
     }
 }

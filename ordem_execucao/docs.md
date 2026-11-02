@@ -211,14 +211,37 @@ fundacao-visual → shell-nav → hoje-fluida
 
 ---
 
+## Pós-MVP — hábitos leves (issue [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43))
+
+Recorrência por dias da semana integrada ao planner (score fixo, conflito visível, streak simples) — **sem** virar app de hábitos.  
+Correção: hábito **visível/executável sem plano aprovado** (calendário + CTAs + concluir direto).
+
+| Ordem | Plano (arquivo) | Issue | Status | Dependências | Por que nesta posição |
+|------:|-----------------|------:|--------|--------------|------------------------|
+| 45 | [`habitos.md`](../plans/negocio/habitos.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | feito no código (gaps) | planner (+ regras), execução, XP; ideal após projetos se a fila de #40 ainda estiver aberta | Domínio + motor + API |
+| 46 | [`ui-habitos.md`](../plans/ui/ui-habitos.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | feito no código (gaps) | `habitos.md`; shell v2 / home / revisão | Telas, conflito acionável, streak |
+| 46a | [`habitos-correcoes.md`](../plans/negocio/habitos-correcoes.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `habitos.md` (código); revisão `revisao_modulo_habitos.md` | Streak, motor, `itensNaoAlocados`, perf API |
+| 46b | [`ui-habitos-correcoes.md`](../plans/ui/ui-habitos-correcoes.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `ui-habitos.md`; `habitos-correcoes.md` (B4/B6) | Conflito CTA, copy dias, streak Home, form |
+| 47 | [`habito-sem-plano.md`](../plans/negocio/habito-sem-plano.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `habitos.md` + correções ideais, execução, XP, `calendario/calendario.md` | Bloco implícito `HABITO_AVULSO`; calendário `habitosDoDia`; iniciar / concluir-direto |
+| 48 | [`ui-habito-calendario.md`](../plans/ui/ui-habito-calendario.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `habito-sem-plano.md`; calendário UI; Home | Lente Hábitos, painel, CTAs, Home sem aprovado |
+
+```text
+núcleo + regras planner → (calendario / projetos) → habitos (#43) → ui-habitos
+                                                      → habitos-correcoes → ui-habitos-correcoes
+                                                      → habito-sem-plano → ui-habito-calendario
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
 
-**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos (não bloqueia calendário/projetos de domínio).  
-Em seguida na fila de domínio: projetos (#40) — [`projetos/projetos.md`](../plans/negocio/projetos/projetos.md) — se ainda pendente.  
-**Foco UI/UX:** épico v2 — itens 39–44 feitos (épico concluído).
+**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos.  
+Em seguida na fila de domínio: projetos (#40) se pendente; **hábitos** (#45–#46) já no código com gaps — priorizar correções **[`habitos-correcoes.md`](../plans/negocio/habitos-correcoes.md) → [`ui-habitos-correcoes.md`](../plans/ui/ui-habitos-correcoes.md)** (46a → 46b) antes de abrir mais superfície. Depois a correção **sem plano** — [`habito-sem-plano.md`](../plans/negocio/habito-sem-plano.md) + [`ui-habito-calendario.md`](../plans/ui/ui-habito-calendario.md) (**47 → 48**).  
+**Foco UI/UX:** épico v2 — itens 39–44 feitos (épico concluído).  
+Se os gaps da revisão de hábitos (#46a–#46b) já estiverem fechados e o gap restante for só calendário/execução sem aprovado: priorizar **47 → 48**.
 
 ---
 
@@ -228,7 +251,7 @@ Não abrir plano só por estes itens, a menos que o núcleo de planejamento já 
 
 - sync de calendário externo (Google/Outlook), notificações avançadas, IA no planner;
 - recuperação de senha / confirmação de e-mail;
-- equipes, rede social, hábitos complexos, RPG completo.
+- equipes, rede social, **hábitos complexos** (social/RRULE/marketplace — o corte leve #43 está na fila acima), RPG completo.
 
 Regra da visão: se não melhora “tarefas → plano útil”, questionar.
 

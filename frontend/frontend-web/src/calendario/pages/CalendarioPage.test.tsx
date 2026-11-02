@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ToastProvider } from '../../feedback/ToastProvider'
 import type { CalendarioResponse } from '../api/calendarioApi'
 import * as calendarioApi from '../api/calendarioApi'
 import { CalendarioPage } from './CalendarioPage'
@@ -46,6 +47,19 @@ const semanaResposta: CalendarioResponse = {
           duracaoMinutos: 120,
         },
       ],
+      habitosDoDia: [
+        {
+          id: 'h-1',
+          titulo: 'Correr',
+          duracaoMinutos: 30,
+          horarioPreferencial: null,
+          streakAtual: 2,
+          cumprido: false,
+          noPlanoAprovado: false,
+          execucaoAvulsa: null,
+          execucaoNoPlano: null,
+        },
+      ],
     },
     ...['2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01'].map(
       (data) => ({
@@ -57,6 +71,7 @@ const semanaResposta: CalendarioResponse = {
         statusPlano: null,
         plano: null,
         tarefasComPrazo: [],
+        habitosDoDia: [],
       }),
     ),
   ],
@@ -107,6 +122,7 @@ const mesResposta: CalendarioResponse = {
               },
             ]
           : [],
+      habitosDoDia: [],
     }
   }),
 }
@@ -151,12 +167,15 @@ function TarefaProbe() {
 
 function renderPage(path = '/calendario') {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/calendario" element={<CalendarioPage />} />
-        <Route path="/tarefas/:id" element={<TarefaProbe />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/calendario" element={<CalendarioPage />} />
+          <Route path="/tarefas/:id" element={<TarefaProbe />} />
+          <Route path="/habitos/:id" element={<p>hábito</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
@@ -199,6 +218,21 @@ describe('CalendarioPage', () => {
     const linkTarefa = within(painel).getByRole('link', { name: 'Entregar relatório' })
     expect(linkTarefa).toHaveAttribute('href', '/tarefas/t-prazo-1')
     expect(within(painel).getByText(/capacidade/i)).toBeInTheDocument()
+    expect(within(painel).getByRole('link', { name: 'Correr' })).toBeInTheDocument()
+  })
+
+  it('T11: lente Hábitos lista hábito sem plano no painel', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderPage()
+
+    await screen.findByText('Estudar Spring')
+    await user.click(screen.getByRole('radio', { name: 'Hábitos' }))
+    expect(await screen.findByText('Correr')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /26|segunda/i }))
+    const painel = await screen.findByRole('region', { name: /detalhe do dia/i })
+    expect(within(painel).getByRole('button', { name: /iniciar correr/i })).toBeInTheDocument()
+    expect(within(painel).getByRole('button', { name: /concluir direto correr/i })).toBeInTheDocument()
   })
 
   it('T9: visão mês mostra indicadores leves e navega o período', async () => {
@@ -221,6 +255,7 @@ describe('CalendarioPage', () => {
               statusPlano: null,
               plano: null,
               tarefasComPrazo: [],
+              habitosDoDia: [],
             }
           }),
         }

@@ -37,6 +37,13 @@
   resize: vertical;
 }
 
+.field-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .field input:disabled,
 .field select:disabled,
 .field textarea:disabled {

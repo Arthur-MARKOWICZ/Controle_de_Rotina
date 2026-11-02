@@ -2,6 +2,7 @@ import {
   ChartLineUpIcon,
   DotsThreeIcon,
   FolderSimpleIcon,
+  GaugeIcon,
   SignOutIcon,
   UserCircleIcon,
 } from '@phosphor-icons/react'
@@ -13,6 +14,7 @@ import { ThemePreferenceField } from '../theme/ThemePreferenceField'
 
 const ITENS = [
   { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon },
+  { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon },
   { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon },
   { to: '/perfil', label: 'Perfil', Icon: UserCircleIcon },
 ]

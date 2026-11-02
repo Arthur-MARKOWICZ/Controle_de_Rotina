@@ -15,11 +15,18 @@ public final class ScoreV1 {
     private ScoreV1() {
     }
 
+    /** Score fixo de hábito (85) + fator duração — ver `habitos.md`. */
+    public static final int SCORE_BASE_HABITO = 85;
+
     public static int calcular(Tarefa tarefa, LocalDate diaD) {
         return pontosPrioridade(tarefa.getPrioridade())
                 + pontosUrgencia(tarefa, diaD)
                 + pontosBonusAtrasada(tarefa.getStatus())
                 + pontosDuracao(tarefa.getDuracaoMinutos());
+    }
+
+    public static int calcularHabito(int duracaoMinutos) {
+        return SCORE_BASE_HABITO + pontosDuracao(duracaoMinutos);
     }
 
     static int pontosPrioridade(Prioridade prioridade) {

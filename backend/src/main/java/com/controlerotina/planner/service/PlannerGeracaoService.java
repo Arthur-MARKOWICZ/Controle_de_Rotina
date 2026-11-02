@@ -20,6 +20,9 @@ import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.capacidade.service.CapacidadeResolvidaService;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.habito.entity.Habito;
+import com.controlerotina.habito.entity.StatusHabito;
+import com.controlerotina.habito.repository.HabitoRepository;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
@@ -47,6 +50,7 @@ public class PlannerGeracaoService {
 
     private final CapacidadeResolvidaService capacidadeResolvidaService;
     private final TarefaRepository tarefaRepository;
+    private final HabitoRepository habitoRepository;
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final ExecucaoRepository execucaoRepository;
@@ -57,6 +61,7 @@ public class PlannerGeracaoService {
     public PlannerGeracaoService(
             CapacidadeResolvidaService capacidadeResolvidaService,
             TarefaRepository tarefaRepository,
+            HabitoRepository habitoRepository,
             PlanoRepository planoRepository,
             BlocoPlanoRepository blocoPlanoRepository,
             ExecucaoRepository execucaoRepository,
@@ -66,6 +71,7 @@ public class PlannerGeracaoService {
     ) {
         this.capacidadeResolvidaService = capacidadeResolvidaService;
         this.tarefaRepository = tarefaRepository;
+        this.habitoRepository = habitoRepository;
         this.planoRepository = planoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.execucaoRepository = execucaoRepository;
@@ -144,6 +150,9 @@ public class PlannerGeracaoService {
             }
         }
 
+        List<Habito> habitosAtivos = habitoRepository.findByUsuarioIdAndStatusAndDeletedAtIsNull(
+                usuarioId, StatusHabito.ATIVO);
+
         LocalDate fim = MotorAlocacao.fimJanela(inicio, elegiveis);
         List<CapacidadeResolvidaResponse> capacidades = capacidadeResolvidaService
                 .resolver(usuarioId, inicio, fim);
@@ -173,7 +182,8 @@ public class PlannerGeracaoService {
         Map<LocalDate, ResultadoAlocacao> alocacaoPorDia = MotorAlocacao.alocarJanela(
                 elegiveis,
                 saldoPorTarefa,
-                dias
+                dias,
+                habitosAtivos
         );
 
         Instant agora = clock.instant();
@@ -202,6 +212,7 @@ public class PlannerGeracaoService {
                     alocacao.temConflito(),
                     alocacao.mensagem(),
                     propostaId,
+                    alocacao.itensNaoAlocados(),
                     agora,
                     agora,
                     agora
@@ -212,6 +223,7 @@ public class PlannerGeracaoService {
                         UUID.randomUUID(),
                         plano.getId(),
                         bloco.tarefaId(),
+                        bloco.habitoId(),
                         bloco.duracaoMinutos(),
                         bloco.ordem(),
                         agora,

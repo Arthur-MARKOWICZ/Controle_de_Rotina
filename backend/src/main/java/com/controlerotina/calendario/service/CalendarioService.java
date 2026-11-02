@@ -19,6 +19,8 @@ import com.controlerotina.calendario.dto.PeriodoCalendarioResponse;
 import com.controlerotina.capacidade.dto.CapacidadeResolvidaResponse;
 import com.controlerotina.capacidade.entity.OrigemCapacidade;
 import com.controlerotina.capacidade.service.CapacidadeResolvidaService;
+import com.controlerotina.habito.dto.HabitoDoDiaResponse;
+import com.controlerotina.habito.service.HabitoDoDiaService;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
@@ -36,17 +38,20 @@ public class CalendarioService {
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final TarefaRepository tarefaRepository;
+    private final HabitoDoDiaService habitoDoDiaService;
 
     public CalendarioService(
             CapacidadeResolvidaService capacidadeResolvidaService,
             PlanoRepository planoRepository,
             BlocoPlanoRepository blocoPlanoRepository,
-            TarefaRepository tarefaRepository
+            TarefaRepository tarefaRepository,
+            HabitoDoDiaService habitoDoDiaService
     ) {
         this.capacidadeResolvidaService = capacidadeResolvidaService;
         this.planoRepository = planoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.tarefaRepository = tarefaRepository;
+        this.habitoDoDiaService = habitoDoDiaService;
     }
 
     @Transactional(readOnly = true)
@@ -100,6 +105,9 @@ public class CalendarioService {
                 ))
                 .toList();
 
+        Map<LocalDate, List<HabitoDoDiaResponse>> habitosPorDia =
+                habitoDoDiaService.listarNoIntervalo(usuarioId, dataDe, dataAte);
+
         List<CalendarioDiaResponse> dias = new ArrayList<>();
         for (LocalDate data = dataDe; !data.isAfter(dataAte); data = data.plusDays(1)) {
             CapacidadeResolvidaResponse capacidade = capacidades.get(data);
@@ -114,7 +122,9 @@ public class CalendarioService {
                 List<BlocoPlano> blocos = blocosPorPlano.getOrDefault(plano.getId(), List.of());
                 List<CalendarioAgregador.BlocoInput> blocosInput = blocos.stream()
                         .map(bloco -> {
-                            Tarefa tarefa = tarefasDeBlocos.get(bloco.getTarefaId());
+                            Tarefa tarefa = bloco.getTarefaId() == null
+                                    ? null
+                                    : tarefasDeBlocos.get(bloco.getTarefaId());
                             String titulo = tarefa != null ? tarefa.getTitulo() : "";
                             var prioridade = tarefa != null ? tarefa.getPrioridade() : null;
                             return new CalendarioAgregador.BlocoInput(
@@ -143,7 +153,10 @@ public class CalendarioService {
                     candidatos,
                     todasTarefas
             );
-            dias.add(CalendarioDiaResponse.from(montado));
+            dias.add(CalendarioDiaResponse.from(
+                    montado,
+                    habitosPorDia.getOrDefault(data, List.of())
+            ));
         }
 
         return new CalendarioResponse(new PeriodoCalendarioResponse(dataDe, dataAte), dias);
@@ -158,10 +171,11 @@ public class CalendarioService {
     }
 
     private Map<UUID, Tarefa> carregarTarefas(List<UUID> tarefaIds) {
-        if (tarefaIds.isEmpty()) {
+        List<UUID> ids = tarefaIds.stream().filter(id -> id != null).distinct().toList();
+        if (ids.isEmpty()) {
             return Map.of();
         }
-        return tarefaRepository.findAllById(tarefaIds).stream()
+        return tarefaRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(Tarefa::getId, Function.identity()));
     }
 }

@@ -10,6 +10,8 @@ import * as capacidadeResolvidaApi from '../capacidade/api/capacidadeResolvidaAp
 import * as execucaoApi from '../execucao/api/execucaoApi'
 import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
 import { ToastProvider } from '../feedback/ToastProvider'
+import * as habitoApi from '../habito/api/habitoApi'
+import type { HabitoDoDia } from '../habito/api/habitoApi'
 import * as planoApi from '../planner/api/planoApi'
 import type { PlanoResponse } from '../planner/api/planoApi'
 import * as reservaProjetoApi from '../projeto/api/reservaProjetoApi'
@@ -46,12 +48,16 @@ vi.mock('../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
 }))
 
-vi.mock('../execucao/api/execucaoApi', () => ({
-  listarExecucoes: vi.fn(),
-  iniciarExecucao: vi.fn(),
-  concluirExecucao: vi.fn(),
-  abortarExecucao: vi.fn(),
-}))
+vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn(),
+    iniciarExecucao: vi.fn(),
+    concluirExecucao: vi.fn(),
+    abortarExecucao: vi.fn(),
+  }
+})
 
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({
@@ -73,6 +79,16 @@ vi.mock('../auth/api/meApi', () => ({
   buscarMe: vi.fn(),
   atualizarMe: vi.fn(),
 }))
+
+vi.mock('../habito/api/habitoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../habito/api/habitoApi')>()
+  return {
+    ...actual,
+    listarHabitosDoDia: vi.fn(),
+    concluirHabitoDireto: vi.fn(),
+    iniciarHabitoAvulso: vi.fn(),
+  }
+})
 
 vi.mock('../planner/data', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../planner/data')>()
@@ -219,6 +235,7 @@ describe('HomePage — plano do dia', () => {
       planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
       itens: [itemExecucaoBase],
     })
+    vi.mocked(habitoApi.listarHabitosDoDia).mockReset().mockResolvedValue([])
   })
 
   describe('F1 — leitura', () => {
@@ -1159,6 +1176,7 @@ describe('HomePage — plano do dia', () => {
 
   describe('carga do dia', () => {
     function planoDoDia(data: string, titulo: string): PlanoResponse {
+      const tarefaBase = planoBase.blocos[0].tarefa!
       return {
         ...planoBase,
         id: `p-${data}`,
@@ -1168,7 +1186,7 @@ describe('HomePage — plano do dia', () => {
           {
             ...planoBase.blocos[0],
             id: `b-${data}`,
-            tarefa: { ...planoBase.blocos[0].tarefa, id: `t-${data}`, titulo },
+            tarefa: { ...tarefaBase, id: `t-${data}`, titulo },
           },
         ],
       }
@@ -1254,6 +1272,43 @@ describe('HomePage — plano do dia', () => {
 
       liberar(null)
       expect(await screen.findByText(/ainda não há plano/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('visão Plano / Hábitos', () => {
+    const habitoHoje: HabitoDoDia = {
+      id: 'h-1',
+      titulo: 'Meditar',
+      duracaoMinutos: 20,
+      horarioPreferencial: '07:00:00',
+      streakAtual: 3,
+      cumprido: false,
+      noPlanoAprovado: false,
+      execucaoAvulsa: null,
+      execucaoNoPlano: null,
+    }
+
+    it('alterna entre plano e hábitos do dia', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+      vi.mocked(habitoApi.listarHabitosDoDia).mockResolvedValue([habitoHoje])
+
+      const user = userEvent.setup()
+      renderHome()
+
+      expect(await screen.findByRole('link', { name: 'Estudar Spring' })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Meditar' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Hábitos (1)' }))
+
+      expect(await screen.findByRole('link', { name: 'Meditar' })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Estudar Spring' })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Para executar hoje' })).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: 'Hábitos do dia' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Plano' }))
+
+      expect(await screen.findByRole('link', { name: 'Estudar Spring' })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Meditar' })).not.toBeInTheDocument()
     })
   })
 })

@@ -3,7 +3,7 @@
 Issue: [#38](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/38)
 
 Escopo: leitura agregada do horizonte multi-dia — **semana** (prioridade) e **mês** (indicadores leves); sobrepor plano **APROVADO**, carga vs capacidade e prazos; rota `/calendario` com detalhe do dia **no próprio calendário**; modo alternativo listando só tarefas que **vencem naquele dia**.  
-Fora deste slice: sync Google/Outlook; recorrência/hábitos; drag-and-drop / reagendar; edição ou aprovação de plano; deep-link para a Home; plano `RASCUNHO` na grade; entity/tabela `Calendario*`; cache; plano UI pixel-perfect separado (`plans/ui/` fica para refinement futuro se necessário).
+Fora deste slice: sync Google/Outlook; recorrência/hábitos (**hábitos no calendário:** `habito-sem-plano.md` + `ui-habito-calendario.md`); drag-and-drop / reagendar; edição ou aprovação de plano; deep-link para a Home; plano `RASCUNHO` na grade; entity/tabela `Calendario*`; cache; plano UI pixel-perfect separado (`plans/ui/` fica para refinement futuro se necessário).
 
 Dependências: `planner.md` (+ janela multi-dia), `capacidade.md`, `tarefa.md` (+ sem prazo), `ui-layout-nav.md`, `ui-home-agenda.md` / `ui-capacidade-visual.md` (semântica visual de sobrecarga).
 

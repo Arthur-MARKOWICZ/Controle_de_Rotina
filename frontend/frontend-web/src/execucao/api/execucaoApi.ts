@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { HabitoResumoResponse } from '../../planner/api/planoApi'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
 import type { XpConclusao } from '../../xp/types'
 
@@ -33,8 +34,13 @@ export type ExecucaoResponse = {
 
 export type ItemExecucaoResponse = {
   bloco: BlocoExecucaoResponse
-  tarefaResumo: TarefaResumoExecucao
+  tarefaResumo: TarefaResumoExecucao | null
+  habitoResumo?: HabitoResumoResponse | null
   execucao: ExecucaoResponse
+}
+
+export function tituloDoItemExecucao(item: ItemExecucaoResponse): string {
+  return item.habitoResumo?.titulo ?? item.tarefaResumo?.titulo ?? 'Bloco'
 }
 
 export type PlanoAprovadoResumoResponse = {

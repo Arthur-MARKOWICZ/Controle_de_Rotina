@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.controlerotina.shared.exception.XpEventoDuplicadoException;
+import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.usuario.entity.Usuario;
@@ -50,17 +51,7 @@ public class XpConcessaoService {
         List<XpEvento> novos = new ArrayList<>();
         Instant agora = clock.instant();
 
-        int xpBloco = XpMotor.xpBloco(minutosEfetivosBloco, tarefa.getPrioridade());
-        if (xpBloco > 0 && !xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId)) {
-            novos.add(new XpEvento(
-                    UUID.randomUUID(),
-                    usuarioId,
-                    TipoXpEvento.BLOCO_CONCLUIDO,
-                    execucaoId,
-                    xpBloco,
-                    agora
-            ));
-        }
+        adicionarEventoBloco(novos, usuarioId, execucaoId, minutosEfetivosBloco, tarefa.getPrioridade(), agora);
 
         if (tarefa.getStatus() == StatusTarefa.FINALIZADA
                 && !xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.TAREFA_FINALIZADA, tarefa.getId())) {
@@ -77,6 +68,45 @@ public class XpConcessaoService {
             }
         }
 
+        return persistirConcessao(usuario, novos, agora);
+    }
+
+    /** XP de bloco de hábito: peso MEDIA; sem evento {@code TAREFA_FINALIZADA}. */
+    @Transactional
+    public ResultadoConcessao concederBlocoHabito(
+            UUID usuarioId,
+            UUID execucaoId,
+            int minutosEfetivosBloco
+    ) {
+        Usuario usuario = usuarioRepository.findByIdForUpdate(usuarioId).orElseThrow();
+        List<XpEvento> novos = new ArrayList<>();
+        Instant agora = clock.instant();
+        adicionarEventoBloco(novos, usuarioId, execucaoId, minutosEfetivosBloco, Prioridade.MEDIA, agora);
+        return persistirConcessao(usuario, novos, agora);
+    }
+
+    private void adicionarEventoBloco(
+            List<XpEvento> novos,
+            UUID usuarioId,
+            UUID execucaoId,
+            int minutosEfetivosBloco,
+            Prioridade prioridade,
+            Instant agora
+    ) {
+        int xpBloco = XpMotor.xpBloco(minutosEfetivosBloco, prioridade);
+        if (xpBloco > 0 && !xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId)) {
+            novos.add(new XpEvento(
+                    UUID.randomUUID(),
+                    usuarioId,
+                    TipoXpEvento.BLOCO_CONCLUIDO,
+                    execucaoId,
+                    xpBloco,
+                    agora
+            ));
+        }
+    }
+
+    private ResultadoConcessao persistirConcessao(Usuario usuario, List<XpEvento> novos, Instant agora) {
         if (novos.isEmpty()) {
             int xpTotal = usuario.getXpTotal();
             XpMotor.ProgressoXp progresso = XpMotor.progresso(xpTotal);

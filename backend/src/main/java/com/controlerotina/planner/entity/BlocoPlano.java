@@ -18,8 +18,11 @@ public class BlocoPlano {
     @Column(name = "plano_id", nullable = false)
     private UUID planoId;
 
-    @Column(name = "tarefa_id", nullable = false)
+    @Column(name = "tarefa_id")
     private UUID tarefaId;
+
+    @Column(name = "habito_id")
+    private UUID habitoId;
 
     @Column(name = "duracao_minutos", nullable = false)
     private int duracaoMinutos;
@@ -36,6 +39,7 @@ public class BlocoPlano {
     protected BlocoPlano() {
     }
 
+    /** Bloco de tarefa (compatível com callers existentes). */
     public BlocoPlano(
             UUID id,
             UUID planoId,
@@ -45,9 +49,26 @@ public class BlocoPlano {
             Instant createdAt,
             Instant updatedAt
     ) {
+        this(id, planoId, tarefaId, null, duracaoMinutos, ordem, createdAt, updatedAt);
+    }
+
+    public BlocoPlano(
+            UUID id,
+            UUID planoId,
+            UUID tarefaId,
+            UUID habitoId,
+            int duracaoMinutos,
+            int ordem,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        if ((tarefaId == null) == (habitoId == null)) {
+            throw new IllegalArgumentException("Bloco deve ter exatamente uma origem: tarefa ou hábito");
+        }
         this.id = id;
         this.planoId = planoId;
         this.tarefaId = tarefaId;
+        this.habitoId = habitoId;
         this.duracaoMinutos = duracaoMinutos;
         this.ordem = ordem;
         this.createdAt = createdAt;
@@ -64,6 +85,10 @@ public class BlocoPlano {
 
     public UUID getTarefaId() {
         return tarefaId;
+    }
+
+    public UUID getHabitoId() {
+        return habitoId;
     }
 
     public int getDuracaoMinutos() {
