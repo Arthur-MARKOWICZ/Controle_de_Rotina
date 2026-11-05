@@ -34,6 +34,7 @@ docker compose up --build
 ```text
 backend/                 API Spring Boot
 frontend/frontend-web/   App React (Vite)
+mcp/                     Servidor MCP (stdio) cliente da API
 ordem_execucao/          Ordem dos slices do MVP
 plans/                   Planos de features (quando existirem)
 ```
@@ -62,6 +63,7 @@ Histórico de progresso
 - Decisões de arquitetura: [`Decisoes_arqutetura.md`](Decisoes_arqutetura.md)
 - Ordem dos slices: [`ordem_execucao/docs.md`](ordem_execucao/docs.md)
 - Proxy front → API: [`frontend/frontend-web/API_PROXY.md`](frontend/frontend-web/API_PROXY.md)
+- MCP (agentes): [`mcp/README.md`](mcp/README.md) · [ADR-0001](docs/decisions/0001-mcp-cliente-rest-stdio.md)
 
 ## Desenvolvimento local (sem Docker completo)
 

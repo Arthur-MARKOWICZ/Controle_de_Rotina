@@ -8,6 +8,11 @@ backend/.mvn/wrapper/maven-wrapper.jar
 frontend/frontend-web/node_modules/
 frontend/frontend-web/dist/
 
+# MCP
+mcp/node_modules/
+mcp/dist/
+mcp/.env
+
 # Segredos locais (modelo versionado: .env.example)
 .env
 
@@ -17,3 +22,6 @@ frontend/frontend-web/dist/
 .vscode/
 .DS_Store
 reports/
+
+# Git worktrees locais (ex.: feature/mcp)
+.worktrees/
