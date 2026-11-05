@@ -233,6 +233,22 @@ núcleo + regras planner → (calendario / projetos) → habitos (#43) → ui-ha
 
 ---
 
+## Pós-MVP — MCP (cliente agentes)
+
+Servidor MCP stdio como **cliente REST** da API (estratégia do controle de gastos). Não cria endpoints Spring novos.
+
+| Ordem | Plano (arquivo) | Status | Dependências | Por que nesta posição |
+|------:|-----------------|--------|--------------|------------------------|
+| 49 | [`mcp.md`](../plans/negocio/mcp.md) | feito | auth/sessão, tarefa, capacidade, planner, execução, histórico | Pacote paralelo; pode rodar sem bloquear calendário/hábitos se a API núcleo estiver estável |
+
+ADR: [`docs/decisions/0001-mcp-cliente-rest-stdio.md`](../docs/decisions/0001-mcp-cliente-rest-stdio.md).
+
+```text
+núcleo API (MVP + sessão) → mcp (#49)
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
@@ -241,7 +257,8 @@ Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída
 **Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos.  
 Em seguida na fila de domínio: projetos (#40) se pendente; **hábitos** (#45–#46) já no código com gaps — priorizar correções **[`habitos-correcoes.md`](../plans/negocio/habitos-correcoes.md) → [`ui-habitos-correcoes.md`](../plans/ui/ui-habitos-correcoes.md)** (46a → 46b) antes de abrir mais superfície. Depois a correção **sem plano** — [`habito-sem-plano.md`](../plans/negocio/habito-sem-plano.md) + [`ui-habito-calendario.md`](../plans/ui/ui-habito-calendario.md) (**47 → 48**).  
 **Foco UI/UX:** épico v2 — itens 39–44 feitos (épico concluído).  
-Se os gaps da revisão de hábitos (#46a–#46b) já estiverem fechados e o gap restante for só calendário/execução sem aprovado: priorizar **47 → 48**.
+Se os gaps da revisão de hábitos (#46a–#46b) já estiverem fechados e o gap restante for só calendário/execução sem aprovado: priorizar **47 → 48**.  
+**Paralelo (agentes):** [`mcp.md`](../plans/negocio/mcp.md) (ordem 49) quando o foco for Cursor/MCP — não depende de hábitos/calendário.
 
 ---
 
@@ -251,7 +268,8 @@ Não abrir plano só por estes itens, a menos que o núcleo de planejamento já 
 
 - sync de calendário externo (Google/Outlook), notificações avançadas, IA no planner;
 - recuperação de senha / confirmação de e-mail;
-- equipes, rede social, **hábitos complexos** (social/RRULE/marketplace — o corte leve #43 está na fila acima), RPG completo.
+- equipes, rede social, **hábitos complexos** (social/RRULE/marketplace — o corte leve #43 está na fila acima), RPG completo;
+- MCP remoto (Streamable HTTP / OAuth do protocolo) — adiado no ADR-0001.
 
 Regra da visão: se não melhora “tarefas → plano útil”, questionar.
 

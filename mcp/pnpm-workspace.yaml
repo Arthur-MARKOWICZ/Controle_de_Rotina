@@ -1,0 +1,3 @@
+# Isola o pacote MCP do package.json da raiz (se houver).
+allowBuilds:
+  esbuild: true
