@@ -87,6 +87,10 @@ describe("ControleRotinaApiClient", () => {
       apiBaseUrl: "http://localhost:8080",
     });
     expect(fetchImpl.mock.calls[0]?.[0]).toBe("http://localhost:8080/auth/login");
+    expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toEqual({
+      email: "user@example.com",
+      senha: "password-long",
+    });
   });
 
   it("refreshes once on 401 and retries the original call", async () => {

@@ -22,6 +22,8 @@ mcp/.env
 .vscode/
 .DS_Store
 reports/
+# Config local do Cursor (paths absolutos / ambiente)
+.cursor/mcp.json
 
 # Git worktrees locais (ex.: feature/mcp)
 .worktrees/

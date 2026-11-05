@@ -88,7 +88,7 @@ export class ControleRotinaApiClient {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, senha: password }),
     });
     const text = await response.text();
     if (!response.ok) {
