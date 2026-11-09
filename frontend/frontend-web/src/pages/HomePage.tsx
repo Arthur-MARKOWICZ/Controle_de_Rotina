@@ -43,7 +43,7 @@ function descricaoCabecalho(visao: VisaoHome, dataSelecionada: string, dataHoje:
   if (visao === 'habitos') {
     return dataSelecionada === dataHoje ? 'Hábitos de hoje' : 'Hábitos do dia'
   }
-  return dataSelecionada === dataHoje ? 'Plano de hoje' : 'Dia da proposta'
+  return dataSelecionada === dataHoje ? 'Sugestão para hoje' : 'Dia da proposta'
 }
 
 export function HomePage() {
@@ -144,7 +144,6 @@ export function HomePage() {
       />
       <OnboardingChecklist
         temPlano={plano != null}
-        onAbrirQuickAdd={home.abrirQuickAdd}
         onGerarPlano={podeGerar ? () => void home.handleGerar() : undefined}
       />
 

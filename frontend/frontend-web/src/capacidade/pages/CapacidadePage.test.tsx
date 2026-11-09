@@ -517,7 +517,7 @@ describe('CapacidadePage', () => {
 
     expect(await screen.findByRole('link', { name: /revisar proposta/i })).toHaveAttribute(
       'href',
-      '/',
+      '/plano',
     )
   })
 })

@@ -406,9 +406,13 @@ describe('HomePage — plano do dia', () => {
 
       expect(await screen.findByText(/ainda não há plano/i)).toBeInTheDocument()
       expect(
-        screen.getByText(/gere o plano → revise → aprove → execute/i),
+        screen.getByText(/gere um plano a partir das suas tarefas → revise → aprove → execute/i),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^gerar plano de hoje$/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /voltar às tarefas/i })).toHaveAttribute(
+        'href',
+        '/tarefas',
+      )
       expect(
         screen.getByRole('button', { name: /^ajustar capacidade de hoje$/i }),
       ).toBeInTheDocument()

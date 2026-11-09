@@ -49,12 +49,13 @@ export type ListarTarefasParams = {
   direction?: SortDirection
 }
 
+/** Create mínimo: só `titulo` (+ `projetoId` opcional). Defaults no servidor. */
 export type CriarTarefaRequest = {
   titulo: string
-  descricao: string
-  prioridade: Prioridade
-  prazo: string | null
-  duracaoMinutos: number
+  descricao?: string | null
+  prioridade?: Prioridade | null
+  prazo?: string | null
+  duracaoMinutos?: number | null
   projetoId?: string | null
 }
 

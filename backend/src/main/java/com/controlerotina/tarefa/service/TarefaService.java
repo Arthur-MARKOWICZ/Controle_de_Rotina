@@ -30,6 +30,7 @@ import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
 import com.controlerotina.tarefa.dto.TarefaFiltro;
 import com.controlerotina.tarefa.dto.TarefaResponse;
+import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -37,6 +38,9 @@ import com.controlerotina.tarefa.repository.TarefaSpecs;
 
 @Service
 public class TarefaService {
+
+    private static final Prioridade PRIORIDADE_DEFAULT = Prioridade.MEDIA;
+    private static final int DURACAO_MINUTOS_DEFAULT = 30;
 
     private final TarefaRepository tarefaRepository;
     private final ProjetoRepository projetoRepository;
@@ -62,6 +66,11 @@ public class TarefaService {
             throw new PrazoNoPassadoException();
         }
 
+        Prioridade prioridade = request.prioridade() != null ? request.prioridade() : PRIORIDADE_DEFAULT;
+        int duracaoMinutos = request.duracaoMinutos() != null
+                ? request.duracaoMinutos()
+                : DURACAO_MINUTOS_DEFAULT;
+
         String projetoNome = null;
         if (request.projetoId() != null) {
             projetoNome = validarProjetoAtivoParaVinculo(usuarioId, request.projetoId()).getNome();
@@ -72,10 +81,10 @@ public class TarefaService {
                 usuarioId,
                 request.titulo(),
                 request.descricao(),
-                request.prioridade(),
+                prioridade,
                 request.prazo(),
                 StatusTarefa.PENDENTE,
-                request.duracaoMinutos(),
+                duracaoMinutos,
                 agora,
                 agora
         );

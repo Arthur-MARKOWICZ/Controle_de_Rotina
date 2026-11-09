@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../auth/api/authApi'
 import { ToastProvider } from '../feedback/ToastProvider'
-import { QuickAddProvider } from '../layout/QuickAddContext'
+import { QuickAddProvider, useQuickAdd } from '../layout/QuickAddContext'
 import * as projetoApi from '../projeto/api/projetoApi'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
@@ -71,11 +71,21 @@ function Local() {
   return <p data-testid="local">{`${location.pathname}${location.search}`}</p>
 }
 
+function GatilhoQuickAdd() {
+  const { abrir } = useQuickAdd()
+  return (
+    <button type="button" onClick={abrir}>
+      Abrir quick-add teste
+    </button>
+  )
+}
+
 function renderApp(path: string) {
   return render(
     <ToastProvider>
       <MemoryRouter initialEntries={[path]}>
         <QuickAddProvider>
+          <GatilhoQuickAdd />
           <Routes>
             <Route path="/tarefas" element={<TarefasPage />}>
               <Route path="nova" element={<TarefaDrawer />} />
@@ -321,7 +331,7 @@ describe('TarefaDrawer', () => {
       const user = userEvent.setup()
       renderApp('/tarefas')
 
-      await user.click(await screen.findByRole('button', { name: /nova tarefa/i }))
+      await user.click(await screen.findByRole('button', { name: /abrir quick-add teste/i }))
       const quickAdd = screen.getByRole('dialog', { name: /nova tarefa/i })
       await user.type(within(quickAdd).getByLabelText(/^título$/i), 'Ler artigo')
       await user.click(within(quickAdd).getByRole('button', { name: /mais detalhes/i }))

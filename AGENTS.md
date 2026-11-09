@@ -11,7 +11,8 @@ Decisões de arquitetura: `Decisoes_arqutetura.md`
 Planos de features: `plans/negocio/` (domínio/API), `plans/ui/` (UI/UX)  
 Ordem dos slices: `ordem_execucao/docs.md`  
 Skills de plano: `.agents/criar_plano` (escrever/reescrever), `.agents/revisao_plano` (criticar antes de fechar)  
-Skill de UI/UX: `.cursor/skills/ui-ux-pro-max` (design system / recomendações visuais; CLI: `uipro`)
+Skill de UI/UX: `.cursor/skills/ui-ux-pro-max` (design system / recomendações visuais; CLI: `uipro`)  
+OpenSpec (spec-driven): `.cursor/skills/openspec-*` — propor/aplicar/arquivar mudanças; specs em `openspec/` (CLI: `npx @fission-ai/openspec`)
 
 ## Proxy front → API (não esquecer)
 

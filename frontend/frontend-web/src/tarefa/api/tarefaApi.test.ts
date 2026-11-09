@@ -102,6 +102,23 @@ describe('tarefaApi', () => {
     expect(criada.id).toBe('t-1')
   })
 
+  it('cria tarefa só com título (body mínimo)', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ ...tarefa, descricao: '', prazo: null, duracaoMinutos: 30 }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    await criarTarefa({ titulo: 'Rápida' })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo: 'Rápida' }),
+    })
+  })
+
   it('busca tarefa por id', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
       new Response(JSON.stringify(tarefa), {

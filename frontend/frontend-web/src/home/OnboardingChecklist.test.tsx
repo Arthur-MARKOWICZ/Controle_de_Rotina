@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -48,20 +48,22 @@ describe('OnboardingChecklist (T4)', () => {
 
   it('aparece para usuário novo e some ao dispensar', async () => {
     const user = userEvent.setup()
-    const onAbrirQuickAdd = vi.fn()
 
     render(
       <MemoryRouter>
-        <OnboardingChecklist temPlano={false} onAbrirQuickAdd={onAbrirQuickAdd} />
+        <OnboardingChecklist temPlano={false} />
       </MemoryRouter>,
     )
 
     expect(await screen.findByRole('heading', { name: /primeiros passos/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /criar primeira tarefa/i })).toHaveAttribute(
+      'href',
+      '/tarefas',
+    )
     expect(screen.getByRole('link', { name: /definir capacidade semanal/i })).toHaveAttribute(
       'href',
       '/capacidade',
     )
-    expect(screen.getByRole('button', { name: /criar primeira tarefa/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /não mostrar de novo/i }))
 
@@ -76,7 +78,7 @@ describe('OnboardingChecklist (T4)', () => {
 
     render(
       <MemoryRouter>
-        <OnboardingChecklist temPlano={false} onAbrirQuickAdd={vi.fn()} />
+        <OnboardingChecklist temPlano={false} />
       </MemoryRouter>,
     )
 
@@ -84,5 +86,30 @@ describe('OnboardingChecklist (T4)', () => {
       expect(meApi.buscarMe).toHaveBeenCalled()
     })
     expect(screen.queryByRole('heading', { name: /primeiros passos/i })).not.toBeInTheDocument()
+  })
+
+  it('T3: passos em ordem tarefas → capacidade → plano, sem apontar para / como Hoje', async () => {
+    render(
+      <MemoryRouter>
+        <OnboardingChecklist temPlano={false} />
+      </MemoryRouter>,
+    )
+
+    const lista = await screen.findByRole('list')
+    const itens = within(lista).getAllByRole('listitem')
+    expect(itens).toHaveLength(3)
+    expect(within(itens[0]).getByRole('link', { name: /criar primeira tarefa/i })).toHaveAttribute(
+      'href',
+      '/tarefas',
+    )
+    expect(
+      within(itens[1]).getByRole('link', { name: /definir capacidade semanal/i }),
+    ).toHaveAttribute('href', '/capacidade')
+    expect(within(itens[2]).getByRole('link', { name: /gerar primeiro plano/i })).toHaveAttribute(
+      'href',
+      '/plano',
+    )
+    expect(screen.queryByRole('link', { name: /^hoje$/i })).not.toBeInTheDocument()
+    expect(lista.querySelector('a[href="/"]')).toBeNull()
   })
 })

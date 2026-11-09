@@ -4,8 +4,9 @@ import { focoEmCampoEditavel, rotaPorAtalhoGo } from './atalhos'
 
 describe('atalhos helpers', () => {
   it('mapeia G+letra para rotas principais', () => {
-    expect(rotaPorAtalhoGo('h')).toBe('/')
+    expect(rotaPorAtalhoGo('h')).toBe('/plano')
     expect(rotaPorAtalhoGo('T')).toBe('/tarefas')
+    expect(rotaPorAtalhoGo('p')).toBe('/projetos')
     expect(rotaPorAtalhoGo('c')).toBe('/capacidade')
     expect(rotaPorAtalhoGo('i')).toBe('/historico')
     expect(rotaPorAtalhoGo('x')).toBeNull()

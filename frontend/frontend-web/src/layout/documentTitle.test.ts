@@ -4,7 +4,7 @@ import { rotuloPorRota, tituloPorRota } from './documentTitle'
 
 describe('tituloPorRota (T4)', () => {
   it('define títulos esperados para rotas protegidas e auth', () => {
-    expect(tituloPorRota('/')).toBe('Hoje · Controle de Rotina')
+    expect(tituloPorRota('/plano')).toBe('Plano · Controle de Rotina')
     expect(tituloPorRota('/tarefas')).toBe('Tarefas · Controle de Rotina')
     expect(tituloPorRota('/tarefas/nova')).toBe('Nova tarefa · Controle de Rotina')
     expect(tituloPorRota('/tarefas/abc-123')).toBe('Editar tarefa · Controle de Rotina')

@@ -1,7 +1,7 @@
 import {
+  CalendarBlankIcon,
   ChartLineUpIcon,
   DotsThreeIcon,
-  FolderSimpleIcon,
   GaugeIcon,
   SignOutIcon,
   UserCircleIcon,
@@ -13,8 +13,8 @@ import { useAuth } from '../auth/session/AuthContext'
 import { ThemePreferenceField } from '../theme/ThemePreferenceField'
 
 const ITENS = [
-  { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon },
   { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon },
+  { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon },
   { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon },
   { to: '/perfil', label: 'Perfil', Icon: UserCircleIcon },
 ]

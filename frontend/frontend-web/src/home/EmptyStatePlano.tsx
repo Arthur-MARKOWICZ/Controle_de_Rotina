@@ -1,4 +1,5 @@
 import { SunHorizonIcon } from '@phosphor-icons/react'
+import { Link } from 'react-router-dom'
 
 type EmptyStatePlanoProps = {
   gerando: boolean
@@ -14,7 +15,7 @@ export function EmptyStatePlano({ gerando, onGerar, onAjustarCapacidade }: Empty
         Ainda não há plano para hoje.
       </p>
       <p className="plano-dia-empty-fluxo">
-        Gere o plano → revise → aprove → execute
+        Gere um plano a partir das suas tarefas → revise → aprove → execute
       </p>
       <div className="plano-dia-acoes">
         <button
@@ -26,7 +27,10 @@ export function EmptyStatePlano({ gerando, onGerar, onAjustarCapacidade }: Empty
         >
           {gerando ? 'Gerando…' : 'Gerar plano de hoje'}
         </button>
-        <button type="button" className="btn btn--secondary" onClick={onAjustarCapacidade}>
+        <Link to="/tarefas" className="btn btn--secondary">
+          Voltar às tarefas
+        </Link>
+        <button type="button" className="btn btn--ghost" onClick={onAjustarCapacidade}>
           Ajustar capacidade de hoje
         </button>
       </div>

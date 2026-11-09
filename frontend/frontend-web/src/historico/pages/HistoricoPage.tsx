@@ -146,7 +146,7 @@ function ResumoCard({
       </header>
       {resumoVazio(resumo) ? (
         <p className="historico-vazio" role="status">
-          Ainda sem atividade neste período. <Link to="/">Ver o plano de hoje</Link>
+          Ainda sem atividade neste período. <Link to="/plano">Ver o plano</Link>
         </p>
       ) : (
         <dl className="historico-metricas">

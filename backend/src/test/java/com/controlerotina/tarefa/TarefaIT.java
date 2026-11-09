@@ -125,6 +125,69 @@ class TarefaIT {
     }
 
     @Test
+    void t1_deveCriarTarefaSoComTituloAplicandoDefaults() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("titulo", "Capturar ideia")),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("titulo")).isEqualTo("Capturar ideia");
+        assertThat(response.getBody().get("prioridade")).isEqualTo("MEDIA");
+        assertThat(response.getBody().get("duracaoMinutos")).isEqualTo(30);
+        assertThat(response.getBody().get("prazo")).isNull();
+        assertThat(response.getBody().get("descricao")).isEqualTo("");
+        assertThat(response.getBody().get("status")).isEqualTo("PENDENTE");
+    }
+
+    @Test
+    void t2_deveRespeitarPrioridadeEDuracaoExplicitasNoCreate() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(Map.of(
+                        "titulo", "Com valores explícitos",
+                        "duracaoMinutos", 60,
+                        "prioridade", "ALTA"
+                )),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("prioridade")).isEqualTo("ALTA");
+        assertThat(response.getBody().get("duracaoMinutos")).isEqualTo(60);
+        assertThat(response.getBody().get("prazo")).isNull();
+    }
+
+    @Test
+    void t3_deveRejeitarDuracao10QuandoEnviadaNoCreateCom400() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("titulo", "Duração inválida");
+        body.put("duracaoMinutos", 10);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
+    void t4_deveRejeitarCreateSemTituloCom400() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(Map.of()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
     void deveCriarTarefaComStatusPendenteERetornar201() {
         Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
 

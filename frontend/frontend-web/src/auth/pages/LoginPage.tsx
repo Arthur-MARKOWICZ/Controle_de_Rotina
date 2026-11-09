@@ -31,7 +31,7 @@ export function LoginPage() {
   const senhaRef = useRef<HTMLInputElement>(null)
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/tarefas" replace />
   }
 
   function mostrarErros(proximos: ErrosLogin) {
@@ -60,7 +60,7 @@ export function LoginPage() {
         senha,
       })
       loginWithToken(response.accessToken)
-      navigate('/', { replace: true })
+      navigate('/tarefas', { replace: true })
     } catch (error) {
       if (error instanceof ApiError) {
         mostrarErros({ senha: 'Credenciais inválidas.' })
