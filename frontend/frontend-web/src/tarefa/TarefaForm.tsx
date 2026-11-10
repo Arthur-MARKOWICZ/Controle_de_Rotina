@@ -1,4 +1,10 @@
-import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
+import {
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type Ref,
+  type SetStateAction,
+} from 'react'
 
 import { InlineAlert } from '../feedback/InlineAlert'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../home/labels'
@@ -21,6 +27,8 @@ type Props = {
   disabled: boolean
   erro: string | null
   onSubmit: (event: FormEvent) => void
+  onAbrirDescricao: () => void
+  descricaoEntradaRef?: Ref<HTMLButtonElement>
   onDesvincular?: () => void
   desvinculando?: boolean
 }
@@ -37,11 +45,15 @@ export function TarefaForm({
   disabled,
   erro,
   onSubmit,
+  onAbrirDescricao,
+  descricaoEntradaRef,
   onDesvincular,
   desvinculando = false,
 }: Props) {
   const [atalhoAtivo, setAtalhoAtivo] = useState<PrazoAtalhoId | null>(null)
   const atalhos = atalhosPrazo()
+  const descricaoTrim = values.descricao.trim()
+  const rotuloDescricao = descricaoTrim ? values.descricao : 'Adicionar descrição'
 
   const opcoesProjeto = [...projetosAtivos]
   if (projetoId && projetoNomeVinculado && !opcoesProjeto.some((p) => p.id === projetoId)) {
@@ -81,16 +93,21 @@ export function TarefaForm({
       </div>
 
       <div className="field">
-        <label htmlFor="descricao">Descrição (opcional)</label>
-        <textarea
-          id="descricao"
-          name="descricao"
-          maxLength={2000}
-          rows={4}
-          value={values.descricao}
-          onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
+        <span className="field-label">Descrição</span>
+        <button
+          ref={descricaoEntradaRef}
+          type="button"
+          id="tarefa-descricao-entrada"
+          className={
+            descricaoTrim
+              ? 'tarefa-descricao-entrada tarefa-descricao-entrada--preenchida'
+              : 'tarefa-descricao-entrada'
+          }
           disabled={disabled}
-        />
+          onClick={onAbrirDescricao}
+        >
+          <span className="tarefa-descricao-entrada__texto">{rotuloDescricao}</span>
+        </button>
       </div>
 
       <div className="field">
