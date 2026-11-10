@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,14 +23,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.controlerotina.execucao.dto.ExecucaoResponse;
+import com.controlerotina.execucao.dto.ResultadoConclusao;
+import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.shared.exception.OrdenacaoInvalidaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
+import com.controlerotina.tarefa.dto.SessaoTarefaRequest;
 import com.controlerotina.tarefa.dto.TarefaFiltro;
 import com.controlerotina.tarefa.dto.TarefaResponse;
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
+import com.controlerotina.tarefa.service.TarefaExecucaoAvulsaService;
 import com.controlerotina.tarefa.service.TarefaService;
+import com.controlerotina.xp.dto.XpConclusaoResponse;
 
 import jakarta.validation.Valid;
 
@@ -42,9 +49,14 @@ public class TarefaController {
     private static final int SIZE_DEFAULT = 20;
 
     private final TarefaService tarefaService;
+    private final TarefaExecucaoAvulsaService tarefaExecucaoAvulsaService;
 
-    public TarefaController(TarefaService tarefaService) {
+    public TarefaController(
+            TarefaService tarefaService,
+            TarefaExecucaoAvulsaService tarefaExecucaoAvulsaService
+    ) {
         this.tarefaService = tarefaService;
+        this.tarefaExecucaoAvulsaService = tarefaExecucaoAvulsaService;
     }
 
     @PostMapping
@@ -90,6 +102,41 @@ public class TarefaController {
                 projetoId
         );
         return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
+    }
+
+    @PostMapping("/{id}/iniciar")
+    public ResponseEntity<ExecucaoResponse> iniciar(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @RequestBody(required = false) SessaoTarefaRequest request
+    ) {
+        SessaoTarefaRequest body = request != null ? request : new SessaoTarefaRequest(null, null, null);
+        ResultadoInicio resultado = tarefaExecucaoAvulsaService.iniciar(
+                usuarioId,
+                id,
+                body.duracaoMinutos(),
+                body.data(),
+                body.blocoId()
+        );
+        HttpStatus status = resultado.criada() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(ExecucaoResponse.from(resultado.execucao()));
+    }
+
+    @PostMapping("/{id}/concluir-direto")
+    public ExecucaoResponse concluirDireto(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @RequestBody(required = false) SessaoTarefaRequest request
+    ) {
+        SessaoTarefaRequest body = request != null ? request : new SessaoTarefaRequest(null, null, null);
+        ResultadoConclusao resultado = tarefaExecucaoAvulsaService.concluirDireto(
+                usuarioId,
+                id,
+                body.duracaoMinutos(),
+                body.data(),
+                body.blocoId()
+        );
+        return ExecucaoResponse.from(resultado.execucao(), XpConclusaoResponse.from(resultado.xp()));
     }
 
     @GetMapping("/{id}")

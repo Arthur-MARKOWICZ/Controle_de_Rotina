@@ -39,6 +39,21 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
     );
 
     @Query("""
+            SELECT b.tarefaId, COALESCE(SUM(b.duracaoMinutos), 0)
+              FROM Execucao e, BlocoPlano b
+             WHERE e.blocoPlanoId = b.id
+               AND b.tarefaId IN :tarefaIds
+               AND e.usuarioId = :usuarioId
+               AND e.status = :status
+             GROUP BY b.tarefaId
+            """)
+    List<Object[]> somarDuracaoMinutosPorTarefasEStatus(
+            @Param("tarefaIds") Collection<UUID> tarefaIds,
+            @Param("usuarioId") UUID usuarioId,
+            @Param("status") StatusExecucao status
+    );
+
+    @Query("""
             SELECT e, b.duracaoMinutos
               FROM Execucao e, BlocoPlano b
              WHERE e.blocoPlanoId = b.id

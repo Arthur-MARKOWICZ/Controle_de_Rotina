@@ -684,9 +684,9 @@ export function usePlanoDoDia() {
     setItensExecucao(execucoes.itens)
   }
 
-  async function handleIniciar(item: ItemExecucaoResponse) {
+  async function handleIniciar(item: ItemExecucaoResponse): Promise<ExecucaoResponse | null> {
     const blocoId = item.bloco.id
-    await executarOtimista(
+    return executarOtimista(
       item,
       (itens) => aplicarIniciar(itens, blocoId, new Date()),
       () => iniciarExecucao(blocoId),
@@ -767,6 +767,11 @@ export function usePlanoDoDia() {
     snapshotAnterior,
     titulosRemovidosDiff,
     xpGanhoSessao,
+    somarXpGanhoSessao: (ganho: number) => {
+      if (ganho > 0) {
+        setXpGanhoSessao((atual) => atual + ganho)
+      }
+    },
     ajustarCapacidadeAberto,
     setAjustarCapacidadeAberto,
     salvandoCapacidadeHoje,

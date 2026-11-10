@@ -36,7 +36,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<Navigate to="/tarefas" replace />} />
+              <Route path="/plano" element={<HomePage />} />
               <Route path="/perfil" element={<PerfilPage />} />
               <Route path="/tarefas" element={<TarefasPage />}>
                 <Route path="nova" element={<TarefaDrawer />} />
@@ -54,7 +55,7 @@ export default function App() {
               <Route path="/capacidade" element={<CapacidadePage />} />
               <Route path="/historico" element={<HistoricoPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/tarefas" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

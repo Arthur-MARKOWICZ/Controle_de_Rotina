@@ -57,6 +57,13 @@
 .app-shell__nav--sidebar {
   flex-direction: column;
   flex: 1;
+  gap: var(--space-4);
+}
+
+.app-shell__nav-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .app-shell__nav--bottom {
@@ -307,6 +314,16 @@
   border-radius: inherit;
   background: var(--cta);
   transition: width var(--dur-slow) var(--ease-out);
+}
+
+.app-shell__sessao-ativa {
+  position: relative;
+  z-index: 18;
+}
+
+.app-shell__sessao-ativa .bloco-ativo {
+  margin: 0 var(--space-4) var(--space-3);
+  max-width: var(--app-content-max);
 }
 
 .app-shell__content {

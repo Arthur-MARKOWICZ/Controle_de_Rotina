@@ -2,6 +2,7 @@ import { CheckIcon, PlayIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 
 import { tituloDoItemExecucao } from '../execucao/api/execucaoApi'
+import { useSessaoAtiva } from '../execucao/SessaoAtivaContext'
 import { InlineAlert } from '../feedback/InlineAlert'
 import { Skeleton } from '../feedback/Skeleton'
 import { useToast } from '../feedback/ToastProvider'
@@ -13,8 +14,8 @@ import {
 } from '../habito/api/habitoApi'
 import { AdicionarTarefaForm } from '../home/AdicionarTarefaForm'
 import { AjustarCapacidadeHoje } from '../home/AjustarCapacidadeHoje'
-import { BlocoAtivo } from '../home/BlocoAtivo'
 import { BlocoCard } from '../home/BlocoCard'
+import { concluirTarefaDireto } from '../tarefa/api/tarefaApi'
 import { CapacidadeBar } from '../home/CapacidadeBar'
 import { ConflitoBanner } from '../home/ConflitoBanner'
 import { DiaConcluido } from '../home/DiaConcluido'
@@ -43,11 +44,12 @@ function descricaoCabecalho(visao: VisaoHome, dataSelecionada: string, dataHoje:
   if (visao === 'habitos') {
     return dataSelecionada === dataHoje ? 'Hábitos de hoje' : 'Hábitos do dia'
   }
-  return dataSelecionada === dataHoje ? 'Plano de hoje' : 'Dia da proposta'
+  return dataSelecionada === dataHoje ? 'Sugestão para hoje' : 'Dia da proposta'
 }
 
 export function HomePage() {
   const toast = useToast()
+  const { refrescarDoDia, registrarInicio } = useSessaoAtiva()
   const home = usePlanoDoDia()
   const {
     plano,
@@ -63,6 +65,31 @@ export function HomePage() {
     datasProposta,
     pendentes,
   } = home
+
+  useEffect(() => {
+    function onSessaoAtualizada(event: Event) {
+      const detail = (event as CustomEvent<{ xp?: { ganhoNesteRequest?: number } | null }>).detail
+      const ganho = detail?.xp?.ganhoNesteRequest ?? 0
+      if (ganho > 0) {
+        home.somarXpGanhoSessao(ganho)
+      }
+      void home.recarregarExecucoes()
+      void refrescarDoDia()
+    }
+    window.addEventListener('sessao-ativa:atualizada', onSessaoAtualizada)
+    return () => window.removeEventListener('sessao-ativa:atualizada', onSessaoAtualizada)
+  }, [home.recarregarExecucoes, home.somarXpGanhoSessao, refrescarDoDia])
+
+  useEffect(() => {
+    const ativo = itensExecucao.find((item) => item.execucao.status === 'EM_ANDAMENTO')
+    if (!ativo) {
+      return
+    }
+    registrarInicio(tituloDoItemExecucao(ativo), ativo.bloco.duracaoMinutos, {
+      ...ativo.execucao,
+      blocoPlanoId: ativo.bloco.id,
+    })
+  }, [itensExecucao, registrarInicio])
 
   const [visao, setVisao] = useState<VisaoHome>('plano')
   const [habitosDoDia, setHabitosDoDia] = useState<HabitoDoDia[]>([])
@@ -101,9 +128,6 @@ export function HomePage() {
   const ehAprovado = plano?.status === 'APROVADO'
   const usados = plano ? minutosUsados(plano.blocos) : 0
   const disponiveis = minutosDisponiveis(capacidade?.horas, capacidade?.origem)
-  const itemAtivo = ehAprovado
-    ? itensExecucao.find((item) => item.execucao.status === 'EM_ANDAMENTO')
-    : undefined
   const concluidos = itensExecucao.filter((item) => item.execucao.status === 'CONCLUIDO').length
   const diaCompleto = ehAprovado && itensExecucao.length > 0 && concluidos === itensExecucao.length
   const mostrarBannerConflito =
@@ -129,7 +153,7 @@ export function HomePage() {
   )
 
   return (
-    <main className={itemAtivo ? 'home-page home-page--com-ativo' : 'home-page'}>
+    <main className="home-page">
       {home.confirmDialog}
       <PageHeader
         title={formatarDataIsoPorExtenso(dataSelecionada)}
@@ -144,7 +168,6 @@ export function HomePage() {
       />
       <OnboardingChecklist
         temPlano={plano != null}
-        onAbrirQuickAdd={home.abrirQuickAdd}
         onGerarPlano={podeGerar ? () => void home.handleGerar() : undefined}
       />
 
@@ -172,17 +195,6 @@ export function HomePage() {
           </button>
         </div>
       </div>
-
-      {itemAtivo && !carregando && visao === 'plano' ? (
-        <BlocoAtivo
-          titulo={tituloDoItemExecucao(itemAtivo)}
-          duracaoMinutos={itemAtivo.bloco.duracaoMinutos}
-          iniciadoEm={itemAtivo.execucao.iniciadoEm}
-          ocupado={pendentes.has(itemAtivo.bloco.id) || !itemAtivo.execucao.id}
-          onConcluir={() => void home.handleConcluir(itemAtivo)}
-          onAbortar={() => void home.handleAbortar(itemAtivo)}
-        />
-      ) : null}
 
       {visao === 'habitos' ? (
         <section className="plano-dia card home-habitos" aria-label="Hábitos do dia">
@@ -381,7 +393,24 @@ export function HomePage() {
                                 <button
                                   type="button"
                                   className="btn btn--primary btn--sm"
-                                  onClick={() => void home.handleIniciar(item)}
+                                  onClick={() => {
+                                    void (async () => {
+                                      registrarInicio(titulo, item.bloco.duracaoMinutos, {
+                                        id: null,
+                                        blocoPlanoId: item.bloco.id,
+                                        status: 'EM_ANDAMENTO',
+                                        iniciadoEm: new Date().toISOString(),
+                                        concluidoEm: null,
+                                        abortadoEm: null,
+                                      })
+                                      const resposta = await home.handleIniciar(item)
+                                      if (resposta) {
+                                        registrarInicio(titulo, item.bloco.duracaoMinutos, resposta)
+                                      } else {
+                                        await refrescarDoDia()
+                                      }
+                                    })()
+                                  }}
                                   disabled={pendente}
                                   aria-label={`Iniciar ${titulo}`}
                                 >
@@ -410,6 +439,40 @@ export function HomePage() {
                                             error instanceof Error
                                               ? error.message
                                               : 'Não foi possível concluir o hábito.',
+                                          )
+                                        }
+                                      })()
+                                    }}
+                                    aria-label={`Concluir direto ${titulo}`}
+                                  >
+                                    <CheckIcon aria-hidden />
+                                    <span className="plano-bloco-acao-rotulo">Concluir</span>
+                                  </button>
+                                ) : null}
+                                {origem === 'TAREFA' && item.tarefaResumo?.id ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn--secondary btn--sm"
+                                    disabled={pendente}
+                                    onClick={() => {
+                                      void (async () => {
+                                        try {
+                                          const execucao = await concluirTarefaDireto(
+                                            item.tarefaResumo!.id,
+                                            {
+                                              data: dataSelecionada,
+                                              blocoId: item.bloco.id,
+                                            },
+                                          )
+                                          const xp = execucao.xp?.ganhoNesteRequest ?? 0
+                                          toast.success(xp > 0 ? `+${xp} XP` : 'Sessão concluída')
+                                          await home.recarregarExecucoes()
+                                          await refrescarDoDia()
+                                        } catch (error) {
+                                          toast.error(
+                                            error instanceof Error
+                                              ? error.message
+                                              : 'Não foi possível concluir a tarefa.',
                                           )
                                         }
                                       })()

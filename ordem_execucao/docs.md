@@ -249,16 +249,33 @@ núcleo API (MVP + sessão) → mcp (#49)
 
 ---
 
+## Pós-MVP — Tarefas primeiro / planner sob demanda
+
+Índice do épico: [`ui-tarefas-primeiro-epico.md`](../plans/ui/ui-tarefas-primeiro-epico.md).  
+Muda a **superfície** do produto: lista/projetos como casa (referência TickTick só em UI + create por título); planner vira destino explícito (`/plano`), não landing diária. O motor continua o diferencial sob demanda.
+
+| Ordem | Plano | Status | Dependências | Por que nesta posição |
+|------:|-------|--------|--------------|------------------------|
+| 50 | [`ui-ia-nav-tarefas-primeiro.md`](../plans/ui/ui-ia-nav-tarefas-primeiro.md) | pendente | shell v2 | Landing `/tarefas`, nav primário/secundário/terciário, `/plano` |
+| 51 | [`tarefa-criar-so-titulo.md`](../plans/negocio/tarefa-criar-so-titulo.md) | pendente | tarefa (+ minutos, sem prazo) | Defaults no `POST` para create só com título |
+| 52 | [`ui-criar-tarefa-titulo.md`](../plans/ui/ui-criar-tarefa-titulo.md) | pendente | 50, 51 | Inline add + quick-add mínimo |
+| 53 | [`ui-planner-sob-demanda.md`](../plans/ui/ui-planner-sob-demanda.md) | pendente | 50; ideal + 52 | CTAs e copy: plano sob pedido |
+
+```text
+ui-ia-nav-tarefas-primeiro → tarefa-criar-so-titulo → ui-criar-tarefa-titulo → ui-planner-sob-demanda
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
-Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.
+Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.  
+Épico UI v2 (39–44): **concluído**.
 
-**Próximo:** [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (issue #38), se ainda pendente; ou [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (issue #46) quando o foco for polir Projetos.  
-Em seguida na fila de domínio: projetos (#40) se pendente; **hábitos** (#45–#46) já no código com gaps — priorizar correções **[`habitos-correcoes.md`](../plans/negocio/habitos-correcoes.md) → [`ui-habitos-correcoes.md`](../plans/ui/ui-habitos-correcoes.md)** (46a → 46b) antes de abrir mais superfície. Depois a correção **sem plano** — [`habito-sem-plano.md`](../plans/negocio/habito-sem-plano.md) + [`ui-habito-calendario.md`](../plans/ui/ui-habito-calendario.md) (**47 → 48**).  
-**Foco UI/UX:** épico v2 — itens 39–44 feitos (épico concluído).  
-Se os gaps da revisão de hábitos (#46a–#46b) já estiverem fechados e o gap restante for só calendário/execução sem aprovado: priorizar **47 → 48**.  
-**Paralelo (agentes):** [`mcp.md`](../plans/negocio/mcp.md) (ordem 49) quando o foco for Cursor/MCP — não depende de hábitos/calendário.
+**Foco IA/UX (novo):** épico **tarefas primeiro** — começar por [`ui-ia-nav-tarefas-primeiro.md`](../plans/ui/ui-ia-nav-tarefas-primeiro.md) (ordem **50**), depois **51 → 52 → 53**.
+
+Filas paralelas ainda válidas: [`calendario/calendario.md`](../plans/negocio/calendario/calendario.md) (#38); [`ui-projetos-experiencia.md`](../plans/ui/ui-projetos-experiencia.md) (#46); correções de hábitos **46a → 46b** e depois **47 → 48**; MCP (49) quando o foco for agentes.
 
 ---
 

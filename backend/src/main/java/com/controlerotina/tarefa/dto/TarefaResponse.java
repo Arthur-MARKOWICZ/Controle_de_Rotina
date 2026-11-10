@@ -15,6 +15,7 @@ public record TarefaResponse(
         Instant prazo,
         StatusTarefa status,
         int duracaoMinutos,
+        int restanteMinutos,
         UUID projetoId,
         String projetoNome,
         Instant createdAt,
@@ -23,10 +24,14 @@ public record TarefaResponse(
         boolean deletada
 ) {
     public static TarefaResponse from(Tarefa tarefa) {
-        return from(tarefa, null);
+        return from(tarefa, null, tarefa.getDuracaoMinutos());
     }
 
     public static TarefaResponse from(Tarefa tarefa, String projetoNome) {
+        return from(tarefa, projetoNome, tarefa.getDuracaoMinutos());
+    }
+
+    public static TarefaResponse from(Tarefa tarefa, String projetoNome, int restanteMinutos) {
         return new TarefaResponse(
                 tarefa.getId(),
                 tarefa.getTitulo(),
@@ -35,6 +40,7 @@ public record TarefaResponse(
                 tarefa.getPrazo(),
                 tarefa.getStatus(),
                 tarefa.getDuracaoMinutos(),
+                Math.max(0, restanteMinutos),
                 tarefa.getProjetoId(),
                 projetoNome,
                 tarefa.getCreatedAt(),

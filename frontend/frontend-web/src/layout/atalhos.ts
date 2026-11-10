@@ -1,15 +1,17 @@
-/** Destinos do chord `G` + letra (Hoje / Tarefas / Capacidade / Histórico). */
+/** Destinos do chord `G` + letra (Plano / Tarefas / Projetos / Capacidade / Histórico). */
 export const ATALHOS_GO: Record<string, string> = {
-  h: '/',
+  h: '/plano',
   t: '/tarefas',
+  p: '/projetos',
   c: '/capacidade',
   i: '/historico',
 }
 
 export const LISTA_ATALHOS_AJUDA: { teclas: string; descricao: string }[] = [
-  { teclas: 'N', descricao: 'Nova tarefa (quick add)' },
-  { teclas: 'G H', descricao: 'Ir para Hoje' },
+  { teclas: 'N', descricao: 'Nova tarefa (inline em Tarefas; quick add nas demais)' },
+  { teclas: 'G H', descricao: 'Ir para Plano' },
   { teclas: 'G T', descricao: 'Ir para Tarefas' },
+  { teclas: 'G P', descricao: 'Ir para Projetos' },
   { teclas: 'G C', descricao: 'Ir para Capacidade' },
   { teclas: 'G I', descricao: 'Ir para Histórico' },
   { teclas: '?', descricao: 'Abrir esta ajuda' },

@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { XpBar } from '../xp/XpBar'
 import { XpProgressProvider, useXpProgress } from '../xp/XpProgressContext'
@@ -25,16 +26,19 @@ import { useAtalhosTeclado } from './useAtalhosTeclado'
 
 type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
 
-const HOJE: ItemNav = { to: '/', label: 'Hoje', Icon: SunHorizonIcon, end: true }
 const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
-const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
-const CALENDARIO: ItemNav = { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon }
+const PLANO: ItemNav = { to: '/plano', label: 'Plano', Icon: SunHorizonIcon, end: true }
+const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
+const CALENDARIO: ItemNav = { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon }
 const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon }
 
-const NAV_SIDEBAR = [HOJE, TAREFAS, HABITOS, PROJETOS, CALENDARIO, CAPACIDADE, HISTORICO]
-const NAV_BOTTOM = [HOJE, TAREFAS, HABITOS, CALENDARIO]
+/** Primário → secundário → terciário (sidebar). */
+const NAV_SIDEBAR_PRIMARIO = [TAREFAS, PROJETOS]
+const NAV_SIDEBAR_SECUNDARIO = [PLANO, HABITOS]
+const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO]
+const NAV_BOTTOM = [TAREFAS, PROJETOS, PLANO, HABITOS]
 
 function linkClassName({ isActive }: { isActive: boolean }) {
   return isActive ? 'app-shell__link app-shell__link--active' : 'app-shell__link'
@@ -143,13 +147,13 @@ function ConteudoRota() {
 }
 
 function ShellAtalhos() {
-  const { abrir } = useQuickAdd()
+  const { novaTarefa } = useQuickAdd()
   const [ajudaAberta, setAjudaAberta] = useState(false)
 
   const abrirAjuda = useCallback(() => setAjudaAberta(true), [])
 
   useAtalhosTeclado({
-    onNovaTarefa: abrir,
+    onNovaTarefa: novaTarefa,
     onAjuda: abrirAjuda,
   })
 
@@ -160,35 +164,49 @@ export function AppShell() {
   return (
     <ToastProvider>
       <XpProgressProvider>
-        <QuickAddProvider>
-          <div className="app-shell">
-            <aside className="app-shell__sidebar" aria-label="Menu">
-              <p className="app-shell__brand">
-                <CheckCircleIcon aria-hidden />
-                Rotina
-              </p>
-              <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">
-                {NAV_SIDEBAR.map((item) => (
+        <SessaoAtivaProvider>
+          <QuickAddProvider>
+            <div className="app-shell">
+              <aside className="app-shell__sidebar" aria-label="Menu">
+                <p className="app-shell__brand">
+                  <CheckCircleIcon aria-hidden />
+                  Rotina
+                </p>
+                <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Principal">
+                    {NAV_SIDEBAR_PRIMARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Planejamento">
+                    {NAV_SIDEBAR_SECUNDARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Consulta">
+                    {NAV_SIDEBAR_TERCIARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                </nav>
+                <MenuConta />
+              </aside>
+
+              <div className="app-shell__main">
+                <BarraSuperior />
+                <ConteudoRota />
+              </div>
+
+              <nav className="app-shell__nav app-shell__nav--bottom" aria-label="Principal">
+                {NAV_BOTTOM.map((item) => (
                   <LinkNav key={item.to} item={item} />
                 ))}
+                <MenuMais />
               </nav>
-              <MenuConta />
-            </aside>
-
-            <div className="app-shell__main">
-              <BarraSuperior />
-              <ConteudoRota />
+              <ShellAtalhos />
             </div>
-
-            <nav className="app-shell__nav app-shell__nav--bottom" aria-label="Principal">
-              {NAV_BOTTOM.map((item) => (
-                <LinkNav key={item.to} item={item} />
-              ))}
-              <MenuMais />
-            </nav>
-            <ShellAtalhos />
-          </div>
-        </QuickAddProvider>
+          </QuickAddProvider>
+        </SessaoAtivaProvider>
       </XpProgressProvider>
     </ToastProvider>
   )

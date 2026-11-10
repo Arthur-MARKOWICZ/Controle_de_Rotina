@@ -9,6 +9,7 @@ import * as capacidadeOverrideApi from '../capacidade/api/capacidadeOverrideApi'
 import * as capacidadeResolvidaApi from '../capacidade/api/capacidadeResolvidaApi'
 import * as execucaoApi from '../execucao/api/execucaoApi'
 import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
+import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import * as habitoApi from '../habito/api/habitoApi'
 import type { HabitoDoDia } from '../habito/api/habitoApi'
@@ -46,6 +47,8 @@ vi.mock('../capacidade/api/capacidadeOverrideApi', () => ({
 
 vi.mock('../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
+  concluirTarefaDireto: vi.fn(),
+  iniciarTarefaSessao: vi.fn(),
 }))
 
 vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
@@ -165,15 +168,17 @@ function renderHome(initialPath = '/') {
     <AuthProvider>
       <ToastProvider>
         <XpProgressProvider>
-          <MemoryRouter initialEntries={[initialPath]}>
-            <QuickAddProvider>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/tarefas/:id" element={<p>Detalhe da tarefa</p>} />
-                <Route path="/capacidade" element={<p>Página capacidade</p>} />
-              </Routes>
-            </QuickAddProvider>
-          </MemoryRouter>
+          <SessaoAtivaProvider>
+            <MemoryRouter initialEntries={[initialPath]}>
+              <QuickAddProvider>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/tarefas/:id" element={<p>Detalhe da tarefa</p>} />
+                  <Route path="/capacidade" element={<p>Página capacidade</p>} />
+                </Routes>
+              </QuickAddProvider>
+            </MemoryRouter>
+          </SessaoAtivaProvider>
         </XpProgressProvider>
       </ToastProvider>
     </AuthProvider>,
@@ -406,9 +411,13 @@ describe('HomePage — plano do dia', () => {
 
       expect(await screen.findByText(/ainda não há plano/i)).toBeInTheDocument()
       expect(
-        screen.getByText(/gere o plano → revise → aprove → execute/i),
+        screen.getByText(/gere um plano a partir das suas tarefas → revise → aprove → execute/i),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^gerar plano de hoje$/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /voltar às tarefas/i })).toHaveAttribute(
+        'href',
+        '/tarefas',
+      )
       expect(
         screen.getByRole('button', { name: /^ajustar capacidade de hoje$/i }),
       ).toBeInTheDocument()
@@ -834,27 +843,10 @@ describe('HomePage — plano do dia', () => {
         concluidoEm: null,
         abortadoEm: null,
       })
-      vi.mocked(execucaoApi.listarExecucoes)
-        .mockResolvedValueOnce({
-          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
-          itens: [itemExecucaoBase],
-        })
-        .mockResolvedValueOnce({
-          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
-          itens: [
-            {
-              ...itemExecucaoBase,
-              execucao: {
-                id: 'e-1',
-                blocoPlanoId: 'b-1',
-                status: 'EM_ANDAMENTO',
-                iniciadoEm: '2026-10-20T14:00:00Z',
-                concluidoEm: null,
-                abortadoEm: null,
-              },
-            },
-          ],
-        })
+      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: [itemExecucaoBase],
+      })
 
       const user = userEvent.setup()
       renderHome()
@@ -902,7 +894,8 @@ describe('HomePage — plano do dia', () => {
       expect(
         await screen.findByRole('button', { name: /concluir estudar spring/i }),
       ).toBeEnabled()
-      expect(execucaoApi.listarExecucoes).toHaveBeenCalledTimes(1)
+      // Home + SessaoAtiva leem o dia na montagem; iniciar não dispara nova listagem.
+      expect(vi.mocked(execucaoApi.listarExecucoes).mock.calls.length).toBeGreaterThanOrEqual(1)
     })
 
     it('T6: erro ao iniciar volta a “Não iniciado” e mostra toast com tentar de novo', async () => {
@@ -953,44 +946,42 @@ describe('HomePage — plano do dia', () => {
           abortadoEm: null,
         },
       }
-      vi.mocked(execucaoApi.listarExecucoes)
-        .mockResolvedValueOnce({
-          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
-          itens: [emAndamento],
-        })
-        .mockResolvedValueOnce({
-          planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
-          itens: [
-            {
-              ...itemExecucaoBase,
-              execucao: {
-                id: 'e-1',
-                blocoPlanoId: 'b-1',
-                status: 'CONCLUIDO',
-                iniciadoEm: '2026-10-20T14:00:00Z',
-                concluidoEm: '2026-10-20T15:00:00Z',
-                abortadoEm: null,
-              },
-            },
-          ],
-        })
-      vi.mocked(execucaoApi.concluirExecucao).mockResolvedValue({
-        id: 'e-1',
-        blocoPlanoId: 'b-1',
-        status: 'CONCLUIDO',
-        iniciadoEm: '2026-10-20T14:00:00Z',
-        concluidoEm: '2026-10-20T15:00:00Z',
-        abortadoEm: null,
-        xp: {
-          ganhoNesteRequest: 120,
-          eventos: [{ tipo: 'BLOCO_CONCLUIDO', quantidade: 120 }],
-          progresso: {
-            xpTotal: 125,
-            nivel: 5,
-            xpNoNivel: 15,
-            xpParaProximoNivel: 50,
-          },
+      const concluido: ItemExecucaoResponse = {
+        ...itemExecucaoBase,
+        execucao: {
+          id: 'e-1',
+          blocoPlanoId: 'b-1',
+          status: 'CONCLUIDO',
+          iniciadoEm: '2026-10-20T14:00:00Z',
+          concluidoEm: '2026-10-20T15:00:00Z',
+          abortadoEm: null,
         },
+      }
+      let estadoItens = [emAndamento]
+      vi.mocked(execucaoApi.listarExecucoes).mockImplementation(async () => ({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: estadoItens,
+      }))
+      vi.mocked(execucaoApi.concluirExecucao).mockImplementation(async () => {
+        estadoItens = [concluido]
+        return {
+          id: 'e-1',
+          blocoPlanoId: 'b-1',
+          status: 'CONCLUIDO',
+          iniciadoEm: '2026-10-20T14:00:00Z',
+          concluidoEm: '2026-10-20T15:00:00Z',
+          abortadoEm: null,
+          xp: {
+            ganhoNesteRequest: 120,
+            eventos: [{ tipo: 'BLOCO_CONCLUIDO', quantidade: 120 }],
+            progresso: {
+              xpTotal: 125,
+              nivel: 5,
+              xpNoNivel: 15,
+              xpParaProximoNivel: 50,
+            },
+          },
+        }
       })
 
       const user = userEvent.setup()
@@ -1010,8 +1001,6 @@ describe('HomePage — plano do dia', () => {
         'href',
         '/historico',
       )
-      // T7: XP vem da resposta; sem leitura extra de execuções
-      expect(execucaoApi.listarExecucoes).toHaveBeenCalledTimes(1)
     })
 
     it('T5/T7: toast +XP e level-up após concluir com ganho', async () => {

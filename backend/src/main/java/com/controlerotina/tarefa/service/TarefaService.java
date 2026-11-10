@@ -3,6 +3,8 @@ package com.controlerotina.tarefa.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -15,6 +17,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlerotina.execucao.entity.StatusExecucao;
+import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.projeto.entity.Projeto;
@@ -30,6 +34,7 @@ import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
 import com.controlerotina.tarefa.dto.TarefaFiltro;
 import com.controlerotina.tarefa.dto.TarefaResponse;
+import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -38,20 +43,26 @@ import com.controlerotina.tarefa.repository.TarefaSpecs;
 @Service
 public class TarefaService {
 
+    private static final Prioridade PRIORIDADE_DEFAULT = Prioridade.MEDIA;
+    private static final int DURACAO_MINUTOS_DEFAULT = 30;
+
     private final TarefaRepository tarefaRepository;
     private final ProjetoRepository projetoRepository;
     private final PropostaGeracaoService propostaGeracaoService;
+    private final ExecucaoRepository execucaoRepository;
     private final Clock clock;
 
     public TarefaService(
             TarefaRepository tarefaRepository,
             ProjetoRepository projetoRepository,
             PropostaGeracaoService propostaGeracaoService,
+            ExecucaoRepository execucaoRepository,
             Clock clock
     ) {
         this.tarefaRepository = tarefaRepository;
         this.projetoRepository = projetoRepository;
         this.propostaGeracaoService = propostaGeracaoService;
+        this.execucaoRepository = execucaoRepository;
         this.clock = clock;
     }
 
@@ -61,6 +72,11 @@ public class TarefaService {
         if (request.prazo() != null && request.prazo().isBefore(agora)) {
             throw new PrazoNoPassadoException();
         }
+
+        Prioridade prioridade = request.prioridade() != null ? request.prioridade() : PRIORIDADE_DEFAULT;
+        int duracaoMinutos = request.duracaoMinutos() != null
+                ? request.duracaoMinutos()
+                : DURACAO_MINUTOS_DEFAULT;
 
         String projetoNome = null;
         if (request.projetoId() != null) {
@@ -72,10 +88,10 @@ public class TarefaService {
                 usuarioId,
                 request.titulo(),
                 request.descricao(),
-                request.prioridade(),
+                prioridade,
                 request.prazo(),
                 StatusTarefa.PENDENTE,
-                request.duracaoMinutos(),
+                duracaoMinutos,
                 agora,
                 agora
         );
@@ -86,7 +102,7 @@ public class TarefaService {
         Tarefa salva = tarefaRepository.save(tarefa);
         tarefaRepository.flush();
         propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
-        return TarefaResponse.from(salva, projetoNome);
+        return TarefaResponse.from(salva, projetoNome, salva.getDuracaoMinutos());
     }
 
     @Transactional(readOnly = true)
@@ -105,16 +121,22 @@ public class TarefaService {
 
         Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
         Map<UUID, String> nomes = carregarNomesProjetos(page.getContent());
+        Map<UUID, Integer> restantes = carregarRestantes(usuarioId, page.getContent());
         return page.map(t -> TarefaResponse.from(
                 t,
-                t.getProjetoId() == null ? null : nomes.get(t.getProjetoId())
+                t.getProjetoId() == null ? null : nomes.get(t.getProjetoId()),
+                restantes.getOrDefault(t.getId(), t.getDuracaoMinutos())
         ));
     }
 
     @Transactional(readOnly = true)
     public TarefaResponse buscarPorId(UUID usuarioId, UUID id) {
         Tarefa tarefa = buscarDoUsuario(usuarioId, id);
-        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
+        return TarefaResponse.from(
+                tarefa,
+                nomeDoProjeto(tarefa.getProjetoId()),
+                restanteDe(usuarioId, tarefa)
+        );
     }
 
     @Transactional
@@ -161,7 +183,11 @@ public class TarefaService {
             aplicarVinculoProjeto(usuarioId, tarefa, request.projetoId(), agora);
         }
 
-        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
+        return TarefaResponse.from(
+                tarefa,
+                nomeDoProjeto(tarefa.getProjetoId()),
+                restanteDe(usuarioId, tarefa)
+        );
     }
 
     private void aplicarVinculoProjeto(UUID usuarioId, Tarefa tarefa, UUID novoProjetoId, Instant agora) {
@@ -228,7 +254,35 @@ public class TarefaService {
             throw new TarefaNaoEncontradaException();
         }
         tarefa.restore(clock.instant());
-        return TarefaResponse.from(tarefa, nomeDoProjeto(tarefa.getProjetoId()));
+        return TarefaResponse.from(
+                tarefa,
+                nomeDoProjeto(tarefa.getProjetoId()),
+                restanteDe(usuarioId, tarefa)
+        );
+    }
+
+    private Map<UUID, Integer> carregarRestantes(UUID usuarioId, List<Tarefa> tarefas) {
+        if (tarefas.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> ids = tarefas.stream().map(Tarefa::getId).collect(Collectors.toSet());
+        Map<UUID, Long> concluidos = new HashMap<>();
+        for (Object[] linha : execucaoRepository.somarDuracaoMinutosPorTarefasEStatus(
+                ids, usuarioId, StatusExecucao.CONCLUIDO)) {
+            concluidos.put((UUID) linha[0], ((Number) linha[1]).longValue());
+        }
+        Map<UUID, Integer> restantes = new HashMap<>();
+        for (Tarefa t : tarefas) {
+            long feito = concluidos.getOrDefault(t.getId(), 0L);
+            restantes.put(t.getId(), Math.max(0, t.getDuracaoMinutos() - (int) feito));
+        }
+        return restantes;
+    }
+
+    private int restanteDe(UUID usuarioId, Tarefa tarefa) {
+        long feito = execucaoRepository.somarDuracaoMinutosPorTarefaEStatus(
+                tarefa.getId(), usuarioId, StatusExecucao.CONCLUIDO);
+        return Math.max(0, tarefa.getDuracaoMinutos() - (int) feito);
     }
 
     @Transactional

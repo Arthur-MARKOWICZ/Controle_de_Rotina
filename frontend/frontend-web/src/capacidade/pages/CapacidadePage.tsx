@@ -656,7 +656,7 @@ export function CapacidadePage() {
             <WarningCircleIcon className="capacidade-proposta-cta__icone" aria-hidden />
             <p>Há uma proposta de plano pendente após a mudança de reserva.</p>
           </div>
-          <Link to="/" className="btn btn--secondary btn--sm">
+          <Link to="/plano" className="btn btn--secondary btn--sm">
             Revisar proposta
           </Link>
         </div>

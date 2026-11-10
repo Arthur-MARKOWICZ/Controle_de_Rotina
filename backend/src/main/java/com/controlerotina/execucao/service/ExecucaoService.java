@@ -206,6 +206,93 @@ public class ExecucaoService {
     }
 
     /**
+     * Conclui execução de tarefa já materializada (avulso ou plano), inclusive direto
+     * sem passar por EM_ANDAMENTO. XP/tempo efetivo = duração planejada do bloco.
+     */
+    @Transactional
+    public ResultadoConclusao concluirTarefaDiretoNoBloco(
+            UUID usuarioId,
+            BlocoPlano bloco,
+            Tarefa tarefa
+    ) {
+        if (bloco.getTarefaId() == null || !bloco.getTarefaId().equals(tarefa.getId())) {
+            throw new PlanoNaoExecutavelException();
+        }
+        garantirPlanoExecutavel(bloco, usuarioId);
+
+        Instant agora = clock.instant();
+        var existente = execucaoRepository.findByBlocoPlanoId(bloco.getId());
+
+        if (existente.isPresent()) {
+            Execucao execucao = existente.get();
+            return switch (execucao.getStatus()) {
+                case CONCLUIDO -> throw new ExecucaoJaConcluidaException();
+                case EM_ANDAMENTO -> {
+                    int minutosEfetivos = XpMotor.minutosEfetivos(
+                            bloco.getDuracaoMinutos(),
+                            execucao.getIniciadoEm(),
+                            agora
+                    );
+                    yield finalizarTarefaAposConclusao(
+                            usuarioId, bloco, execucao, minutosEfetivos, agora, false);
+                }
+                case ABORTADO, NAO_INICIADO -> {
+                    execucao.concluirDireto(agora);
+                    Execucao salva = execucaoRepository.save(execucao);
+                    yield finalizarTarefaAposConclusao(
+                            usuarioId, bloco, salva, bloco.getDuracaoMinutos(), agora, true);
+                }
+            };
+        }
+
+        try {
+            Execucao criada = execucaoRepository.saveAndFlush(Execucao.concluirDiretoNova(
+                    UUID.randomUUID(),
+                    usuarioId,
+                    bloco.getId(),
+                    agora
+            ));
+            return finalizarTarefaAposConclusao(
+                    usuarioId, bloco, criada, bloco.getDuracaoMinutos(), agora, true);
+        } catch (DataIntegrityViolationException ex) {
+            if (violaUniqueExecucaoBloco(ex)) {
+                throw new ExecucaoBlocoConflitoException();
+            }
+            throw ex;
+        }
+    }
+
+    private ResultadoConclusao finalizarTarefaAposConclusao(
+            UUID usuarioId,
+            BlocoPlano bloco,
+            Execucao execucao,
+            int minutosEfetivos,
+            Instant agora,
+            boolean creditoDireto
+    ) {
+        if (!creditoDireto) {
+            execucao.concluir(agora);
+            execucaoRepository.save(execucao);
+        }
+
+        Tarefa tarefa = atualizarTarefaAposConcluir(bloco.getTarefaId(), usuarioId, agora);
+        // Crédito direto: timestamps iguais → soma pela duração planejada dos blocos.
+        // Timer: mantém minutos efetivos do intervalo.
+        int somaEfetivosTarefa = creditoDireto
+                ? (int) execucaoRepository.somarDuracaoMinutosPorTarefaEStatus(
+                        bloco.getTarefaId(), usuarioId, StatusExecucao.CONCLUIDO)
+                : somarMinutosEfetivosConcluidos(bloco.getTarefaId(), usuarioId);
+        XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederAoConcluir(
+                usuarioId,
+                execucao.getId(),
+                minutosEfetivos,
+                somaEfetivosTarefa,
+                tarefa
+        );
+        return new ResultadoConclusao(execucao, xp);
+    }
+
+    /**
      * Conclui execução de hábito já materializada (avulso ou plano), inclusive direto
      * sem passar por EM_ANDAMENTO.
      */
@@ -480,6 +567,13 @@ public class ExecucaoService {
 
         if (plano.getStatus() == StatusPlano.HABITO_AVULSO) {
             if (bloco.getHabitoId() == null || bloco.getTarefaId() != null) {
+                throw new PlanoNaoExecutavelException();
+            }
+            return plano;
+        }
+
+        if (plano.getStatus() == StatusPlano.TAREFA_AVULSA) {
+            if (bloco.getTarefaId() == null || bloco.getHabitoId() != null) {
                 throw new PlanoNaoExecutavelException();
             }
             return plano;

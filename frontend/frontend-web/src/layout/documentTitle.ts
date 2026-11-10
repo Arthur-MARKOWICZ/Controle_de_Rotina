@@ -1,7 +1,7 @@
 const SUFIXO = 'Controle de Rotina'
 
 const ROTULOS: [RegExp, string][] = [
-  [/^\/$/, 'Hoje'],
+  [/^\/plano$/, 'Plano'],
   [/^\/tarefas$/, 'Tarefas'],
   [/^\/tarefas\/nova$/, 'Nova tarefa'],
   [/^\/tarefas\/[^/]+$/, 'Editar tarefa'],

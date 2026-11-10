@@ -44,6 +44,11 @@ describe('listaGrupos (T3)', () => {
     expect(formatarPrazoLista('2026-10-26T15:00:00Z', ref)).toBe('atrasada há 2 dias')
   })
 
+  it('formatarPrazoLista não chama de atrasada quando status é FINALIZADA', () => {
+    expect(formatarPrazoLista('2026-10-26T15:00:00Z', ref, 'FINALIZADA')).toBe('há 2 dias')
+    expect(formatarPrazoLista('2026-10-27T15:00:00Z', ref, 'FINALIZADA')).toBe('há 1 dia')
+  })
+
   it('agrupa com contadores e omite vazios', () => {
     const grupos = agruparPorPrazo(
       [
@@ -62,5 +67,24 @@ describe('listaGrupos (T3)', () => {
       'Depois (1)',
     ])
     expect(grupos.find((g) => g.id === 'sem_prazo')).toBeUndefined()
+  })
+
+  it('FINALIZADA com prazo passado não entra em Atrasadas', () => {
+    const grupos = agruparPorPrazo(
+      [
+        tarefa({
+          id: 'f',
+          prazo: '2026-10-20T12:00:00Z',
+          titulo: 'Já feita',
+          status: 'FINALIZADA',
+        }),
+        tarefa({ id: 'a', prazo: '2026-10-20T12:00:00Z', titulo: 'Ainda aberta' }),
+      ],
+      ref,
+    )
+
+    expect(grupos.find((g) => g.id === 'atrasadas')?.tarefas.map((t) => t.id)).toEqual(['a'])
+    expect(grupos.find((g) => g.id === 'anteriores')?.tarefas.map((t) => t.id)).toEqual(['f'])
+    expect(grupos.find((g) => g.id === 'anteriores')?.label).toBe('Anteriores')
   })
 })

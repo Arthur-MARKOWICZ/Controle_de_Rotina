@@ -1,6 +1,6 @@
 import { CaretLeftIcon, CaretRightIcon, CheckSquareIcon, PlusIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Outlet, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
 import { InlineAlert } from '../../feedback/InlineAlert'
@@ -19,6 +19,7 @@ import {
 } from '../api/tarefaApi'
 import { chipsAtivos, filtrosLimpos } from '../filtrosAtivos'
 import { FiltrosBarra } from '../FiltrosBarra'
+import { InlineAddTarefa, type InlineAddTarefaHandle } from '../InlineAddTarefa'
 import { agruparPorPrazo } from '../listaGrupos'
 import {
   escreverFiltrosNaUrl,
@@ -109,7 +110,7 @@ export function TarefasPage() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [searchParams, setSearchParams] = useSearchParams()
   const filtrosUrl = useMemo(() => lerFiltrosDaUrl(searchParams), [searchParams])
-  const { abrir: abrirQuickAdd, assinarCriada } = useQuickAdd()
+  const { assinarCriada, registrarFocoInline } = useQuickAdd()
 
   const chaveAtual = useMemo(() => escreverFiltrosNaUrl(filtrosUrl).toString(), [filtrosUrl])
 
@@ -121,6 +122,7 @@ export function TarefasPage() {
   const controllerRef = useRef<AbortController | null>(null)
   const filtrosRef = useRef(filtrosUrl)
   const listaRef = useRef<HTMLDivElement>(null)
+  const inlineAddRef = useRef<InlineAddTarefaHandle>(null)
 
   useEffect(() => {
     filtrosRef.current = filtrosUrl
@@ -182,6 +184,14 @@ export function TarefasPage() {
 
   useEffect(() => assinarCriada(lerSilenciosamente), [assinarCriada, lerSilenciosamente])
 
+  useEffect(
+    () =>
+      registrarFocoInline(() => {
+        inlineAddRef.current?.focus()
+      }),
+    [registrarFocoInline],
+  )
+
   function atualizarUrl(proximo: FiltrosListaUrl) {
     setSearchParams(escreverFiltrosNaUrl(proximo), { replace: true })
   }
@@ -236,13 +246,18 @@ export function TarefasPage() {
     }
   }
 
+  function handleTarefaCriada(tarefa: TarefaResponse) {
+    setResultado((r) => (r ? inserirNaPagina(r, tarefa, 0) : r))
+    lerSilenciosamente()
+  }
+
   const contextoDrawer: TarefasOutletContext = {
     projetosAtivos,
     aoAtualizar: (tarefa) => {
       setResultado((r) => (r ? substituirNaPagina(r, tarefa) : r))
       lerSilenciosamente()
     },
-    aoCriar: () => lerSilenciosamente(),
+    aoCriar: (tarefa) => handleTarefaCriada(tarefa),
   }
 
   const carregandoPrimeira = chaveCarregada === null
@@ -260,6 +275,13 @@ export function TarefasPage() {
       <PageHeader
         title="Tarefas"
         description="Liste, filtre e ordene o que precisa ser planejado."
+        actions={
+          resultado != null && resultado.content.length > 0 ? (
+            <Link to="/plano" className="btn btn--secondary btn--sm">
+              Organizar meu dia
+            </Link>
+          ) : null
+        }
       />
 
       <FiltrosBarra filtros={filtrosUrl} projetosAtivos={projetosAtivos} onAplicar={atualizarUrl} />
@@ -267,6 +289,12 @@ export function TarefasPage() {
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
       {carregandoPrimeira ? <Skeleton variant="tarefas-lista" /> : null}
+
+      <InlineAddTarefa
+        ref={inlineAddRef}
+        projetoId={filtrosUrl.projetoId || undefined}
+        onCriada={handleTarefaCriada}
+      />
 
       {resultado ? (
         <div
@@ -283,7 +311,11 @@ export function TarefasPage() {
                 <>
                   <CheckSquareIcon className="tarefas-empty__icone" aria-hidden />
                   <p className="tarefas-empty__titulo">Nenhuma tarefa ainda</p>
-                  <button type="button" className="btn btn--primary" onClick={abrirQuickAdd}>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => inlineAddRef.current?.focus()}
+                  >
                     <PlusIcon aria-hidden />
                     Nova tarefa
                   </button>
@@ -324,6 +356,7 @@ export function TarefasPage() {
                         search={location.search}
                         onExcluir={(t) => void handleExcluir(t)}
                         onRestaurar={(t) => void handleRestaurar(t)}
+                        onSessaoAlterada={lerSilenciosamente}
                       />
                     ))}
                   </ul>

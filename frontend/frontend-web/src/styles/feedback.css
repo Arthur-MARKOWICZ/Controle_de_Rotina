@@ -190,6 +190,17 @@
   max-width: min(100% - 2rem, 24rem);
 }
 
+.sessao-duracao-dialog {
+  max-width: min(100% - 2rem, 36rem);
+  width: 100%;
+}
+
+.sessao-duracao__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .confirm-dialog::backdrop {
   background: color-mix(in srgb, var(--ink) 40%, transparent);
 }

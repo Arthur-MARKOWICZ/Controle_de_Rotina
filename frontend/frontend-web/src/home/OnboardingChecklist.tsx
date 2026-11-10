@@ -15,7 +15,6 @@ export type PassosOnboarding = {
 
 type Props = {
   temPlano: boolean
-  onAbrirQuickAdd: () => void
   onGerarPlano?: () => void
 }
 
@@ -33,7 +32,7 @@ function capacidadeConfigurada(
   return lista.some((item) => item.ativo && item.horas > 0)
 }
 
-export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }: Props) {
+export function OnboardingChecklist({ temPlano, onGerarPlano }: Props) {
   const [visivel, setVisivel] = useState(false)
   const [passos, setPassos] = useState<PassosOnboarding | null>(null)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -96,25 +95,23 @@ export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }:
         </button>
       </div>
       <p className="onboarding-checklist__intro">
-        Configure o essencial para o sistema montar seu plano do dia.
+        Comece pelas tarefas; o plano é uma sugestão sob demanda.
       </p>
       <ol className="onboarding-checklist__lista">
+        <li data-ok={passos.tarefa ? 'true' : 'false'}>
+          <StatusPasso ok={passos.tarefa} numero={1} />
+          {passos.tarefa ? (
+            <span>Primeira tarefa criada</span>
+          ) : (
+            <Link to="/tarefas">Criar primeira tarefa</Link>
+          )}
+        </li>
         <li data-ok={passos.capacidade ? 'true' : 'false'}>
-          <StatusPasso ok={passos.capacidade} numero={1} />
+          <StatusPasso ok={passos.capacidade} numero={2} />
           {passos.capacidade ? (
             <span>Capacidade semanal definida</span>
           ) : (
             <Link to="/capacidade">Definir capacidade semanal</Link>
-          )}
-        </li>
-        <li data-ok={passos.tarefa ? 'true' : 'false'}>
-          <StatusPasso ok={passos.tarefa} numero={2} />
-          {passos.tarefa ? (
-            <span>Primeira tarefa criada</span>
-          ) : (
-            <button type="button" className="onboarding-checklist__link-btn" onClick={onAbrirQuickAdd}>
-              Criar primeira tarefa
-            </button>
           )}
         </li>
         <li data-ok={passos.plano ? 'true' : 'false'}>
@@ -126,7 +123,7 @@ export function OnboardingChecklist({ temPlano, onAbrirQuickAdd, onGerarPlano }:
               Gerar primeiro plano
             </button>
           ) : (
-            <span>Gere o plano do dia abaixo</span>
+            <Link to="/plano">Gerar primeiro plano</Link>
           )}
         </li>
       </ol>

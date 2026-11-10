@@ -48,7 +48,7 @@ function renderPage() {
     <MemoryRouter initialEntries={['/historico']}>
       <Routes>
         <Route path="/historico" element={<HistoricoPage />} />
-        <Route path="/" element={<div>Home</div>} />
+        <Route path="/plano" element={<div>Plano</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -157,8 +157,8 @@ describe('HistoricoPage (T4)', () => {
     const empties = screen.getAllByText(/ainda sem atividade neste período/i)
     expect(empties.length).toBeGreaterThanOrEqual(1)
     const link = within(empties[0].closest('p') as HTMLElement).getByRole('link', {
-      name: /ver o plano de hoje/i,
+      name: /ver o plano/i,
     })
-    expect(link).toHaveAttribute('href', '/')
+    expect(link).toHaveAttribute('href', '/plano')
   })
 })

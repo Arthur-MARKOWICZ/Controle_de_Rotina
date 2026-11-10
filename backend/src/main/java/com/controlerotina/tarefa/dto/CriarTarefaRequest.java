@@ -7,7 +7,6 @@ import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CriarTarefaRequest(
@@ -18,12 +17,10 @@ public record CriarTarefaRequest(
         @Size(max = 2000)
         String descricao,
 
-        @NotNull
         Prioridade prioridade,
 
         Instant prazo,
 
-        @NotNull
         @DuracaoMinutosValida
         Integer duracaoMinutos,
 

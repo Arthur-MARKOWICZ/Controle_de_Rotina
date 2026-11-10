@@ -4,9 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../auth/api/authApi'
+import { SessaoAtivaProvider } from '../../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../../feedback/ToastProvider'
 import { QuickAddProvider } from '../../layout/QuickAddContext'
 import * as projetoApi from '../../projeto/api/projetoApi'
+import { XpProgressProvider } from '../../xp/XpProgressContext'
 import * as tarefaApi from '../api/tarefaApi'
 import type { PageTarefa } from '../api/tarefaApi'
 import { DEBOUNCE_FILTRO_MS } from '../FiltrosBarra'
@@ -14,12 +16,36 @@ import { TarefasPage } from './TarefasPage'
 
 vi.mock('../api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
+  criarTarefa: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+  iniciarTarefaSessao: vi.fn(),
+  concluirTarefaDireto: vi.fn(),
 }))
 
 vi.mock('../../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
+}))
+
+vi.mock('../../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+  }
+})
+
+vi.mock('../../auth/api/meApi', () => ({
+  buscarMe: vi.fn().mockResolvedValue({
+    id: 'u-1',
+    nome: 'Teste',
+    email: 't@t.com',
+    xpTotal: 0,
+    nivel: 1,
+    xpNoNivel: 0,
+    xpParaProximoNivel: 10,
+  }),
+  atualizarMe: vi.fn(),
 }))
 
 const refIso = '2026-10-28T15:00:00.000Z'
@@ -111,14 +137,18 @@ function Local() {
 function renderLista(path = '/tarefas') {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <QuickAddProvider>
-          <Routes>
-            <Route path="/tarefas" element={<TarefasPage />} />
-          </Routes>
-          <Local />
-        </QuickAddProvider>
-      </MemoryRouter>
+      <XpProgressProvider>
+        <SessaoAtivaProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <QuickAddProvider>
+              <Routes>
+                <Route path="/tarefas" element={<TarefasPage />} />
+              </Routes>
+              <Local />
+            </QuickAddProvider>
+          </MemoryRouter>
+        </SessaoAtivaProvider>
+      </XpProgressProvider>
     </ToastProvider>,
   )
 }
@@ -130,6 +160,7 @@ function setupUser() {
 describe('TarefasPage', () => {
   beforeEach(() => {
     vi.mocked(tarefaApi.listarTarefas).mockReset()
+    vi.mocked(tarefaApi.criarTarefa).mockReset()
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina)
@@ -172,6 +203,7 @@ describe('TarefasPage', () => {
           size: 20,
           sort: 'prazo',
           direction: 'asc',
+          status: ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA', 'CANCELADA'],
         }),
         expect.any(AbortSignal),
       )
@@ -231,7 +263,7 @@ describe('TarefasPage', () => {
       expect(screen.getByRole('region', { name: /lista de tarefas/i })).toHaveFocus()
     })
 
-    it('empty state da primeira vez oferece CTA Nova tarefa', async () => {
+    it('empty state da primeira vez: CTA Nova tarefa foca o inline', async () => {
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
         content: [],
         totalElements: 0,
@@ -246,7 +278,85 @@ describe('TarefasPage', () => {
       const empty = screen.getByText(/nenhuma tarefa ainda/i).closest('.tarefas-empty')
       expect(empty).not.toBeNull()
       await user.click(within(empty as HTMLElement).getByRole('button', { name: /nova tarefa/i }))
-      expect(await screen.findByRole('heading', { name: /nova tarefa/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /adicionar tarefa/i })).toHaveFocus()
+      expect(screen.queryByRole('dialog', { name: /nova tarefa/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /organizar meu dia/i })).not.toBeInTheDocument()
+    })
+
+    it('T1: com lista não vazia, existe link Organizar meu dia para /plano', async () => {
+      renderLista()
+
+      const link = await screen.findByRole('link', { name: /organizar meu dia/i })
+      expect(link).toHaveAttribute('href', '/plano')
+    })
+
+    it('T1: Enter no inline com título chama criarTarefa só com titulo e limpa o campo', async () => {
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+        id: 't-nova',
+        titulo: 'Comprar leite',
+        descricao: '',
+        prioridade: 'MEDIA',
+        prazo: null,
+        status: 'PENDENTE',
+        duracaoMinutos: 30,
+        createdAt: '2026-10-28T12:00:00Z',
+        updatedAt: '2026-10-28T12:00:00Z',
+        deletedAt: null,
+        deletada: false,
+      })
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Hoje item')
+
+      const input = screen.getByRole('textbox', { name: /adicionar tarefa/i })
+      await user.type(input, 'Comprar leite{Enter}')
+
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({ titulo: 'Comprar leite' })
+      })
+      expect(input).toHaveValue('')
+      expect(await screen.findByText('Tarefa criada')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Abrir' })).toBeInTheDocument()
+    })
+
+    it('T2: com projetoId na URL o body inclui projetoId', async () => {
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+        id: 't-proj',
+        titulo: 'Item do TCC',
+        descricao: '',
+        prioridade: 'MEDIA',
+        prazo: null,
+        status: 'PENDENTE',
+        duracaoMinutos: 30,
+        projetoId: 'proj-tcc',
+        createdAt: '2026-10-28T12:00:00Z',
+        updatedAt: '2026-10-28T12:00:00Z',
+        deletedAt: null,
+        deletada: false,
+      })
+      const user = setupUser()
+      renderLista('/tarefas?projetoId=proj-tcc')
+      await screen.findByText('Hoje item')
+
+      await user.type(screen.getByRole('textbox', { name: /adicionar tarefa/i }), 'Item do TCC{Enter}')
+
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({
+          titulo: 'Item do TCC',
+          projetoId: 'proj-tcc',
+        })
+      })
+    })
+
+    it('T3: título vazio não chama API e mostra feedback acessível', async () => {
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Hoje item')
+
+      await user.click(screen.getByRole('button', { name: /^adicionar$/i }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/título/i)
+      expect(tarefaApi.criarTarefa).not.toHaveBeenCalled()
     })
 
     it('empty state com filtros oferece Limpar filtros', async () => {
