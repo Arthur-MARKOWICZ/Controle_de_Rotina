@@ -4,9 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../auth/api/authApi'
+import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { QuickAddProvider, useQuickAdd } from '../layout/QuickAddContext'
 import * as projetoApi from '../projeto/api/projetoApi'
+import { XpProgressProvider } from '../xp/XpProgressContext'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
 import { TarefasPage } from './pages/TarefasPage'
@@ -19,10 +21,33 @@ vi.mock('./api/tarefaApi', () => ({
   atualizarTarefa: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+  iniciarTarefaSessao: vi.fn(),
+  concluirTarefaDireto: vi.fn(),
 }))
 
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
+}))
+
+vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+  }
+})
+
+vi.mock('../auth/api/meApi', () => ({
+  buscarMe: vi.fn().mockResolvedValue({
+    id: 'u-1',
+    nome: 'Teste',
+    email: 't@t.com',
+    xpTotal: 0,
+    nivel: 1,
+    xpNoNivel: 0,
+    xpParaProximoNivel: 10,
+  }),
+  atualizarMe: vi.fn(),
 }))
 
 const projetosAtivos = {
@@ -83,20 +108,32 @@ function GatilhoQuickAdd() {
 function renderApp(path: string) {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <QuickAddProvider>
-          <GatilhoQuickAdd />
-          <Routes>
-            <Route path="/tarefas" element={<TarefasPage />}>
-              <Route path="nova" element={<TarefaDrawer />} />
-              <Route path=":id" element={<TarefaDrawer />} />
-            </Route>
-          </Routes>
-          <Local />
-        </QuickAddProvider>
-      </MemoryRouter>
+      <XpProgressProvider>
+        <SessaoAtivaProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <QuickAddProvider>
+              <GatilhoQuickAdd />
+              <Routes>
+                <Route path="/tarefas" element={<TarefasPage />}>
+                  <Route path="nova" element={<TarefaDrawer />} />
+                  <Route path=":id" element={<TarefaDrawer />} />
+                </Route>
+              </Routes>
+              <Local />
+            </QuickAddProvider>
+          </MemoryRouter>
+        </SessaoAtivaProvider>
+      </XpProgressProvider>
     </ToastProvider>,
   )
+}
+
+async function abrirNota(user: ReturnType<typeof userEvent.setup>, rotulo: RegExp | string) {
+  await user.click(within(drawer()).getByRole('button', { name: rotulo }))
+}
+
+function textareaDescricao() {
+  return screen.getByRole('textbox', { name: /^descrição$/i })
 }
 
 function drawer(nome: RegExp = /tarefa/i) {
@@ -239,7 +276,9 @@ describe('TarefaDrawer', () => {
       expect(screen.queryByLabelText(/^status$/i)).not.toBeInTheDocument()
 
       await user.type(screen.getByLabelText(/^título$/i), 'Estudar')
-      await user.type(screen.getByLabelText(/descrição/i), 'Spring Boot')
+      await abrirNota(user, /adicionar descrição/i)
+      await user.type(textareaDescricao(), 'Spring Boot')
+      await user.click(screen.getByRole('button', { name: /^pronto$/i }))
       await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
       await user.type(screen.getByLabelText(/prazo \(opcional\)/i), prazoFuturoLocal())
       await user.type(screen.getByLabelText(/duração/i), '120')
@@ -287,7 +326,9 @@ describe('TarefaDrawer', () => {
       const user = userEvent.setup()
       renderApp('/tarefas/nova')
 
-      await user.type(await screen.findByLabelText(/descrição/i), 'Algo')
+      await abrirNota(user, /adicionar descrição/i)
+      await user.type(await screen.findByRole('textbox', { name: /^descrição$/i }), 'Algo')
+      await user.click(screen.getByRole('button', { name: /^pronto$/i }))
       await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'BAIXA')
       await user.type(screen.getByLabelText(/prazo \(opcional\)/i), prazoFuturoLocal())
       await user.type(screen.getByLabelText(/duração/i), '60')
@@ -339,7 +380,112 @@ describe('TarefaDrawer', () => {
       expect(screen.getByTestId('local')).toHaveTextContent(/^\/tarefas\/nova$/)
       expect(drawer(/nova tarefa/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/^título$/i)).toHaveValue('Ler artigo')
-      expect(screen.getByLabelText(/descrição/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /adicionar descrição/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('view da descrição', () => {
+    it('abre a nota sem mudar a URL e foca o textarea', async () => {
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      expect(screen.getByTestId('local')).toHaveTextContent('/tarefas/t-1')
+
+      await abrirNota(user, /spring/i)
+
+      expect(drawer(/descrição/i)).toBeInTheDocument()
+      expect(screen.getByTestId('local')).toHaveTextContent('/tarefas/t-1')
+      expect(textareaDescricao()).toHaveFocus()
+      expect(screen.queryByRole('button', { name: /^salvar$/i })).not.toBeInTheDocument()
+    })
+
+    it('Pronto volta ao meta sem persistir e mostra o preview', async () => {
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await abrirNota(user, /spring/i)
+      await user.clear(textareaDescricao())
+      await user.type(textareaDescricao(), 'Spring Boot atualizado')
+      await user.click(screen.getByRole('button', { name: /^pronto$/i }))
+
+      expect(drawer(/editar tarefa/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /spring boot atualizado/i })).toBeInTheDocument()
+      expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /spring boot atualizado/i })).toHaveFocus()
+    })
+
+    it('Esc e Fechar na nota voltam ao meta sem fechar o drawer', async () => {
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await abrirNota(user, /spring/i)
+      await user.type(textareaDescricao(), ' extra')
+      await user.keyboard('{Escape}')
+
+      expect(drawer(/editar tarefa/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /spring extra/i })).toBeInTheDocument()
+      expect(screen.getByTestId('local')).toHaveTextContent('/tarefas/t-1')
+
+      await abrirNota(user, /spring extra/i)
+      await user.click(within(drawer(/descrição/i)).getByRole('button', { name: 'Fechar' }))
+
+      expect(drawer(/editar tarefa/i)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: /descartar/i })).not.toBeInTheDocument()
+    })
+
+    it('salvar no meta envia a descrição editada na nota', async () => {
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({
+        ...tarefa,
+        descricao: 'Nova nota',
+      })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await abrirNota(user, /spring/i)
+      await user.clear(textareaDescricao())
+      await user.type(textareaDescricao(), 'Nova nota')
+      await user.click(screen.getByRole('button', { name: /^pronto$/i }))
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ descricao: 'Nova nota' }),
+        )
+      })
+    })
+
+    it('fechar o meta com só a descrição alterada pede descartar', async () => {
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await abrirNota(user, /spring/i)
+      await user.type(textareaDescricao(), '!')
+      await user.click(screen.getByRole('button', { name: /^pronto$/i }))
+      await user.click(within(drawer(/editar tarefa/i)).getByRole('button', { name: 'Fechar' }))
+
+      expect(screen.getByRole('dialog', { name: /descartar alterações/i })).toBeInTheDocument()
+    })
+
+    it('com tarefa deletada a linha de descrição fica disabled e a nota não abre', async () => {
+      const deletada = { ...tarefa, deletada: true, deletedAt: '2026-02-01T10:00:00Z' }
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(deletada)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      expect(
+        await within(drawer(/editar tarefa/i)).findByText(/esta tarefa está excluída/i),
+      ).toBeInTheDocument()
+      const linha = screen.getByRole('button', { name: /spring/i })
+      expect(linha).toBeDisabled()
+      await user.click(linha)
+
+      expect(screen.queryByRole('dialog', { name: /^descrição$/i })).not.toBeInTheDocument()
     })
   })
 

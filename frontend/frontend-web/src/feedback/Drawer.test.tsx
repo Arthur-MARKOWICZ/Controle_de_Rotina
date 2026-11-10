@@ -1,11 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
-import { describe, expect, it } from 'vitest'
+import { useState, type ReactNode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { Drawer } from './Drawer'
 
-function Harness() {
+type HarnessProps = {
+  headerStart?: ReactNode
+  onClose?: () => void
+}
+
+function Harness({ headerStart, onClose }: HarnessProps = {}) {
   const [montado, setMontado] = useState(false)
   const [aberto, setAberto] = useState(false)
   return (
@@ -23,7 +28,11 @@ function Harness() {
         <Drawer
           open={aberto}
           title="Editar"
-          onClose={() => setAberto(false)}
+          headerStart={headerStart}
+          onClose={() => {
+            onClose?.()
+            setAberto(false)
+          }}
           onExited={() => setMontado(false)}
           footer={<button type="button">Salvar</button>}
         >
@@ -65,5 +74,44 @@ describe('Drawer', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Editar' })).not.toBeInTheDocument()
     })
+  })
+
+  it('renderiza headerStart opcional sem quebrar o título e o Fechar', async () => {
+    const user = userEvent.setup()
+    render(
+      <Harness
+        headerStart={
+          <button type="button" aria-label="Voltar">
+            Voltar
+          </button>
+        }
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Editar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fechar' })).toBeInTheDocument()
+  })
+
+  it('Esc, Fechar e backdrop chamam apenas onClose', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const { rerender } = render(<Harness onClose={onClose} />)
+
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    rerender(<Harness onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    await user.click(screen.getByRole('button', { name: 'Fechar' }))
+    expect(onClose).toHaveBeenCalledTimes(2)
+
+    rerender(<Harness onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    await user.click(screen.getByRole('dialog', { name: 'Editar' }))
+    expect(onClose).toHaveBeenCalledTimes(3)
   })
 })

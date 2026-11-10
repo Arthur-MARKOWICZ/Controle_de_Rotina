@@ -1,3 +1,4 @@
+import { CaretLeftIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
@@ -23,6 +24,8 @@ import {
   type StatusTarefa,
   type TarefaFormValues,
 } from './validation/tarefaForm'
+
+type DrawerView = 'meta' | 'nota'
 
 export type TarefasOutletContext = {
   projetosAtivos: ProjetoResponse[]
@@ -92,11 +95,28 @@ export function TarefaDrawer() {
   const [restaurando, setRestaurando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(true)
+  const [view, setView] = useState<DrawerView>('meta')
   const confirmandoRef = useRef(false)
+  const notaTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const descricaoEntradaRef = useRef<HTMLButtonElement>(null)
+  const focarDescricaoAoVoltarRef = useRef(false)
 
   const deletada = tarefa?.deletada ?? false
+  const naNota = view === 'nota'
   const alterado =
     JSON.stringify(values) !== JSON.stringify(inicial.values) || projetoId !== inicial.projetoId
+
+  const voltarAoMeta = useCallback(() => {
+    focarDescricaoAoVoltarRef.current = true
+    setView('meta')
+  }, [])
+
+  function abrirNota() {
+    if (deletada) {
+      return
+    }
+    setView('nota')
+  }
 
   function aplicarTarefa(carregada: TarefaResponse) {
     const valores = valoresDaTarefa(carregada)
@@ -106,6 +126,11 @@ export function TarefaDrawer() {
     setProjetoNomeVinculado(carregada.projetoNome ?? null)
     setInicial({ values: valores, projetoId: carregada.projetoId ?? '' })
   }
+
+  useEffect(() => {
+    setView('meta')
+    focarDescricaoAoVoltarRef.current = false
+  }, [id, modo])
 
   useEffect(() => {
     if (modo !== 'editar' || !id) {
@@ -145,8 +170,27 @@ export function TarefaDrawer() {
     navigate({ pathname: '/tarefas', search: location.search }, { replace: true })
   }, [estado.daLista, location.search, navigate])
 
+  useEffect(() => {
+    if (view !== 'nota') {
+      return
+    }
+    notaTextareaRef.current?.focus()
+  }, [view])
+
+  useEffect(() => {
+    if (view !== 'meta' || !focarDescricaoAoVoltarRef.current) {
+      return
+    }
+    focarDescricaoAoVoltarRef.current = false
+    descricaoEntradaRef.current?.focus()
+  }, [view])
+
   async function pedirFechar() {
     if (!aberto || confirmandoRef.current) {
+      return
+    }
+    if (naNota) {
+      voltarAoMeta()
       return
     }
     if (alterado) {
@@ -284,7 +328,7 @@ export function TarefaDrawer() {
     }
   }
 
-  const rodape = carregando ? null : (
+  const rodapeMeta = carregando ? null : (
     <>
       {modo === 'editar' && tarefa ? (
         deletada ? (
@@ -324,18 +368,54 @@ export function TarefaDrawer() {
     </>
   )
 
+  const rodapeNota = (
+    <button type="button" className="btn btn--primary" onClick={voltarAoMeta}>
+      Pronto
+    </button>
+  )
+
   return (
     <>
       <Drawer
         open={aberto}
-        title={modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'}
+        title={naNota ? 'Descrição' : modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'}
+        headerStart={
+          naNota ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--icon"
+              aria-label="Voltar"
+              onClick={voltarAoMeta}
+            >
+              <CaretLeftIcon aria-hidden />
+            </button>
+          ) : undefined
+        }
         onClose={() => void pedirFechar()}
         onExited={voltarParaLista}
         busy={carregando}
-        footer={rodape}
+        footer={naNota ? rodapeNota : rodapeMeta}
       >
         {carregando ? (
           <p role="status">Carregando tarefa…</p>
+        ) : naNota ? (
+          <div className="tarefa-nota">
+            <label className="visually-hidden" htmlFor="tarefa-nota-descricao">
+              Descrição
+            </label>
+            <textarea
+              ref={notaTextareaRef}
+              id="tarefa-nota-descricao"
+              className="tarefa-nota__textarea"
+              maxLength={2000}
+              value={values.descricao}
+              onChange={(e) => setValues((a) => ({ ...a, descricao: e.target.value }))}
+              placeholder="Escreva a descrição da tarefa…"
+            />
+            <p className="tarefa-nota__contador" aria-live="polite">
+              {values.descricao.length}/2000
+            </p>
+          </div>
         ) : (
           <>
             <p className="tarefa-drawer__subtitulo">
@@ -364,6 +444,8 @@ export function TarefaDrawer() {
                 disabled={deletada}
                 erro={erro}
                 onSubmit={(e) => void handleSubmit(e)}
+                onAbrirDescricao={abrirNota}
+                descricaoEntradaRef={descricaoEntradaRef}
                 onDesvincular={() => void handleDesvincular()}
                 desvinculando={desvinculando}
               />

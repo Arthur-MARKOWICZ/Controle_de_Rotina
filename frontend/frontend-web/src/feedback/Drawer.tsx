@@ -10,6 +10,8 @@ type DrawerProps = {
   /** `false` toca a animação de saída e então chama `onExited`. */
   open: boolean
   title: string
+  /** Slot opcional à esquerda do título (ex.: botão voltar). */
+  headerStart?: ReactNode
   /** Pedido de fechamento (Esc, backdrop, botão fechar). */
   onClose: () => void
   onExited?: () => void
@@ -26,6 +28,7 @@ function prefereMenosMovimento(): boolean {
 export function Drawer({
   open,
   title,
+  headerStart,
   onClose,
   onExited,
   busy = false,
@@ -92,9 +95,12 @@ export function Drawer({
       }}
     >
       <header className="drawer__header">
-        <h2 id={titleId} className="drawer__title">
-          {title}
-        </h2>
+        <div className="drawer__header-inicio">
+          {headerStart}
+          <h2 id={titleId} className="drawer__title">
+            {title}
+          </h2>
+        </div>
         <button
           ref={fecharRef}
           type="button"
