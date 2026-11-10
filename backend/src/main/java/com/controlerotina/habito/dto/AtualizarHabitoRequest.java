@@ -1,8 +1,11 @@
 package com.controlerotina.habito.dto;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
@@ -31,7 +34,11 @@ public record AtualizarHabitoRequest(
 
         LocalTime horarioPreferencial,
 
-        boolean horarioPreferencialPresente
+        boolean horarioPreferencialPresente,
+
+        List<UUID> tagIds,
+
+        boolean tagIdsPresente
 ) {
     public AtualizarHabitoRequest {
         if (titulo != null) {
@@ -55,14 +62,34 @@ public record AtualizarHabitoRequest(
             if (horarioPreferencialPresente && !node.get("horarioPreferencial").isNull()) {
                 horarioPreferencial = LocalTime.parse(node.get("horarioPreferencial").asString());
             }
+            boolean tagIdsPresente = node.has("tagIds");
+            List<UUID> tagIds = null;
+            if (tagIdsPresente) {
+                tagIds = uuids(node.get("tagIds"));
+            }
             return new AtualizarHabitoRequest(
                     texto(node, "titulo"),
                     texto(node, "descricao"),
                     inteiroOuNulo(node, "duracaoMinutos"),
                     diasSemanaOuNulo(node),
                     horarioPreferencial,
-                    horarioPreferencialPresente
+                    horarioPreferencialPresente,
+                    tagIds,
+                    tagIdsPresente
             );
+        }
+
+        private static List<UUID> uuids(JsonNode valor) {
+            if (valor == null || valor.isNull()) {
+                return List.of();
+            }
+            List<UUID> ids = new ArrayList<>();
+            for (JsonNode item : valor) {
+                if (item != null && !item.isNull()) {
+                    ids.add(UUID.fromString(item.asString()));
+                }
+            }
+            return ids;
         }
 
         private static String texto(JsonNode node, String campo) {

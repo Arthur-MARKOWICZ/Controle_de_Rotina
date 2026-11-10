@@ -8,6 +8,12 @@ import * as habitoApi from '../api/habitoApi'
 import { HabitoDrawer } from '../HabitoDrawer'
 import { HabitosPage } from './HabitosPage'
 
+vi.mock('../../tag/api/tagApi', () => ({
+  listarTags: vi.fn().mockResolvedValue([]),
+  criarTag: vi.fn(),
+  TAG_COR_PADRAO: '#6B7280',
+}))
+
 vi.mock('../api/habitoApi', () => ({
   listarHabitos: vi.fn(),
   pausarHabito: vi.fn(),

@@ -69,6 +69,34 @@ describe('listaGrupos (T3)', () => {
     expect(grupos.find((g) => g.id === 'sem_prazo')).toBeUndefined()
   })
 
+  it('reordena E→OU dentro do grupo quando há 2+ tags no filtro', () => {
+    const ref = new Date('2026-10-28T15:00:00.000Z')
+    const grupos = agruparPorPrazo(
+      [
+        tarefa({
+          id: 'ou',
+          prazo: '2026-10-28T18:00:00Z',
+          tags: [{ id: 't1', nome: 'A', cor: '#000' }],
+          tagMatchScore: 1,
+        }),
+        tarefa({
+          id: 'e',
+          prazo: '2026-10-28T20:00:00Z',
+          tags: [
+            { id: 't1', nome: 'A', cor: '#000' },
+            { id: 't2', nome: 'B', cor: '#111' },
+          ],
+          tagMatchScore: 2,
+        }),
+      ],
+      ref,
+      false,
+      ['t1', 't2'],
+    )
+    const hoje = grupos.find((g) => g.id === 'hoje')
+    expect(hoje?.tarefas.map((t) => t.id)).toEqual(['e', 'ou'])
+  })
+
   it('FINALIZADA com prazo passado não entra em Atrasadas', () => {
     const grupos = agruparPorPrazo(
       [

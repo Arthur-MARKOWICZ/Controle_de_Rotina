@@ -7,6 +7,12 @@ import { ToastProvider } from '../../feedback/ToastProvider'
 import * as projetoApi from '../api/projetoApi'
 import { ProjetoFormPage } from './ProjetoFormPage'
 
+vi.mock('../../tag/api/tagApi', () => ({
+  listarTags: vi.fn().mockResolvedValue([]),
+  criarTag: vi.fn(),
+  TAG_COR_PADRAO: '#6B7280',
+}))
+
 vi.mock('../api/projetoApi', () => ({
   criarProjeto: vi.fn(),
   buscarProjeto: vi.fn(),
@@ -96,6 +102,7 @@ describe('ProjetoFormPage (F1)', () => {
       expect(projetoApi.atualizarProjeto).toHaveBeenCalledWith('p-tcc', {
         nome: 'TCC atualizado',
         descricao: 'Trabalho de conclusão',
+        tagIds: [],
       })
     })
 

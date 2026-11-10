@@ -11,6 +11,7 @@ export type FiltrosListaUrl = {
   duracaoDe: string
   duracaoAte: string
   projetoId: string
+  tagIds: string[]
   sort: SortCampo
   direction: SortDirection
   size: number
@@ -25,6 +26,7 @@ export const FILTROS_LISTA_INICIAIS: FiltrosListaUrl = {
   duracaoDe: '',
   duracaoAte: '',
   projetoId: '',
+  tagIds: [],
   sort: 'prazo',
   direction: 'asc',
   size: 20,
@@ -81,6 +83,7 @@ export function lerFiltrosDaUrl(params: URLSearchParams): FiltrosListaUrl {
     duracaoDe: params.get('duracaoDe') ?? '',
     duracaoAte: params.get('duracaoAte') ?? '',
     projetoId: params.get('projetoId')?.trim() ?? '',
+    tagIds: [...new Set(params.getAll('tagId').map((s) => s.trim()).filter(Boolean))],
     sort,
     direction,
     size,
@@ -110,6 +113,9 @@ export function escreverFiltrosNaUrl(filtros: FiltrosListaUrl): URLSearchParams 
   }
   if (filtros.projetoId) {
     params.set('projetoId', filtros.projetoId)
+  }
+  for (const tagId of filtros.tagIds) {
+    params.append('tagId', tagId)
   }
   if (filtros.sort !== 'prazo') {
     params.set('sort', filtros.sort)

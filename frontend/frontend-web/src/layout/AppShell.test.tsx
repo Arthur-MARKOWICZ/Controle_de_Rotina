@@ -163,6 +163,7 @@ describe('AppShell', () => {
       'Capacidade',
       'Calendário',
       'Histórico',
+      'Tags',
     ])
     expect(within(bottom).getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Tarefas',

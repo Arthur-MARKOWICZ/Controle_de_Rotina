@@ -8,6 +8,7 @@ import {
   PlusIcon,
   RepeatIcon,
   SunHorizonIcon,
+  TagIcon,
   type Icon,
 } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -33,11 +34,12 @@ const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
 const CALENDARIO: ItemNav = { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon }
 const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon }
+const TAGS: ItemNav = { to: '/tags', label: 'Tags', Icon: TagIcon }
 
 /** Primário → secundário → terciário (sidebar). */
 const NAV_SIDEBAR_PRIMARIO = [TAREFAS, PROJETOS]
 const NAV_SIDEBAR_SECUNDARIO = [PLANO, HABITOS]
-const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO]
+const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO, TAGS]
 const NAV_BOTTOM = [TAREFAS, PROJETOS, PLANO, HABITOS]
 
 function linkClassName({ isActive }: { isActive: boolean }) {

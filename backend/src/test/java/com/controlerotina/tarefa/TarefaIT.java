@@ -592,6 +592,21 @@ class TarefaIT {
     }
 
     @Test
+    void devePermitirPatchComDescricaoVazia() {
+        UUID id = criarTarefaAutenticada("Com desc", Instant.now().plus(3, ChronoUnit.DAYS), "MEDIA", 60);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/" + id,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("descricao", "")),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("descricao")).isEqualTo("");
+    }
+
+    @Test
     void deveRejeitarPatchComPrazoNoPassado() {
         UUID id = criarTarefaAutenticada("Prazo", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
 

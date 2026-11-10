@@ -14,6 +14,7 @@ const ROTULOS: [RegExp, string][] = [
   [/^\/calendario$/, 'Calendário'],
   [/^\/capacidade$/, 'Capacidade'],
   [/^\/historico$/, 'Histórico'],
+  [/^\/tags$/, 'Tags'],
   [/^\/perfil$/, 'Perfil'],
   [/^\/login$/, 'Login'],
   [/^\/cadastro$/, 'Cadastro'],

@@ -6,6 +6,7 @@ import { Drawer } from '../feedback/Drawer'
 import { InlineAlert } from '../feedback/InlineAlert'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
+import type { TagResumo } from '../tag/api/tagApi'
 import {
   atualizarHabito,
   buscarHabito,
@@ -51,6 +52,11 @@ function mensagemErro(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
 }
 
+function tagsDoHabito(habito: HabitoResponse): { ids: string[]; tags: TagResumo[] } {
+  const tags = habito.tags ?? []
+  return { ids: tags.map((tag) => tag.id), tags }
+}
+
 export function HabitoDrawer() {
   const { id } = useParams<{ id: string }>()
   const modo: 'criar' | 'editar' = id ? 'editar' : 'criar'
@@ -63,6 +69,9 @@ export function HabitoDrawer() {
 
   const [inicial, setInicial] = useState<HabitoFormValues>(HABITO_FORM_VAZIO)
   const [values, setValues] = useState<HabitoFormValues>(HABITO_FORM_VAZIO)
+  const [tagIds, setTagIds] = useState<string[]>([])
+  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
+  const [tagIdsInicial, setTagIdsInicial] = useState<string[]>([])
   const [habito, setHabito] = useState<HabitoResponse | null>(null)
   const [carregando, setCarregando] = useState(modo === 'editar')
   const [enviando, setEnviando] = useState(false)
@@ -73,7 +82,9 @@ export function HabitoDrawer() {
   const confirmandoRef = useRef(false)
 
   const deletada = habito?.deletada ?? false
-  const alterado = JSON.stringify(values) !== JSON.stringify(inicial)
+  const alterado =
+    JSON.stringify(values) !== JSON.stringify(inicial) ||
+    JSON.stringify(tagIds) !== JSON.stringify(tagIdsInicial)
 
   const voltarParaLista = useCallback(() => {
     if (estado.daLista) {
@@ -99,8 +110,12 @@ export function HabitoDrawer() {
         }
         const form = valoresDoHabito(data)
         setHabito(data)
+        const ids = data.tags?.map((tag) => tag.id) ?? []
         setInicial(form)
         setValues(form)
+        setTagIds(ids)
+        setTagIdsInicial(ids)
+        setTagsSelecionadas(data.tags ?? [])
       } catch (error) {
         if (ativo) {
           setErro(mensagemErro(error, 'Não foi possível carregar o hábito.'))
@@ -156,6 +171,7 @@ export function HabitoDrawer() {
       duracaoMinutos: values.duracaoMinutos as number,
       diasSemana: values.diasSemana,
       horarioPreferencial: horario,
+      tagIds,
     }
 
     setEnviando(true)
@@ -175,8 +191,12 @@ export function HabitoDrawer() {
       aoAtualizar(atualizado)
       const form = valoresDoHabito(atualizado)
       setHabito(atualizado)
+      const { ids, tags } = tagsDoHabito(atualizado)
       setInicial(form)
       setValues(form)
+      setTagIds(ids)
+      setTagIdsInicial(ids)
+      setTagsSelecionadas(tags)
     } catch (error) {
       setErro(mensagemErro(error, 'Não foi possível salvar o hábito. Tente novamente.'))
     } finally {
@@ -222,8 +242,12 @@ export function HabitoDrawer() {
       aoAtualizar(restaurado)
       const form = valoresDoHabito(restaurado)
       setHabito(restaurado)
+      const { ids, tags } = tagsDoHabito(restaurado)
       setInicial(form)
       setValues(form)
+      setTagIds(ids)
+      setTagIdsInicial(ids)
+      setTagsSelecionadas(tags)
     } catch (error) {
       setErro(mensagemErro(error, 'Não foi possível restaurar o hábito.'))
     } finally {
@@ -285,7 +309,17 @@ export function HabitoDrawer() {
             onSubmit={(e) => void handleSubmit(e)}
             noValidate
           >
-            <HabitoCampos values={values} onChange={setValues} desabilitado={deletada} />
+            <HabitoCampos
+              values={values}
+              onChange={setValues}
+              desabilitado={deletada}
+              tagIds={tagIds}
+              tagsSelecionadas={tagsSelecionadas}
+              onTagsChange={(ids, tags) => {
+                setTagIds(ids)
+                setTagsSelecionadas(tags)
+              }}
+            />
             {habito && !deletada ? (
               <p className="habito-streak-detalhe" role="status">
                 Sequência atual: {habito.streakAtual} · Melhor: {habito.melhorStreak}

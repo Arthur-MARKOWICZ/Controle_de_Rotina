@@ -1,7 +1,9 @@
 package com.controlerotina.habito.dto;
 
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.tarefa.validation.DuracaoMinutosValida;
@@ -26,7 +28,9 @@ public record CriarHabitoRequest(
         @NotEmpty
         Set<DiaSemana> diasSemana,
 
-        LocalTime horarioPreferencial
+        LocalTime horarioPreferencial,
+
+        List<UUID> tagIds
 ) {
     public CriarHabitoRequest {
         if (titulo != null) {

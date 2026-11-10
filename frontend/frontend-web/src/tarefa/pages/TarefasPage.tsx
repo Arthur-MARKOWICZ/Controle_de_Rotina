@@ -10,6 +10,7 @@ import { useToast } from '../../feedback/ToastProvider'
 import { PageHeader } from '../../layout/PageHeader'
 import { useQuickAdd } from '../../layout/QuickAddContext'
 import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
+import { listarTags, type TagResponse } from '../../tag/api/tagApi'
 import {
   excluirTarefa,
   listarTarefas,
@@ -58,6 +59,7 @@ function paramsApi(filtros: FiltrosListaUrl) {
     duracaoDe: paraNumeroOuUndefined(filtros.duracaoDe),
     duracaoAte: paraNumeroOuUndefined(filtros.duracaoAte),
     projetoId: filtros.projetoId || undefined,
+    tagIds: filtros.tagIds.length ? filtros.tagIds : undefined,
     page: filtros.page,
     size: filtros.size,
     sort: filtros.sort,
@@ -74,6 +76,7 @@ function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
     !filtros.duracaoDe &&
     !filtros.duracaoAte &&
     !filtros.projetoId &&
+    filtros.tagIds.length === 0 &&
     filtros.sort === 'prazo' &&
     filtros.direction === 'asc'
   )
@@ -116,6 +119,7 @@ export function TarefasPage() {
 
   const [resultado, setResultado] = useState<PageTarefa | null>(null)
   const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
+  const [catalogoTags, setCatalogoTags] = useState<TagResponse[]>([])
   /** Filtros (serializados) da última leitura concluída; `null` antes da primeira. */
   const [chaveCarregada, setChaveCarregada] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -143,6 +147,19 @@ export function TarefasPage() {
       }
     }
     void carregarProjetos()
+    async function carregarTags() {
+      try {
+        const lista = await listarTags()
+        if (ativo) {
+          setCatalogoTags(lista)
+        }
+      } catch {
+        if (ativo) {
+          setCatalogoTags([])
+        }
+      }
+    }
+    void carregarTags()
     return () => {
       ativo = false
     }
@@ -263,10 +280,10 @@ export function TarefasPage() {
   const carregandoPrimeira = chaveCarregada === null
   const recarregando = resultado != null && chaveCarregada !== chaveAtual
   const totalPages = resultado?.totalPages ?? 0
-  const grupos = resultado ? agruparPorPrazo(resultado.content) : []
+  const grupos = resultado ? agruparPorPrazo(resultado.content, new Date(), false, filtrosUrl.tagIds) : []
   const listaVazia = resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
-  const temChips = chipsAtivos(filtrosUrl, projetosAtivos).length > 0
+  const temChips = chipsAtivos(filtrosUrl, projetosAtivos, catalogoTags).length > 0
   const total = resultado?.totalElements ?? 0
 
   return (
@@ -284,7 +301,12 @@ export function TarefasPage() {
         }
       />
 
-      <FiltrosBarra filtros={filtrosUrl} projetosAtivos={projetosAtivos} onAplicar={atualizarUrl} />
+      <FiltrosBarra
+        filtros={filtrosUrl}
+        projetosAtivos={projetosAtivos}
+        catalogoTags={catalogoTags}
+        onAplicar={atualizarUrl}
+      />
 
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 

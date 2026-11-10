@@ -16,6 +16,7 @@ import { HomePage } from './pages/HomePage'
 import { ProjetoFormPage } from './projeto/pages/ProjetoFormPage'
 import { ProjetoDrawer } from './projeto/ProjetoDrawer'
 import { ProjetosPage } from './projeto/pages/ProjetosPage'
+import { TagsPage } from './tag/pages/TagsPage'
 import { TarefasPage } from './tarefa/pages/TarefasPage'
 import { TarefaDrawer } from './tarefa/TarefaDrawer'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="/calendario" element={<CalendarioPage />} />
               <Route path="/capacidade" element={<CapacidadePage />} />
               <Route path="/historico" element={<HistoricoPage />} />
+              <Route path="/tags" element={<TagsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/tarefas" replace />} />
           </Routes>

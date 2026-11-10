@@ -77,8 +77,9 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/calendario`   | visão agregada do plano/prazos (SPA e API no mesmo path; ver nota abaixo) |
 | `/projetos`     | CRUD de projetos (SPA e API no mesmo path; ver nota abaixo) |
 | `/habitos`      | CRUD de hábitos (SPA e API no mesmo path; ver nota abaixo) |
+| `/tags`         | CRUD de tags (SPA e API no mesmo path; ver nota abaixo) |
 
-**Nota `/calendario`, `/projetos` e `/habitos`:** a tela React e a API compartilham o path.  
+**Nota `/calendario`, `/projetos`, `/habitos` e `/tags`:** a tela React e a API compartilham o path.  
 No Vite, o proxy usa `bypass` quando `Accept` contém `text/html` (navegação → SPA).  
 No Nginx, `map $http_accept` + `error_page 418` encaminha só pedidos com `application/json` ao backend.  
 O `apiFetch` já envia `Accept: application/json`.

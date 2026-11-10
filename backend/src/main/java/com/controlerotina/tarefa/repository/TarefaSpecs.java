@@ -1,14 +1,19 @@
 package com.controlerotina.tarefa.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
 
+import com.controlerotina.tag.entity.TarefaTag;
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
+
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 public final class TarefaSpecs {
 
@@ -93,6 +98,19 @@ public final class TarefaSpecs {
                 return cb.conjunction();
             }
             return cb.equal(root.get("projetoId"), projetoId);
+        };
+    }
+
+    public static Specification<Tarefa> comAlgumaTag(Collection<UUID> tagIds) {
+        return (root, query, cb) -> {
+            if (tagIds == null || tagIds.isEmpty()) {
+                return cb.conjunction();
+            }
+            Subquery<UUID> subquery = query.subquery(UUID.class);
+            Root<TarefaTag> tagRoot = subquery.from(TarefaTag.class);
+            subquery.select(tagRoot.get("tarefaId"))
+                    .where(tagRoot.get("tagId").in(tagIds));
+            return root.get("id").in(subquery);
         };
     }
 

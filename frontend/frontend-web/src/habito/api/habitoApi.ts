@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { TagResumo } from '../../tag/api/tagApi'
 import type { DiaSemana } from '../../capacidade/api/capacidadeSemanalApi'
 import type { ExecucaoResponse, StatusExecucao } from '../../execucao/api/execucaoApi'
 
@@ -19,6 +20,8 @@ export type HabitoResponse = {
   updatedAt: string
   deletedAt: string | null
   deletada: boolean
+  tags?: TagResumo[]
+  tagMatchScore?: number | null
 }
 
 export type PageHabito = {
@@ -35,6 +38,7 @@ export type ListarHabitosParams = {
   somenteDeletadas?: boolean
   page?: number
   size?: number
+  tagIds?: string[]
 }
 
 export type CriarHabitoRequest = {
@@ -43,6 +47,7 @@ export type CriarHabitoRequest = {
   duracaoMinutos: number
   diasSemana: DiaSemana[]
   horarioPreferencial?: string | null
+  tagIds?: string[]
 }
 
 export type AtualizarHabitoRequest = {
@@ -51,6 +56,16 @@ export type AtualizarHabitoRequest = {
   duracaoMinutos?: number
   diasSemana?: DiaSemana[]
   horarioPreferencial?: string | null
+  tagIds?: string[]
+}
+
+function appendAll(params: URLSearchParams, key: string, values?: string[]) {
+  if (!values?.length) {
+    return
+  }
+  for (const value of values) {
+    params.append(key, value)
+  }
 }
 
 export function buildHabitosQuery(filtro: ListarHabitosParams = {}): string {
@@ -64,6 +79,7 @@ export function buildHabitosQuery(filtro: ListarHabitosParams = {}): string {
   if (filtro.somenteDeletadas != null) {
     params.set('somenteDeletadas', String(filtro.somenteDeletadas))
   }
+  appendAll(params, 'tagId', filtro.tagIds)
   params.set('page', String(filtro.page ?? 0))
   params.set('size', String(filtro.size ?? 20))
   return `/habitos?${params.toString()}`

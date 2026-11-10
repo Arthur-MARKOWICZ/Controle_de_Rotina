@@ -14,6 +14,7 @@ import {
   type ProjetoResponse,
   type StatusProjeto,
 } from '../api/projetoApi'
+import type { TagResumo } from '../../tag/api/tagApi'
 import { ProjetoCampos } from '../ProjetoCampos'
 import {
   PROJETO_FORM_VAZIO,
@@ -33,6 +34,8 @@ export function ProjetoFormPage() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [values, setValues] = useState<ProjetoFormValues>(PROJETO_FORM_VAZIO)
+  const [tagIds, setTagIds] = useState<string[]>([])
+  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [projeto, setProjeto] = useState<ProjetoResponse | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [enviando, setEnviando] = useState(false)
@@ -60,6 +63,8 @@ export function ProjetoFormPage() {
           nome: carregado.nome,
           descricao: carregado.descricao ?? '',
         })
+        setTagIds(carregado.tags?.map((tag) => tag.id) ?? [])
+        setTagsSelecionadas(carregado.tags ?? [])
       } catch {
         if (ativo) {
           setErro('Não foi possível carregar o projeto.')
@@ -98,12 +103,15 @@ export function ProjetoFormPage() {
       const atualizado = await atualizarProjeto(id, {
         nome: values.nome.trim(),
         descricao: descricao || null,
+        tagIds,
       })
       setProjeto(atualizado)
       setValues({
         nome: atualizado.nome,
         descricao: atualizado.descricao ?? '',
       })
+      setTagIds(atualizado.tags?.map((tag) => tag.id) ?? [])
+      setTagsSelecionadas(atualizado.tags ?? [])
       toast.success('Projeto atualizado')
     } catch (error) {
       setErro(
@@ -235,7 +243,16 @@ export function ProjetoFormPage() {
       <section className="projeto-form-panel">
         <h2 className="projeto-hub__form-titulo">Editar</h2>
         <form className="projeto-form" onSubmit={handleSubmit} noValidate>
-          <ProjetoCampos values={values} onChange={setValues} />
+          <ProjetoCampos
+            values={values}
+            onChange={setValues}
+            tagIds={tagIds}
+            tagsSelecionadas={tagsSelecionadas}
+            onTagsChange={(ids, tags) => {
+              setTagIds(ids)
+              setTagsSelecionadas(tags)
+            }}
+          />
 
           <div className="projeto-form-acoes">
             <button type="submit" className="btn btn--primary" disabled={enviando || acaoCiclo}>

@@ -7,11 +7,12 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.controlerotina.habito.entity.Habito;
 import com.controlerotina.habito.entity.StatusHabito;
 
-public interface HabitoRepository extends JpaRepository<Habito, UUID> {
+public interface HabitoRepository extends JpaRepository<Habito, UUID>, JpaSpecificationExecutor<Habito> {
 
     Optional<Habito> findByIdAndUsuarioId(UUID id, UUID usuarioId);
 

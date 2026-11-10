@@ -21,6 +21,7 @@ import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.projeto.repository.ProjetoRepository;
+import com.controlerotina.tag.service.TagVinculoService;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
 
@@ -42,6 +43,9 @@ class TarefaServiceProcessarAtrasosTest {
     @Mock
     ExecucaoRepository execucaoRepository;
 
+    @Mock
+    TagVinculoService tagVinculoService;
+
     private TarefaService tarefaService;
 
     @BeforeEach
@@ -51,6 +55,7 @@ class TarefaServiceProcessarAtrasosTest {
                 projetoRepository,
                 propostaGeracaoService,
                 execucaoRepository,
+                tagVinculoService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }

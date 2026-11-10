@@ -8,6 +8,7 @@ import { InlineAlert } from '../feedback/InlineAlert'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
+import type { TagResumo } from '../tag/api/tagApi'
 import {
   atualizarTarefa,
   buscarTarefa,
@@ -42,7 +43,7 @@ export type TarefaDrawerState = {
   titulo?: string
 }
 
-type Snapshot = { values: TarefaFormValues; projetoId: string }
+type Snapshot = { values: TarefaFormValues; projetoId: string; tagIds: string[] }
 
 const FORM_ID = 'tarefa-drawer-form'
 
@@ -83,10 +84,13 @@ export function TarefaDrawer() {
   const [inicial, setInicial] = useState<Snapshot>(() => ({
     values: { ...VAZIO, titulo: estado.titulo ?? '' },
     projetoId: '',
+    tagIds: [],
   }))
   const [values, setValues] = useState<TarefaFormValues>(inicial.values)
   const [projetoId, setProjetoId] = useState('')
   const [projetoNomeVinculado, setProjetoNomeVinculado] = useState<string | null>(null)
+  const [tagIds, setTagIds] = useState<string[]>([])
+  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [tarefa, setTarefa] = useState<TarefaResponse | null>(null)
   const [carregando, setCarregando] = useState(modo === 'editar')
   const [enviando, setEnviando] = useState(false)
@@ -104,7 +108,9 @@ export function TarefaDrawer() {
   const deletada = tarefa?.deletada ?? false
   const naNota = view === 'nota'
   const alterado =
-    JSON.stringify(values) !== JSON.stringify(inicial.values) || projetoId !== inicial.projetoId
+    JSON.stringify(values) !== JSON.stringify(inicial.values) ||
+    projetoId !== inicial.projetoId ||
+    JSON.stringify(tagIds) !== JSON.stringify(inicial.tagIds)
 
   const voltarAoMeta = useCallback(() => {
     focarDescricaoAoVoltarRef.current = true
@@ -124,7 +130,10 @@ export function TarefaDrawer() {
     setValues(valores)
     setProjetoId(carregada.projetoId ?? '')
     setProjetoNomeVinculado(carregada.projetoNome ?? null)
-    setInicial({ values: valores, projetoId: carregada.projetoId ?? '' })
+    const ids = carregada.tags?.map((tag) => tag.id) ?? []
+    setTagIds(ids)
+    setTagsSelecionadas(carregada.tags ?? [])
+    setInicial({ values: valores, projetoId: carregada.projetoId ?? '', tagIds: ids })
   }
 
   useEffect(() => {
@@ -235,7 +244,11 @@ export function TarefaDrawer() {
     setEnviando(true)
     try {
       if (modo === 'criar') {
-        const criada = await criarTarefa({ ...corpo, projetoId: projetoId || null })
+        const criada = await criarTarefa({
+          ...corpo,
+          projetoId: projetoId || null,
+          tagIds,
+        })
         toast.success('Tarefa criada', {
           action: { label: 'Abrir', onClick: () => navigate(`/tarefas/${criada.id}`) },
         })
@@ -245,6 +258,7 @@ export function TarefaDrawer() {
           ...corpo,
           status: values.status as StatusTarefa,
           ...(projetoId ? { projetoId } : {}),
+          tagIds,
         })
         toast.success('Tarefa salva')
         aoAtualizar(atualizada)
@@ -448,6 +462,12 @@ export function TarefaDrawer() {
                 descricaoEntradaRef={descricaoEntradaRef}
                 onDesvincular={() => void handleDesvincular()}
                 desvinculando={desvinculando}
+                tagIds={tagIds}
+                tagsSelecionadas={tagsSelecionadas}
+                onTagsChange={(ids, tags) => {
+                  setTagIds(ids)
+                  setTagsSelecionadas(tags)
+                }}
               />
             )}
             {modo === 'editar' && !tarefa && erro ? <InlineAlert>{erro}</InlineAlert> : null}
