@@ -4,9 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../auth/api/authApi'
+import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { QuickAddProvider, useQuickAdd } from '../layout/QuickAddContext'
 import * as projetoApi from '../projeto/api/projetoApi'
+import { XpProgressProvider } from '../xp/XpProgressContext'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
 import { TarefasPage } from './pages/TarefasPage'
@@ -23,6 +25,27 @@ vi.mock('./api/tarefaApi', () => ({
 
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
+}))
+
+vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+  }
+})
+
+vi.mock('../auth/api/meApi', () => ({
+  buscarMe: vi.fn().mockResolvedValue({
+    id: 'u-1',
+    nome: 'Teste',
+    email: 't@t.com',
+    xpTotal: 0,
+    nivel: 1,
+    xpNoNivel: 0,
+    xpParaProximoNivel: 10,
+  }),
+  atualizarMe: vi.fn(),
 }))
 
 const projetosAtivos = {
@@ -83,18 +106,22 @@ function GatilhoQuickAdd() {
 function renderApp(path: string) {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <QuickAddProvider>
-          <GatilhoQuickAdd />
-          <Routes>
-            <Route path="/tarefas" element={<TarefasPage />}>
-              <Route path="nova" element={<TarefaDrawer />} />
-              <Route path=":id" element={<TarefaDrawer />} />
-            </Route>
-          </Routes>
-          <Local />
-        </QuickAddProvider>
-      </MemoryRouter>
+      <XpProgressProvider>
+        <SessaoAtivaProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <QuickAddProvider>
+              <GatilhoQuickAdd />
+              <Routes>
+                <Route path="/tarefas" element={<TarefasPage />}>
+                  <Route path="nova" element={<TarefaDrawer />} />
+                  <Route path=":id" element={<TarefaDrawer />} />
+                </Route>
+              </Routes>
+              <Local />
+            </QuickAddProvider>
+          </MemoryRouter>
+        </SessaoAtivaProvider>
+      </XpProgressProvider>
     </ToastProvider>,
   )
 }
