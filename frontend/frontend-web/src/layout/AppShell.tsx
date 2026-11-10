@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { XpBar } from '../xp/XpBar'
 import { XpProgressProvider, useXpProgress } from '../xp/XpProgressContext'
@@ -163,47 +164,49 @@ export function AppShell() {
   return (
     <ToastProvider>
       <XpProgressProvider>
-        <QuickAddProvider>
-          <div className="app-shell">
-            <aside className="app-shell__sidebar" aria-label="Menu">
-              <p className="app-shell__brand">
-                <CheckCircleIcon aria-hidden />
-                Rotina
-              </p>
-              <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">
-                <div className="app-shell__nav-grupo" role="group" aria-label="Principal">
-                  {NAV_SIDEBAR_PRIMARIO.map((item) => (
-                    <LinkNav key={item.to} item={item} />
-                  ))}
-                </div>
-                <div className="app-shell__nav-grupo" role="group" aria-label="Planejamento">
-                  {NAV_SIDEBAR_SECUNDARIO.map((item) => (
-                    <LinkNav key={item.to} item={item} />
-                  ))}
-                </div>
-                <div className="app-shell__nav-grupo" role="group" aria-label="Consulta">
-                  {NAV_SIDEBAR_TERCIARIO.map((item) => (
-                    <LinkNav key={item.to} item={item} />
-                  ))}
-                </div>
+        <SessaoAtivaProvider>
+          <QuickAddProvider>
+            <div className="app-shell">
+              <aside className="app-shell__sidebar" aria-label="Menu">
+                <p className="app-shell__brand">
+                  <CheckCircleIcon aria-hidden />
+                  Rotina
+                </p>
+                <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Principal">
+                    {NAV_SIDEBAR_PRIMARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Planejamento">
+                    {NAV_SIDEBAR_SECUNDARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                  <div className="app-shell__nav-grupo" role="group" aria-label="Consulta">
+                    {NAV_SIDEBAR_TERCIARIO.map((item) => (
+                      <LinkNav key={item.to} item={item} />
+                    ))}
+                  </div>
+                </nav>
+                <MenuConta />
+              </aside>
+
+              <div className="app-shell__main">
+                <BarraSuperior />
+                <ConteudoRota />
+              </div>
+
+              <nav className="app-shell__nav app-shell__nav--bottom" aria-label="Principal">
+                {NAV_BOTTOM.map((item) => (
+                  <LinkNav key={item.to} item={item} />
+                ))}
+                <MenuMais />
               </nav>
-              <MenuConta />
-            </aside>
-
-            <div className="app-shell__main">
-              <BarraSuperior />
-              <ConteudoRota />
+              <ShellAtalhos />
             </div>
-
-            <nav className="app-shell__nav app-shell__nav--bottom" aria-label="Principal">
-              {NAV_BOTTOM.map((item) => (
-                <LinkNav key={item.to} item={item} />
-              ))}
-              <MenuMais />
-            </nav>
-            <ShellAtalhos />
-          </div>
-        </QuickAddProvider>
+          </QuickAddProvider>
+        </SessaoAtivaProvider>
       </XpProgressProvider>
     </ToastProvider>
   )

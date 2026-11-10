@@ -5,8 +5,10 @@ import * as apiClient from '../../auth/session/apiClient'
 import {
   atualizarTarefa,
   buscarTarefa,
+  concluirTarefaDireto,
   criarTarefa,
   excluirTarefa,
+  iniciarTarefaSessao,
   listarTarefas,
   restaurarTarefa,
   type TarefaResponse,
@@ -28,6 +30,7 @@ const tarefa: TarefaResponse = {
   prazo: '2030-01-01T12:00:00Z',
   status: 'PENDENTE',
   duracaoMinutos: 120,
+  restanteMinutos: 120,
   createdAt: '2026-01-01T10:00:00Z',
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
@@ -239,6 +242,61 @@ describe('tarefaApi', () => {
 
     expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/restore', { method: 'POST' })
     expect(restaurada.deletada).toBe(false)
+  })
+
+  it('inicia sessão com POST /tarefas/{id}/iniciar', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'e-1',
+          blocoPlanoId: 'b-1',
+          status: 'EM_ANDAMENTO',
+          iniciadoEm: '2026-10-20T12:00:00Z',
+          concluidoEm: null,
+          abortadoEm: null,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const execucao = await iniciarTarefaSessao('t-1', {
+      duracaoMinutos: 30,
+      data: '2026-10-20',
+    })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/iniciar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ duracaoMinutos: 30, data: '2026-10-20' }),
+    })
+    expect(execucao.status).toBe('EM_ANDAMENTO')
+  })
+
+  it('conclui direto com POST /tarefas/{id}/concluir-direto', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'e-2',
+          blocoPlanoId: 'b-2',
+          status: 'CONCLUIDO',
+          iniciadoEm: '2026-10-20T12:00:00Z',
+          concluidoEm: '2026-10-20T12:00:00Z',
+          abortadoEm: null,
+          xp: { ganhoNesteRequest: 45, eventos: [], progresso: null },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const execucao = await concluirTarefaDireto('t-1', { duracaoMinutos: 30 })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/concluir-direto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ duracaoMinutos: 30 }),
+    })
+    expect(execucao.status).toBe('CONCLUIDO')
+    expect(execucao.xp?.ganhoNesteRequest).toBe(45)
   })
 
   it('propaga erro de status ATRASADA com prazo futuro no PATCH', async () => {

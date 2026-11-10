@@ -111,4 +111,9 @@ public class BlocoPlano {
         this.ordem = ordem;
         this.updatedAt = updatedAt;
     }
+
+    public void atualizarDuracao(int duracaoMinutos, Instant updatedAt) {
+        this.duracaoMinutos = duracaoMinutos;
+        this.updatedAt = updatedAt;
+    }
 }

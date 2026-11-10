@@ -33,10 +33,18 @@ describe('listaUrl (T1)', () => {
   })
 
   it('paramsApiDaVisao mapeia chips para API', () => {
-    expect(paramsApiDaVisao('todas')).toEqual({})
+    expect(paramsApiDaVisao('todas')).toEqual({
+      status: ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA', 'CANCELADA'],
+    })
     expect(paramsApiDaVisao('pendentes')).toEqual({ status: ['PENDENTE'] })
     expect(paramsApiDaVisao('em_progresso')).toEqual({ status: ['EM_PROGRESSO'] })
     expect(paramsApiDaVisao('finalizadas')).toEqual({ status: ['FINALIZADA'] })
     expect(paramsApiDaVisao('excluidas')).toEqual({ somenteDeletadas: true })
+  })
+
+  it('visão todas não inclui FINALIZADA (só via filtro finalizadas)', () => {
+    const status = paramsApiDaVisao('todas').status ?? []
+    expect(status).not.toContain('FINALIZADA')
+    expect(paramsApiDaVisao('finalizadas').status).toEqual(['FINALIZADA'])
   })
 })

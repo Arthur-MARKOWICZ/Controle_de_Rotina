@@ -142,6 +142,7 @@ export function paramsApiDaVisao(visao: VisaoLista): {
       return { somenteDeletadas: true }
     case 'todas':
     default:
-      return {}
+      // Listagem normal: só o que ainda não foi finalizado. FINALIZADA só via filtro.
+      return { status: ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA', 'CANCELADA'] }
   }
 }

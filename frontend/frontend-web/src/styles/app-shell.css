@@ -316,6 +316,16 @@
   transition: width var(--dur-slow) var(--ease-out);
 }
 
+.app-shell__sessao-ativa {
+  position: relative;
+  z-index: 18;
+}
+
+.app-shell__sessao-ativa .bloco-ativo {
+  margin: 0 var(--space-4) var(--space-3);
+  max-width: var(--app-content-max);
+}
+
 .app-shell__content {
   min-width: 0;
   width: 100%;

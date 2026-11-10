@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
-import { apiFetch } from '../../auth/session/apiClient'
+import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { ExecucaoResponse } from '../../execucao/api/execucaoApi'
 import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
 
 export type TarefaResponse = {
@@ -10,12 +11,20 @@ export type TarefaResponse = {
   prazo: string | null
   status: StatusTarefa
   duracaoMinutos: number
+  /** Minutos ainda não cobertos por blocos CONCLUIDO. Ausente em payloads antigos. */
+  restanteMinutos?: number
   projetoId?: string | null
   projetoNome?: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
   deletada: boolean
+}
+
+export type SessaoTarefaRequest = {
+  duracaoMinutos?: number | null
+  data?: string | null
+  blocoId?: string | null
 }
 
 export type PageTarefa = {
@@ -169,4 +178,34 @@ export async function restaurarTarefa(id: string): Promise<TarefaResponse> {
     throw await lerErroApi(response, 'Não foi possível restaurar a tarefa.')
   }
   return (await response.json()) as TarefaResponse
+}
+
+export async function iniciarTarefaSessao(
+  id: string,
+  body: SessaoTarefaRequest = {},
+): Promise<ExecucaoResponse> {
+  const response = await apiFetch(`/tarefas/${id}/iniciar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível iniciar a sessão da tarefa.')
+  }
+  return readApiJson<ExecucaoResponse>(response)
+}
+
+export async function concluirTarefaDireto(
+  id: string,
+  body: SessaoTarefaRequest = {},
+): Promise<ExecucaoResponse> {
+  const response = await apiFetch(`/tarefas/${id}/concluir-direto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível concluir a sessão da tarefa.')
+  }
+  return readApiJson<ExecucaoResponse>(response)
 }

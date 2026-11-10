@@ -4,9 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../auth/api/authApi'
+import { SessaoAtivaProvider } from '../../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../../feedback/ToastProvider'
 import { QuickAddProvider } from '../../layout/QuickAddContext'
 import * as projetoApi from '../../projeto/api/projetoApi'
+import { XpProgressProvider } from '../../xp/XpProgressContext'
 import * as tarefaApi from '../api/tarefaApi'
 import type { PageTarefa } from '../api/tarefaApi'
 import { DEBOUNCE_FILTRO_MS } from '../FiltrosBarra'
@@ -17,10 +19,33 @@ vi.mock('../api/tarefaApi', () => ({
   criarTarefa: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+  iniciarTarefaSessao: vi.fn(),
+  concluirTarefaDireto: vi.fn(),
 }))
 
 vi.mock('../../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
+}))
+
+vi.mock('../../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+  }
+})
+
+vi.mock('../../auth/api/meApi', () => ({
+  buscarMe: vi.fn().mockResolvedValue({
+    id: 'u-1',
+    nome: 'Teste',
+    email: 't@t.com',
+    xpTotal: 0,
+    nivel: 1,
+    xpNoNivel: 0,
+    xpParaProximoNivel: 10,
+  }),
+  atualizarMe: vi.fn(),
 }))
 
 const refIso = '2026-10-28T15:00:00.000Z'
@@ -112,14 +137,18 @@ function Local() {
 function renderLista(path = '/tarefas') {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <QuickAddProvider>
-          <Routes>
-            <Route path="/tarefas" element={<TarefasPage />} />
-          </Routes>
-          <Local />
-        </QuickAddProvider>
-      </MemoryRouter>
+      <XpProgressProvider>
+        <SessaoAtivaProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <QuickAddProvider>
+              <Routes>
+                <Route path="/tarefas" element={<TarefasPage />} />
+              </Routes>
+              <Local />
+            </QuickAddProvider>
+          </MemoryRouter>
+        </SessaoAtivaProvider>
+      </XpProgressProvider>
     </ToastProvider>,
   )
 }
@@ -174,6 +203,7 @@ describe('TarefasPage', () => {
           size: 20,
           sort: 'prazo',
           direction: 'asc',
+          status: ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA', 'CANCELADA'],
         }),
         expect.any(AbortSignal),
       )

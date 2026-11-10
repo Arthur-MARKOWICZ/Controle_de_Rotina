@@ -677,7 +677,7 @@
     font-size: var(--text-xs);
   }
 
-  .home-page--com-ativo .bloco-ativo {
+  .app-shell__sessao-ativa .bloco-ativo {
     position: fixed;
     left: var(--space-2);
     right: var(--space-2);
@@ -689,27 +689,28 @@
     padding: var(--space-3) var(--space-4);
   }
 
-  .home-page--com-ativo .bloco-ativo__titulo {
+  .app-shell__sessao-ativa .bloco-ativo__titulo {
     font-size: var(--text-md);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .home-page--com-ativo .bloco-ativo__tempo {
+  .app-shell__sessao-ativa .bloco-ativo__tempo {
     font-size: var(--text-xl);
   }
 
-  .home-page--com-ativo .bloco-ativo__acoes .btn {
+  .app-shell__sessao-ativa .bloco-ativo__acoes .btn {
     flex: 1;
   }
 
   /* Espaço para o card fixo não cobrir o fim da lista nem o foco */
-  .app-shell__content > .home-page--com-ativo {
+  .app-shell__content:has(+ *),
+  :root:has(.app-shell__sessao-ativa) .app-shell__content > * {
     padding-bottom: 11rem;
   }
 
-  :root:has(.home-page--com-ativo) {
+  :root:has(.app-shell__sessao-ativa) {
     scroll-padding-bottom: 15rem;
   }
 }

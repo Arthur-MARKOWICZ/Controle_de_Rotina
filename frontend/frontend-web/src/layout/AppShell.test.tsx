@@ -28,7 +28,19 @@ vi.mock('../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+  iniciarTarefaSessao: vi.fn(),
+  concluirTarefaDireto: vi.fn(),
 }))
+
+vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../execucao/api/execucaoApi')>()
+  return {
+    ...actual,
+    listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+    concluirExecucao: vi.fn(),
+    abortarExecucao: vi.fn(),
+  }
+})
 
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({

@@ -356,6 +356,7 @@ export function TarefasPage() {
                         search={location.search}
                         onExcluir={(t) => void handleExcluir(t)}
                         onRestaurar={(t) => void handleRestaurar(t)}
+                        onSessaoAlterada={lerSilenciosamente}
                       />
                     ))}
                   </ul>

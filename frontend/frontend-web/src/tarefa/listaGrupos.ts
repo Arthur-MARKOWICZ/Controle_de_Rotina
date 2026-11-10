@@ -1,8 +1,15 @@
 import { dataHojeIso } from '../planner/data'
 import { diffDiasCivis } from '../home/justificativa'
 import type { TarefaResponse } from './api/tarefaApi'
+import type { StatusTarefa } from './validation/tarefaForm'
 
-export type GrupoPrazoId = 'atrasadas' | 'hoje' | 'esta_semana' | 'depois' | 'sem_prazo'
+export type GrupoPrazoId =
+  | 'atrasadas'
+  | 'anteriores'
+  | 'hoje'
+  | 'esta_semana'
+  | 'depois'
+  | 'sem_prazo'
 
 export type GrupoPrazo = {
   id: GrupoPrazoId
@@ -12,6 +19,7 @@ export type GrupoPrazo = {
 
 const GRUPO_LABEL: Record<GrupoPrazoId, string> = {
   atrasadas: 'Atrasadas',
+  anteriores: 'Anteriores',
   hoje: 'Hoje',
   esta_semana: 'Esta semana',
   depois: 'Depois',
@@ -20,6 +28,7 @@ const GRUPO_LABEL: Record<GrupoPrazoId, string> = {
 
 const ORDEM_GRUPOS: GrupoPrazoId[] = [
   'atrasadas',
+  'anteriores',
   'hoje',
   'esta_semana',
   'depois',
@@ -66,7 +75,11 @@ export function fimDaSemanaBrt(hojeYmd: string): string {
 }
 
 /** Texto relativo curto para a lista (title guarda a data absoluta). */
-export function formatarPrazoLista(prazoIso: string | null | undefined, ref: Date = new Date()): string {
+export function formatarPrazoLista(
+  prazoIso: string | null | undefined,
+  ref: Date = new Date(),
+  status?: StatusTarefa,
+): string {
   if (!prazoIso) {
     return 'Sem prazo'
   }
@@ -83,6 +96,12 @@ export function formatarPrazoLista(prazoIso: string | null | undefined, ref: Dat
   if (dias > 1) {
     return `em ${dias} dias`
   }
+  if (status === 'FINALIZADA') {
+    if (dias === -1) {
+      return 'há 1 dia'
+    }
+    return `há ${Math.abs(dias)} dias`
+  }
   if (dias === -1) {
     return 'atrasada há 1 dia'
   }
@@ -92,6 +111,7 @@ export function formatarPrazoLista(prazoIso: string | null | undefined, ref: Dat
 export function classificarGrupoPrazo(
   prazoIso: string | null | undefined,
   ref: Date = new Date(),
+  status?: StatusTarefa,
 ): GrupoPrazoId {
   if (!prazoIso) {
     return 'sem_prazo'
@@ -101,7 +121,8 @@ export function classificarGrupoPrazo(
   const dias = diffDiasCivis(hoje, prazoDia)
 
   if (dias < 0) {
-    return 'atrasadas'
+    // Finalizada com prazo passado não é atraso — só histórico.
+    return status === 'FINALIZADA' ? 'anteriores' : 'atrasadas'
   }
   if (dias === 0) {
     return 'hoje'
@@ -121,6 +142,7 @@ export function agruparPorPrazo(
 ): GrupoPrazo[] {
   const buckets: Record<GrupoPrazoId, TarefaResponse[]> = {
     atrasadas: [],
+    anteriores: [],
     hoje: [],
     esta_semana: [],
     depois: [],
@@ -128,7 +150,7 @@ export function agruparPorPrazo(
   }
 
   for (const tarefa of tarefas) {
-    const grupo = classificarGrupoPrazo(tarefa.prazo, ref)
+    const grupo = classificarGrupoPrazo(tarefa.prazo, ref, tarefa.status)
     buckets[grupo].push(tarefa)
   }
 

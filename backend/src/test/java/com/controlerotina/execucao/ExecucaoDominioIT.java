@@ -297,6 +297,48 @@ class ExecucaoDominioIT {
                 .isInstanceOf(PlanoNaoExecutavelException.class);
     }
 
+    @Test
+    void t6_aceitaIniciarBlocoDePlanoTarefaAvulsa() {
+        Plano avulso = planoRepository.save(new Plano(
+                UUID.randomUUID(),
+                usuarioId,
+                DIA,
+                9,
+                StatusPlano.TAREFA_AVULSA,
+                false,
+                null,
+                null,
+                AGORA,
+                AGORA,
+                AGORA
+        ));
+        UUID blocoAvulso = UUID.randomUUID();
+        blocoPlanoRepository.save(new BlocoPlano(
+                blocoAvulso, avulso.getId(), tarefaId, 25, 1, AGORA, AGORA
+        ));
+
+        ResultadoInicio inicio = execucaoService.iniciar(usuarioId, blocoAvulso);
+
+        assertThat(inicio.execucao().getStatus()).isEqualTo(StatusExecucao.EM_ANDAMENTO);
+        assertThat(inicio.execucao().getBlocoPlanoId()).isEqualTo(blocoAvulso);
+    }
+
+    @Test
+    void t7_concluirTarefaDiretoCreditaDuracaoDoBlocoEAtualizaProgresso() {
+        Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
+        BlocoPlano bloco = blocoPlanoRepository.findById(blocoId).orElseThrow();
+
+        var resultado = execucaoService.concluirTarefaDiretoNoBloco(usuarioId, bloco, tarefa);
+
+        assertThat(resultado.execucao().getStatus()).isEqualTo(StatusExecucao.CONCLUIDO);
+        assertThat(resultado.xp().ganhoNesteRequest()).isGreaterThan(0);
+        assertThat(tarefaRepository.findById(tarefaId).orElseThrow().getStatus())
+                .isIn(StatusTarefa.EM_PROGRESSO, StatusTarefa.FINALIZADA);
+
+        assertThatThrownBy(() -> execucaoService.concluirTarefaDiretoNoBloco(usuarioId, bloco, tarefa))
+                .isInstanceOf(ExecucaoJaConcluidaException.class);
+    }
+
     private UUID salvarTarefa(String titulo, StatusTarefa status, int duracaoMinutos) {
         UUID id = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(

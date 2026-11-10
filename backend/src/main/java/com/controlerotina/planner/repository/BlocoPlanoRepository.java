@@ -25,6 +25,8 @@ public interface BlocoPlanoRepository extends JpaRepository<BlocoPlano, UUID> {
 
     Optional<BlocoPlano> findByPlanoIdAndHabitoId(UUID planoId, UUID habitoId);
 
+    List<BlocoPlano> findByPlanoIdAndTarefaIdOrderByOrdemAsc(UUID planoId, UUID tarefaId);
+
     @Query("""
             SELECT COALESCE(MAX(b.ordem), 0)
               FROM BlocoPlano b

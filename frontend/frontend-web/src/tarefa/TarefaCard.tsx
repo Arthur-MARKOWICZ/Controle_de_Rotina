@@ -1,18 +1,32 @@
 import {
   ArrowCounterClockwiseIcon,
+  CheckIcon,
   ClockIcon,
   DotsThreeIcon,
   PencilSimpleIcon,
+  PlayIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { Popover } from '../feedback/Popover'
+import { useToast } from '../feedback/ToastProvider'
+import { useSessaoAtiva } from '../execucao/SessaoAtivaContext'
+import { listarExecucoes } from '../execucao/api/execucaoApi'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../home/labels'
-import type { TarefaResponse } from './api/tarefaApi'
+import { dataHojeIso } from '../planner/data'
+import { mensagensFeedbackXp } from '../xp/feedbackXp'
+import { useXpProgress } from '../xp/XpProgressContext'
+import {
+  concluirTarefaDireto,
+  iniciarTarefaSessao,
+  type TarefaResponse,
+} from './api/tarefaApi'
 import { formatarDataHora } from './datetime'
 import { formatarPrazoLista } from './listaGrupos'
 import type { VisaoLista } from './listaUrl'
+import { SessaoDuracaoDialog } from './SessaoDuracaoDialog'
 import type { TarefaDrawerState } from './TarefaDrawer'
 import type { StatusTarefa } from './validation/tarefaForm'
 
@@ -24,6 +38,8 @@ const STATUS_PADRAO_DA_VISAO: Record<VisaoLista, StatusTarefa | null> = {
   excluidas: null,
 }
 
+const STATUS_SESSAO: StatusTarefa[] = ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA']
+
 const DRAWER_STATE: TarefaDrawerState = { daLista: true }
 
 type Props = {
@@ -33,12 +49,104 @@ type Props = {
   search: string
   onExcluir: (tarefa: TarefaResponse) => void
   onRestaurar: (tarefa: TarefaResponse) => void
+  onSessaoAlterada?: () => void
 }
 
-export function TarefaCard({ tarefa, visao, search, onExcluir, onRestaurar }: Props) {
+type PickerState = { acao: 'iniciar' | 'concluir' } | null
+
+async function blocoAbertoNoAprovado(tarefaId: string): Promise<string | null> {
+  const dia = await listarExecucoes(dataHojeIso())
+  const aberto = dia.itens.find(
+    (item) =>
+      item.tarefaResumo?.id === tarefaId &&
+      item.execucao.status !== 'CONCLUIDO',
+  )
+  return aberto?.bloco.id ?? null
+}
+
+export function TarefaCard({
+  tarefa,
+  visao,
+  search,
+  onExcluir,
+  onRestaurar,
+  onSessaoAlterada,
+}: Props) {
+  const toast = useToast()
+  const { progresso, aplicarProgresso } = useXpProgress()
+  const { registrarInicio, refrescarDoDia } = useSessaoAtiva()
   const destino = { pathname: `/tarefas/${tarefa.id}`, search }
   const mostrarStatus = tarefa.status !== STATUS_PADRAO_DA_VISAO[visao]
   const prioridade = tarefa.prioridade.toLowerCase()
+  const restante = tarefa.restanteMinutos ?? tarefa.duracaoMinutos
+  const podeSessao =
+    !tarefa.deletada && restante > 0 && STATUS_SESSAO.includes(tarefa.status)
+
+  const [picker, setPicker] = useState<PickerState>(null)
+  const [ocupado, setOcupado] = useState(false)
+
+  async function executarSessao(
+    acao: 'iniciar' | 'concluir',
+    duracaoMinutos?: number,
+    blocoId?: string | null,
+  ) {
+    setOcupado(true)
+    try {
+      const body = {
+        data: dataHojeIso(),
+        duracaoMinutos: duracaoMinutos ?? null,
+        blocoId: blocoId ?? null,
+      }
+      if (acao === 'iniciar') {
+        const execucao = await iniciarTarefaSessao(tarefa.id, body)
+        registrarInicio(tarefa.titulo, duracaoMinutos ?? restante, execucao)
+        toast.success('Sessão iniciada')
+      } else {
+        const execucao = await concluirTarefaDireto(tarefa.id, body)
+        const xp = execucao.xp
+        if (xp) {
+          const nivelAnterior = progresso?.nivel ?? null
+          for (const mensagem of mensagensFeedbackXp(xp, nivelAnterior)) {
+            toast.success(mensagem)
+          }
+          aplicarProgresso(xp.progresso)
+        } else {
+          toast.success('Sessão concluída')
+        }
+      }
+      await refrescarDoDia()
+      onSessaoAlterada?.()
+      setPicker(null)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : acao === 'iniciar'
+            ? 'Não foi possível iniciar a sessão.'
+            : 'Não foi possível concluir a sessão.',
+      )
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  async function handleAcao(acao: 'iniciar' | 'concluir') {
+    setOcupado(true)
+    try {
+      const blocoId = await blocoAbertoNoAprovado(tarefa.id)
+      if (blocoId) {
+        await executarSessao(acao, undefined, blocoId)
+        return
+      }
+      setPicker({ acao })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Não foi possível verificar o plano de hoje.',
+      )
+    } finally {
+      setOcupado(false)
+    }
+  }
 
   return (
     <li className={tarefa.deletada ? 'tarefa-card tarefa-card--deletada' : 'tarefa-card'}>
@@ -54,11 +162,12 @@ export function TarefaCard({ tarefa, visao, search, onExcluir, onRestaurar }: Pr
         </Link>
         <p className="tarefa-card__meta">
           <time dateTime={tarefa.prazo ?? undefined} title={formatarDataHora(tarefa.prazo)}>
-            {formatarPrazoLista(tarefa.prazo)}
+            {formatarPrazoLista(tarefa.prazo, undefined, tarefa.status)}
           </time>
           <span className="tarefa-card__duracao">
             <ClockIcon aria-hidden />
             {tarefa.duracaoMinutos} min
+            {restante < tarefa.duracaoMinutos ? ` · ${restante} rest.` : null}
           </span>
           {tarefa.projetoNome ? (
             <span className="badge badge--projeto">{tarefa.projetoNome}</span>
@@ -73,6 +182,30 @@ export function TarefaCard({ tarefa, visao, search, onExcluir, onRestaurar }: Pr
       </div>
 
       <div className="tarefa-card__acoes">
+        {podeSessao ? (
+          <>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              disabled={ocupado}
+              onClick={() => void handleAcao('iniciar')}
+              aria-label={`Iniciar ${tarefa.titulo}`}
+            >
+              <PlayIcon aria-hidden />
+              Iniciar
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={ocupado}
+              onClick={() => void handleAcao('concluir')}
+              aria-label={`Concluir ${tarefa.titulo}`}
+            >
+              <CheckIcon aria-hidden />
+              Concluir
+            </button>
+          </>
+        ) : null}
         {tarefa.deletada ? (
           <button
             type="button"
@@ -126,6 +259,20 @@ export function TarefaCard({ tarefa, visao, search, onExcluir, onRestaurar }: Pr
           </div>
         </Popover>
       </div>
+
+      <SessaoDuracaoDialog
+        open={picker != null}
+        restanteMinutos={restante}
+        tituloAcao={picker?.acao === 'concluir' ? 'Concluir sessão' : 'Iniciar sessão'}
+        ocupado={ocupado}
+        onClose={() => setPicker(null)}
+        onConfirm={(duracao) => {
+          if (!picker) {
+            return
+          }
+          void executarSessao(picker.acao, duracao)
+        }}
+      />
     </li>
   )
 }
