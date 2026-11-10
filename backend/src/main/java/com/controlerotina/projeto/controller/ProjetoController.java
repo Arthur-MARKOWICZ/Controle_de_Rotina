@@ -1,5 +1,6 @@
 package com.controlerotina.projeto.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -52,9 +53,10 @@ public class ProjetoController {
     public Page<ProjetoResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
             @RequestParam(required = false) StatusProjeto status,
+            @RequestParam(required = false) List<UUID> tagId,
             Pageable pageable
     ) {
-        return projetoService.listar(usuarioId, status, normalizarPageable(pageable));
+        return projetoService.listar(usuarioId, status, tagId, normalizarPageable(pageable));
     }
 
     @GetMapping("/{id}")

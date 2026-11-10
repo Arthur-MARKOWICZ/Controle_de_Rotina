@@ -13,6 +13,12 @@ function LocationProbe() {
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
 }
 
+vi.mock('../../tag/api/tagApi', () => ({
+  listarTags: vi.fn().mockResolvedValue([]),
+  criarTag: vi.fn(),
+  TAG_COR_PADRAO: '#6B7280',
+}))
+
 vi.mock('../api/projetoApi', () => ({
   listarProjetos: vi.fn(),
   arquivarProjeto: vi.fn(),
@@ -264,7 +270,11 @@ describe('ProjetosPage', () => {
     await user.click(within(drawer).getByRole('button', { name: /criar projeto/i }))
 
     await waitFor(() => {
-      expect(projetoApi.criarProjeto).toHaveBeenCalledWith({ nome: 'Novo', descricao: null })
+      expect(projetoApi.criarProjeto).toHaveBeenCalledWith({
+        nome: 'Novo',
+        descricao: null,
+        tagIds: [],
+      })
     })
     expect(await screen.findByText('página editar projeto')).toBeInTheDocument()
     expect(screen.getByTestId('location')).toHaveTextContent('/projetos/p-novo')

@@ -1,19 +1,37 @@
 import type { DiaSemana } from '../capacidade/api/capacidadeSemanalApi'
+import type { TagResumo } from '../tag/api/tagApi'
+import { TagPicker } from '../tag/TagPicker'
 import { DIAS_SEMANA_ORDEM, type HabitoFormValues } from './validation/habitoForm'
 
 type Props = {
   values: HabitoFormValues
   onChange: (values: HabitoFormValues) => void
   desabilitado?: boolean
+  tagIds: string[]
+  tagsSelecionadas?: TagResumo[]
+  onTagsChange: (tagIds: string[], tags: TagResumo[]) => void
 }
 
 function alternarDia(dias: DiaSemana[], dia: DiaSemana): DiaSemana[] {
   return dias.includes(dia) ? dias.filter((d) => d !== dia) : [...dias, dia]
 }
 
-export function HabitoCampos({ values, onChange, desabilitado = false }: Props) {
+export function HabitoCampos({
+  values,
+  onChange,
+  desabilitado = false,
+  tagIds,
+  tagsSelecionadas,
+  onTagsChange,
+}: Props) {
   return (
     <>
+      <TagPicker
+        selectedIds={tagIds}
+        selectedTags={tagsSelecionadas}
+        onChange={onTagsChange}
+        disabled={desabilitado}
+      />
       <div className="field">
         <label htmlFor="habito-titulo">Título</label>
         <input

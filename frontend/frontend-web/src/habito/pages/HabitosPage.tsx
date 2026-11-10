@@ -1,5 +1,5 @@
 import { CheckIcon, PencilSimpleIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
@@ -19,6 +19,10 @@ import {
   type StatusHabito,
 } from '../api/habitoApi'
 import type { HabitoDrawerState, HabitosOutletContext } from '../HabitoDrawer'
+import { TagChipList } from '../../tag/TagChip'
+import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
+import { lerTagIdsDaUrl, escreverTagIdsNaUrl } from '../../tag/listaTagUrl'
+import { ordenarPorTagMatch } from '../../tag/tagMatch'
 import { rotuloDiasSemana } from '../validation/habitoForm'
 
 const DRAWER_STATE: HabitoDrawerState = { daLista: true }
@@ -55,6 +59,7 @@ export function HabitosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const visao = lerVisaoDaUrl(searchParams)
   const page = lerPageDaUrl(searchParams)
+  const tagIds = useMemo(() => lerTagIdsDaUrl(searchParams), [searchParams])
 
   const [resultado, setResultado] = useState<PageHabito | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -62,8 +67,8 @@ export function HabitosPage() {
   const [acaoId, setAcaoId] = useState<string | null>(null)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
-  function escreverUrl(proximo: { visao: Visao; page: number }) {
-    const params = new URLSearchParams()
+  function escreverUrl(proximo: { visao: Visao; page: number; tagIds: string[] }) {
+    let params = new URLSearchParams()
     if (proximo.visao === 'PAUSADO') {
       params.set('status', 'PAUSADO')
     } else if (proximo.visao === 'EXCLUIDOS') {
@@ -72,15 +77,20 @@ export function HabitosPage() {
     if (proximo.page > 0) {
       params.set('page', String(proximo.page))
     }
+    params = escreverTagIdsNaUrl(params, proximo.tagIds)
     setSearchParams(params, { replace: true })
   }
 
   function aplicarVisao(proximo: Visao) {
-    escreverUrl({ visao: proximo, page: 0 })
+    escreverUrl({ visao: proximo, page: 0, tagIds })
   }
 
   function irParaPagina(proximo: number) {
-    escreverUrl({ visao, page: Math.max(0, proximo) })
+    escreverUrl({ visao, page: Math.max(0, proximo), tagIds })
+  }
+
+  function aplicarFiltroTags(proximos: string[]) {
+    escreverUrl({ visao, page: 0, tagIds: proximos })
   }
 
   useEffect(() => {
@@ -92,8 +102,13 @@ export function HabitosPage() {
       try {
         const data = await listarHabitos(
           visao === 'EXCLUIDOS'
-            ? { somenteDeletadas: true, page, size: 20 }
-            : { status: visao, page, size: 20 },
+            ? { somenteDeletadas: true, page, size: 20, tagIds: tagIds.length ? tagIds : undefined }
+            : {
+                status: visao,
+                page,
+                size: 20,
+                tagIds: tagIds.length ? tagIds : undefined,
+              },
         )
         if (ativo) {
           setResultado(data)
@@ -114,7 +129,7 @@ export function HabitosPage() {
     return () => {
       ativo = false
     }
-  }, [visao, page, recarregarEm])
+  }, [visao, page, tagIds, recarregarEm])
 
   const aoCriar = useCallback((_habito: HabitoResponse) => {
     setRecarregarEm((n) => n + 1)
@@ -236,6 +251,10 @@ export function HabitosPage() {
         ))}
       </div>
 
+      <div className="habitos-filtros">
+        <TagFiltroPopover tagIds={tagIds} onAplicar={aplicarFiltroTags} />
+      </div>
+
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
       {carregando ? <Skeleton variant="tarefas-lista" /> : null}
@@ -281,7 +300,7 @@ export function HabitosPage() {
             </div>
           ) : (
             <ul className="habito-cards">
-              {resultado.content.map((habito) => {
+              {ordenarPorTagMatch(resultado.content, tagIds).map((habito) => {
                 const dias = rotuloDiasSemana(habito.diasSemana)
                 return (
                   <li
@@ -322,6 +341,7 @@ export function HabitosPage() {
                             Sequência {habito.streakAtual}
                           </span>
                         ) : null}
+                        <TagChipList tags={habito.tags} />
                       </div>
                     </div>
                     <div className="habito-card__acoes">

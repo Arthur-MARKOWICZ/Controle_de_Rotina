@@ -6,11 +6,12 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.controlerotina.projeto.entity.Projeto;
 import com.controlerotina.projeto.entity.StatusProjeto;
 
-public interface ProjetoRepository extends JpaRepository<Projeto, UUID> {
+public interface ProjetoRepository extends JpaRepository<Projeto, UUID>, JpaSpecificationExecutor<Projeto> {
 
     Optional<Projeto> findByIdAndUsuarioId(UUID id, UUID usuarioId);
 

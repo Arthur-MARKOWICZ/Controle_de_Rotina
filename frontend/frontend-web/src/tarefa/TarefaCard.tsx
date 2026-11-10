@@ -24,6 +24,7 @@ import {
   type TarefaResponse,
 } from './api/tarefaApi'
 import { formatarDataHora } from './datetime'
+import { TagChipList } from '../tag/TagChip'
 import { formatarPrazoLista } from './listaGrupos'
 import type { VisaoLista } from './listaUrl'
 import { SessaoDuracaoDialog } from './SessaoDuracaoDialog'
@@ -172,6 +173,7 @@ export function TarefaCard({
           {tarefa.projetoNome ? (
             <span className="badge badge--projeto">{tarefa.projetoNome}</span>
           ) : null}
+          <TagChipList tags={tarefa.tags} />
           {mostrarStatus ? (
             <span className={`badge status-${tarefa.status.toLowerCase()}`}>
               {STATUS_TAREFA_LABEL[tarefa.status]}

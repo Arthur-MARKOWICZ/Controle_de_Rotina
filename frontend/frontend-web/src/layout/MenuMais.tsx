@@ -4,6 +4,7 @@ import {
   DotsThreeIcon,
   GaugeIcon,
   SignOutIcon,
+  TagIcon,
   UserCircleIcon,
 } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
@@ -16,6 +17,7 @@ const ITENS = [
   { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon },
   { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon },
   { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon },
+  { to: '/tags', label: 'Tags', Icon: TagIcon },
   { to: '/perfil', label: 'Perfil', Icon: UserCircleIcon },
 ]
 

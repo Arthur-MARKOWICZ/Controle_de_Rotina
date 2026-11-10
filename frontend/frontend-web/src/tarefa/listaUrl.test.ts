@@ -22,6 +22,16 @@ describe('listaUrl (T1)', () => {
     expect(lerFiltrosDaUrl(params)).toEqual(filtros)
   })
 
+  it('round-trip preserva tagId repetível na query string', () => {
+    const filtros = {
+      ...FILTROS_LISTA_INICIAIS,
+      tagIds: ['tag-a', 'tag-b'],
+    }
+    const params = escreverFiltrosNaUrl(filtros)
+    expect(params.getAll('tagId')).toEqual(['tag-a', 'tag-b'])
+    expect(lerFiltrosDaUrl(params).tagIds).toEqual(['tag-a', 'tag-b'])
+  })
+
   it('T2: round-trip preserva projetoId na query string', () => {
     const filtros = {
       ...FILTROS_LISTA_INICIAIS,

@@ -1,5 +1,5 @@
 import { CheckIcon, PencilSimpleIcon } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
@@ -14,6 +14,10 @@ import {
   type PageProjeto,
   type StatusProjeto,
 } from '../api/projetoApi'
+import { TagChipList } from '../../tag/TagChip'
+import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
+import { escreverTagIdsNaUrl, lerTagIdsDaUrl } from '../../tag/listaTagUrl'
+import { ordenarPorTagMatch } from '../../tag/tagMatch'
 import type { ProjetoDrawerState } from '../ProjetoDrawer'
 
 const DRAWER_STATE: ProjetoDrawerState = { daLista: true }
@@ -54,6 +58,7 @@ export function ProjetosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const status = lerStatusDaUrl(searchParams)
   const page = lerPageDaUrl(searchParams)
+  const tagIds = useMemo(() => lerTagIdsDaUrl(searchParams), [searchParams])
 
   const [resultado, setResultado] = useState<PageProjeto | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -61,23 +66,28 @@ export function ProjetosPage() {
   const [acaoId, setAcaoId] = useState<string | null>(null)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
-  function escreverUrl(proximo: { status: StatusProjeto; page: number }) {
-    const params = new URLSearchParams()
+  function escreverUrl(proximo: { status: StatusProjeto; page: number; tagIds: string[] }) {
+    let params = new URLSearchParams()
     if (proximo.status === 'ARQUIVADO') {
       params.set('status', 'ARQUIVADO')
     }
     if (proximo.page > 0) {
       params.set('page', String(proximo.page))
     }
+    params = escreverTagIdsNaUrl(params, proximo.tagIds)
     setSearchParams(params, { replace: true })
   }
 
   function aplicarVisao(proximo: StatusProjeto) {
-    escreverUrl({ status: proximo, page: 0 })
+    escreverUrl({ status: proximo, page: 0, tagIds })
   }
 
   function irParaPagina(proximo: number) {
-    escreverUrl({ status, page: Math.max(0, proximo) })
+    escreverUrl({ status, page: Math.max(0, proximo), tagIds })
+  }
+
+  function aplicarFiltroTags(proximos: string[]) {
+    escreverUrl({ status, page: 0, tagIds: proximos })
   }
 
   useEffect(() => {
@@ -87,7 +97,12 @@ export function ProjetosPage() {
       setCarregando(true)
       setErro(null)
       try {
-        const data = await listarProjetos({ status, page, size: 20 })
+        const data = await listarProjetos({
+          status,
+          page,
+          size: 20,
+          tagIds: tagIds.length ? tagIds : undefined,
+        })
         if (ativo) {
           setResultado(data)
         }
@@ -107,7 +122,7 @@ export function ProjetosPage() {
     return () => {
       ativo = false
     }
-  }, [status, page, recarregarEm])
+  }, [status, page, tagIds, recarregarEm])
 
   async function handleArquivar(id: string, nome: string) {
     const confirmado = await confirm({
@@ -190,6 +205,10 @@ export function ProjetosPage() {
         ))}
       </div>
 
+      <div className="projetos-filtros">
+        <TagFiltroPopover tagIds={tagIds} onAplicar={aplicarFiltroTags} />
+      </div>
+
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
 
       {carregando ? <Skeleton variant="tarefas-lista" /> : null}
@@ -224,7 +243,7 @@ export function ProjetosPage() {
             </div>
           ) : (
             <ul className="projeto-cards">
-              {resultado.content.map((projeto) => {
+              {ordenarPorTagMatch(resultado.content, tagIds).map((projeto) => {
                 const descricaoCurta = truncarDescricao(projeto.descricao)
                 return (
                   <li
@@ -245,6 +264,7 @@ export function ProjetosPage() {
                         >
                           {STATUS_LABEL[projeto.status]}
                         </span>
+                        <TagChipList tags={projeto.tags} />
                       </div>
                       {descricaoCurta ? (
                         <p className="projeto-card__descricao">{descricaoCurta}</p>

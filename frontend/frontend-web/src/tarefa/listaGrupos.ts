@@ -1,5 +1,6 @@
 import { dataHojeIso } from '../planner/data'
 import { diffDiasCivis } from '../home/justificativa'
+import { ordenarPorTagMatch } from '../tag/tagMatch'
 import type { TarefaResponse } from './api/tarefaApi'
 import type { StatusTarefa } from './validation/tarefaForm'
 
@@ -139,6 +140,7 @@ export function agruparPorPrazo(
   tarefas: TarefaResponse[],
   ref: Date = new Date(),
   incluirVazios = false,
+  filtroTagIds: string[] = [],
 ): GrupoPrazo[] {
   const buckets: Record<GrupoPrazoId, TarefaResponse[]> = {
     atrasadas: [],
@@ -157,6 +159,6 @@ export function agruparPorPrazo(
   return ORDEM_GRUPOS.filter((id) => incluirVazios || buckets[id].length > 0).map((id) => ({
     id,
     label: GRUPO_LABEL[id],
-    tarefas: buckets[id],
+    tarefas: ordenarPorTagMatch(buckets[id], filtroTagIds),
   }))
 }

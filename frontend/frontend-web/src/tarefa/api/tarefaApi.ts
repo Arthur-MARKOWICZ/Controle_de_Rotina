@@ -1,6 +1,7 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { ExecucaoResponse } from '../../execucao/api/execucaoApi'
+import type { TagResumo } from '../../tag/api/tagApi'
 import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
 
 export type TarefaResponse = {
@@ -15,6 +16,8 @@ export type TarefaResponse = {
   restanteMinutos?: number
   projetoId?: string | null
   projetoNome?: string | null
+  tags?: TagResumo[]
+  tagMatchScore?: number | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -50,6 +53,7 @@ export type ListarTarefasParams = {
   atualizadoDe?: string
   atualizadoAte?: string
   projetoId?: string
+  tagIds?: string[]
   incluirDeletadas?: boolean
   somenteDeletadas?: boolean
   page?: number
@@ -66,6 +70,7 @@ export type CriarTarefaRequest = {
   prazo?: string | null
   duracaoMinutos?: number | null
   projetoId?: string | null
+  tagIds?: string[]
 }
 
 export type AtualizarTarefaRequest = {
@@ -76,6 +81,7 @@ export type AtualizarTarefaRequest = {
   status?: StatusTarefa
   duracaoMinutos?: number
   projetoId?: string | null
+  tagIds?: string[]
 }
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {
@@ -102,6 +108,7 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   if (filtro.atualizadoDe) params.set('atualizadoDe', filtro.atualizadoDe)
   if (filtro.atualizadoAte) params.set('atualizadoAte', filtro.atualizadoAte)
   if (filtro.projetoId) params.set('projetoId', filtro.projetoId)
+  appendAll(params, 'tagId', filtro.tagIds)
   if (filtro.incluirDeletadas != null) {
     params.set('incluirDeletadas', String(filtro.incluirDeletadas))
   }

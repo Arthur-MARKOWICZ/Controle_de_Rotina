@@ -9,6 +9,8 @@ import {
 import { InlineAlert } from '../feedback/InlineAlert'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../home/labels'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
+import type { TagResumo } from '../tag/api/tagApi'
+import { TagPicker } from '../tag/TagPicker'
 import { atalhosPrazo, type PrazoAtalhoId } from './prazoAtalhos'
 import type { Prioridade, StatusTarefa, TarefaFormValues } from './validation/tarefaForm'
 
@@ -31,6 +33,9 @@ type Props = {
   descricaoEntradaRef?: Ref<HTMLButtonElement>
   onDesvincular?: () => void
   desvinculando?: boolean
+  tagIds: string[]
+  tagsSelecionadas?: TagResumo[]
+  onTagsChange: (tagIds: string[], tags: TagResumo[]) => void
 }
 
 export function TarefaForm({
@@ -49,6 +54,9 @@ export function TarefaForm({
   descricaoEntradaRef,
   onDesvincular,
   desvinculando = false,
+  tagIds,
+  tagsSelecionadas,
+  onTagsChange,
 }: Props) {
   const [atalhoAtivo, setAtalhoAtivo] = useState<PrazoAtalhoId | null>(null)
   const atalhos = atalhosPrazo()
@@ -130,6 +138,13 @@ export function TarefaForm({
           ))}
         </select>
       </div>
+
+      <TagPicker
+        selectedIds={tagIds}
+        selectedTags={tagsSelecionadas}
+        onChange={onTagsChange}
+        disabled={disabled}
+      />
 
       <div className="field">
         <label htmlFor="projetoId">Projeto (opcional)</label>

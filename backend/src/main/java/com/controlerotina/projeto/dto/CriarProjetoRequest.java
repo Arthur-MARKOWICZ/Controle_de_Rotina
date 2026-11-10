@@ -1,5 +1,8 @@
 package com.controlerotina.projeto.dto;
 
+import java.util.List;
+import java.util.UUID;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -9,7 +12,9 @@ public record CriarProjetoRequest(
         String nome,
 
         @Size(max = 500)
-        String descricao
+        String descricao,
+
+        List<UUID> tagIds
 ) {
     public CriarProjetoRequest {
         if (nome != null) {

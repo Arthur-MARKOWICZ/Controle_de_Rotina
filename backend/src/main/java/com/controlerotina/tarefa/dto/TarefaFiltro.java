@@ -20,6 +20,7 @@ public record TarefaFiltro(
         Instant atualizadoAte,
         boolean incluirDeletadas,
         boolean somenteDeletadas,
-        UUID projetoId
+        UUID projetoId,
+        List<UUID> tagIds
 ) {
 }

@@ -4,6 +4,12 @@ import { useState, type FormEvent } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { TarefaForm } from './TarefaForm'
+
+vi.mock('../tag/api/tagApi', () => ({
+  listarTags: vi.fn().mockResolvedValue([]),
+  criarTag: vi.fn(),
+  TAG_COR_PADRAO: '#6B7280',
+}))
 import type { TarefaFormValues } from './validation/tarefaForm'
 
 const VAZIO: TarefaFormValues = {
@@ -37,6 +43,8 @@ function Harness({ inicial, disabled = false, onAbrirDescricao = vi.fn() }: Harn
       erro={null}
       onSubmit={(e: FormEvent) => e.preventDefault()}
       onAbrirDescricao={onAbrirDescricao}
+      tagIds={[]}
+      onTagsChange={() => {}}
     />
   )
 }

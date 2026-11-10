@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Popover } from '../feedback/Popover'
 import { PRIORIDADE_LABEL } from '../home/labels'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
+import type { TagResponse } from '../tag/api/tagApi'
+import { TagFiltroPopover } from '../tag/TagFiltroPopover'
 import type { SortCampo, SortDirection } from './api/tarefaApi'
 import { chipsAtivos, filtrosLimpos } from './filtrosAtivos'
 import { FILTROS_LISTA_INICIAIS, type FiltrosListaUrl, type VisaoLista } from './listaUrl'
@@ -53,10 +55,16 @@ function RotuloFiltro({ texto }: { texto: string }) {
 type Props = {
   filtros: FiltrosListaUrl
   projetosAtivos: ProjetoResponse[]
+  catalogoTags?: TagResponse[]
   onAplicar: (proximo: FiltrosListaUrl) => void
 }
 
-export function FiltrosBarra({ filtros, projetosAtivos, onAplicar }: Props) {
+export function FiltrosBarra({
+  filtros,
+  projetosAtivos,
+  catalogoTags = [],
+  onAplicar,
+}: Props) {
   const [rascunho, setRascunho] = useState<CamposDebounce>(() => camposDebounce(filtros))
   const timerRef = useRef<number | null>(null)
 
@@ -104,7 +112,7 @@ export function FiltrosBarra({ filtros, projetosAtivos, onAplicar }: Props) {
     onAplicar(filtrosLimpos(filtros))
   }
 
-  const chips = chipsAtivos(filtros, projetosAtivos)
+  const chips = chipsAtivos(filtros, projetosAtivos, catalogoTags)
   const ordenacaoAlterada =
     filtros.sort !== FILTROS_LISTA_INICIAIS.sort ||
     filtros.direction !== FILTROS_LISTA_INICIAIS.direction
@@ -202,6 +210,11 @@ export function FiltrosBarra({ filtros, projetosAtivos, onAplicar }: Props) {
             </label>
           </div>
         </Popover>
+
+        <TagFiltroPopover
+          tagIds={filtros.tagIds}
+          onAplicar={(tagIds) => aplicar({ tagIds })}
+        />
 
         <Popover
           label={<RotuloFiltro texto="Projeto" />}

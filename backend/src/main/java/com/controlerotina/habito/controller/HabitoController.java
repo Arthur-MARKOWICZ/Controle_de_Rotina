@@ -73,6 +73,7 @@ public class HabitoController {
             @RequestParam(required = false) StatusHabito status,
             @RequestParam(defaultValue = "false") boolean incluirDeletadas,
             @RequestParam(defaultValue = "false") boolean somenteDeletadas,
+            @RequestParam(required = false) List<UUID> tagId,
             Pageable pageable
     ) {
         return habitoService.listar(
@@ -80,6 +81,7 @@ public class HabitoController {
                 status,
                 incluirDeletadas,
                 somenteDeletadas,
+                tagId,
                 normalizarPageable(pageable)
         );
     }

@@ -1,6 +1,8 @@
 package com.controlerotina.tarefa.dto;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import com.controlerotina.tarefa.entity.Prioridade;
@@ -34,7 +36,11 @@ public record AtualizarTarefaRequest(
 
         UUID projetoId,
 
-        boolean projetoIdPresente
+        boolean projetoIdPresente,
+
+        List<UUID> tagIds,
+
+        boolean tagIdsPresente
 ) {
     public AtualizarTarefaRequest {
         if (titulo != null) {
@@ -56,6 +62,11 @@ public record AtualizarTarefaRequest(
             if (projetoIdPresente && !node.get("projetoId").isNull()) {
                 projetoId = UUID.fromString(node.get("projetoId").asString());
             }
+            boolean tagIdsPresente = node.has("tagIds");
+            List<UUID> tagIds = null;
+            if (tagIdsPresente) {
+                tagIds = uuids(node.get("tagIds"));
+            }
             return new AtualizarTarefaRequest(
                     texto(node, "titulo"),
                     texto(node, "descricao"),
@@ -64,8 +75,23 @@ public record AtualizarTarefaRequest(
                     enumOuNulo(node, "status", StatusTarefa.class),
                     inteiroOuNulo(node, "duracaoMinutos"),
                     projetoId,
-                    projetoIdPresente
+                    projetoIdPresente,
+                    tagIds,
+                    tagIdsPresente
             );
+        }
+
+        private static List<UUID> uuids(JsonNode valor) {
+            if (valor == null || valor.isNull()) {
+                return List.of();
+            }
+            List<UUID> ids = new ArrayList<>();
+            for (JsonNode item : valor) {
+                if (item != null && !item.isNull()) {
+                    ids.add(UUID.fromString(item.asString()));
+                }
+            }
+            return ids;
         }
 
         private static String texto(JsonNode node, String campo) {

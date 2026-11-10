@@ -1,5 +1,6 @@
 import { PRIORIDADE_LABEL } from '../home/labels'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
+import type { TagResponse } from '../tag/api/tagApi'
 import { formatarDataHora } from './datetime'
 import { FILTROS_LISTA_INICIAIS, type FiltrosListaUrl } from './listaUrl'
 
@@ -16,6 +17,7 @@ function textoIntervalo(de: string, ate: string, formatar: (v: string) => string
 export function chipsAtivos(
   filtros: FiltrosListaUrl,
   projetosAtivos: ProjetoResponse[],
+  catalogoTags: TagResponse[] = [],
 ): ChipFiltro[] {
   const chips: ChipFiltro[] = []
   if (filtros.prioridade.length) {
@@ -42,6 +44,16 @@ export function chipsAtivos(
   if (filtros.projetoId) {
     const nome = projetosAtivos.find((p) => p.id === filtros.projetoId)?.nome ?? 'Projeto'
     chips.push({ id: 'projeto', texto: `Projeto: ${nome}`, remover: { projetoId: '' } })
+  }
+  if (filtros.tagIds.length) {
+    const nomes = filtros.tagIds.map(
+      (id) => catalogoTags.find((tag) => tag.id === id)?.nome ?? id.slice(0, 8),
+    )
+    chips.push({
+      id: 'tags',
+      texto: `Tags: ${nomes.join(', ')}`,
+      remover: { tagIds: [] },
+    })
   }
   return chips
 }

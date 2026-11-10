@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState, type FormEvent } from 'react'
+
+import type { TagResumo } from '../tag/api/tagApi'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
@@ -30,12 +32,14 @@ export function ProjetoDrawer() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [values, setValues] = useState<ProjetoFormValues>(PROJETO_FORM_VAZIO)
+  const [tagIds, setTagIds] = useState<string[]>([])
+  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(true)
   const confirmandoRef = useRef(false)
 
-  const alterado = values.nome !== '' || values.descricao !== ''
+  const alterado = values.nome !== '' || values.descricao !== '' || tagIds.length > 0 || tagIds.length > 0
 
   const voltarParaLista = useCallback(() => {
     if (estado.daLista) {
@@ -81,6 +85,7 @@ export function ProjetoDrawer() {
       const criado = await criarProjeto({
         nome: values.nome.trim(),
         descricao: descricao || null,
+        tagIds,
       })
       toast.success('Projeto criado')
       navigate(`/projetos/${criado.id}`, { replace: true })
@@ -125,7 +130,16 @@ export function ProjetoDrawer() {
           O projeto inicia como ativo. Você pode arquivá-lo depois na lista.
         </p>
         <form id={FORM_ID} className="projeto-form" onSubmit={(e) => void handleSubmit(e)} noValidate>
-          <ProjetoCampos values={values} onChange={setValues} />
+          <ProjetoCampos
+            values={values}
+            onChange={setValues}
+            tagIds={tagIds}
+            tagsSelecionadas={tagsSelecionadas}
+            onTagsChange={(ids, tags) => {
+              setTagIds(ids)
+              setTagsSelecionadas(tags)
+            }}
+          />
           {erro ? <InlineAlert>{erro}</InlineAlert> : null}
         </form>
       </Drawer>

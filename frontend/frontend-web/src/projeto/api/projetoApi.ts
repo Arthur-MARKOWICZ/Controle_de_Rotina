@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch } from '../../auth/session/apiClient'
+import type { TagResumo } from '../../tag/api/tagApi'
 
 export type StatusProjeto = 'ATIVO' | 'ARQUIVADO'
 
@@ -8,6 +9,8 @@ export type ProjetoResponse = {
   nome: string
   descricao: string | null
   status: StatusProjeto
+  tags?: TagResumo[]
+  tagMatchScore?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -24,16 +27,28 @@ export type ListarProjetosParams = {
   status?: StatusProjeto
   page?: number
   size?: number
+  tagIds?: string[]
 }
 
 export type CriarProjetoRequest = {
   nome: string
   descricao?: string | null
+  tagIds?: string[]
 }
 
 export type AtualizarProjetoRequest = {
   nome?: string
   descricao?: string | null
+  tagIds?: string[]
+}
+
+function appendAll(params: URLSearchParams, key: string, values?: string[]) {
+  if (!values?.length) {
+    return
+  }
+  for (const value of values) {
+    params.append(key, value)
+  }
 }
 
 export function buildProjetosQuery(filtro: ListarProjetosParams = {}): string {
@@ -41,6 +56,7 @@ export function buildProjetosQuery(filtro: ListarProjetosParams = {}): string {
   if (filtro.status) {
     params.set('status', filtro.status)
   }
+  appendAll(params, 'tagId', filtro.tagIds)
   params.set('page', String(filtro.page ?? 0))
   params.set('size', String(filtro.size ?? 20))
   return `/projetos?${params.toString()}`

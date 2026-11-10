@@ -29,6 +29,12 @@ vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
 }))
 
+vi.mock('../tag/api/tagApi', () => ({
+  listarTags: vi.fn().mockResolvedValue([]),
+  criarTag: vi.fn(),
+  TAG_COR_PADRAO: '#6B7280',
+}))
+
 vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../execucao/api/execucaoApi')>()
   return {
