@@ -11,6 +11,8 @@ import * as capacidadeOverrideApi from './capacidade/api/capacidadeOverrideApi'
 import * as capacidadeResolvidaApi from './capacidade/api/capacidadeResolvidaApi'
 import * as capacidadeSemanalApi from './capacidade/api/capacidadeSemanalApi'
 import { CapacidadePage } from './capacidade/pages/CapacidadePage'
+import * as execucaoApi from './execucao/api/execucaoApi'
+import { SessaoAtivaProvider } from './execucao/SessaoAtivaContext'
 import { ToastProvider } from './feedback/ToastProvider'
 import * as historicoApi from './historico/api/historicoApi'
 import { HistoricoPage } from './historico/pages/HistoricoPage'
@@ -124,6 +126,10 @@ describe('design system smoke (T1)', () => {
       xpNoNivel: 0,
       xpParaProximoNivel: 10,
     })
+    vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+      planoAprovado: null,
+      itens: [],
+    })
   })
 
   it('Login monta e CTA Entrar permanece clicável', async () => {
@@ -165,11 +171,13 @@ describe('design system smoke (T1)', () => {
       <AuthProvider>
         <ToastProvider>
           <XpProgressProvider>
-            <MemoryRouter>
-              <QuickAddProvider>
-                <HomePage />
-              </QuickAddProvider>
-            </MemoryRouter>
+            <SessaoAtivaProvider>
+              <MemoryRouter>
+                <QuickAddProvider>
+                  <HomePage />
+                </QuickAddProvider>
+              </MemoryRouter>
+            </SessaoAtivaProvider>
           </XpProgressProvider>
         </ToastProvider>
       </AuthProvider>,
@@ -195,13 +203,17 @@ describe('design system smoke (T1)', () => {
 
     render(
       <ToastProvider>
-        <MemoryRouter initialEntries={['/tarefas']}>
-          <QuickAddProvider>
-            <Routes>
-              <Route path="/tarefas" element={<TarefasPage />} />
-            </Routes>
-          </QuickAddProvider>
-        </MemoryRouter>
+        <XpProgressProvider>
+          <SessaoAtivaProvider>
+            <MemoryRouter initialEntries={['/tarefas']}>
+              <QuickAddProvider>
+                <Routes>
+                  <Route path="/tarefas" element={<TarefasPage />} />
+                </Routes>
+              </QuickAddProvider>
+            </MemoryRouter>
+          </SessaoAtivaProvider>
+        </XpProgressProvider>
       </ToastProvider>,
     )
 
