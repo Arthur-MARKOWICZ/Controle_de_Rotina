@@ -42,8 +42,8 @@
 }
 
 .decidir-card--vencido {
-  border-color: color-mix(in srgb, var(--danger, #b45309) 45%, var(--line));
-  background: color-mix(in srgb, var(--danger, #b45309) 8%, var(--panel));
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
 }
 
 .decidir-card__principal {
@@ -74,7 +74,7 @@
 }
 
 .decidir-card__aviso {
-  color: var(--danger, #b45309);
+  color: var(--danger);
   font-weight: 600;
 }
 
