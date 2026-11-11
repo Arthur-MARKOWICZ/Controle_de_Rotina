@@ -5,6 +5,7 @@ backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
 
 # Frontend
+node_modules/
 frontend/frontend-web/node_modules/
 frontend/frontend-web/dist/
 
@@ -25,3 +26,7 @@ reports/
 
 # Git worktrees locais (ex.: feature/mcp)
 .worktrees/
+
+# Python
+**/__pycache__/
+*.py[cod]

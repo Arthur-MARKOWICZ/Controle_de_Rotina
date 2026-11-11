@@ -1,5 +1,6 @@
-import { CheckCircleIcon } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
+
+import { LogoRotina } from '../../brand/LogoRotina'
 
 const PROPOSTA_VALOR = 'Diga o que precisa fazer; o plano do dia sai pronto.'
 
@@ -15,7 +16,7 @@ export function AuthLayout({ titulo, subtitulo, rodape, children }: Props) {
     <main className="auth-page">
       <div className="auth-marca">
         <p className="auth-marca__nome">
-          <CheckCircleIcon aria-hidden weight="fill" />
+          <LogoRotina />
           Rotina
         </p>
         <p className="auth-marca__frase">{PROPOSTA_VALOR}</p>

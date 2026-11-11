@@ -37,7 +37,7 @@
 .auth-marca__nome > svg {
   width: var(--icon-lg);
   height: var(--icon-lg);
-  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .auth-marca__frase {
@@ -90,7 +90,9 @@
   .auth-marca__nome > svg {
     width: 2rem;
     height: 2rem;
-    color: var(--on-accent);
+    --logo-body: var(--on-accent);
+    --logo-check: var(--accent);
+    --logo-cta: var(--cta);
   }
 
   .auth-marca__frase {

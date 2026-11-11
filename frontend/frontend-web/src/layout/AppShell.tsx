@@ -1,7 +1,6 @@
 import {
   CalendarBlankIcon,
   ChartLineUpIcon,
-  CheckCircleIcon,
   CheckSquareIcon,
   FolderSimpleIcon,
   GaugeIcon,
@@ -15,6 +14,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import { LogoRotina } from '../brand/LogoRotina'
 import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { XpBar } from '../xp/XpBar'
@@ -173,7 +173,7 @@ export function AppShell() {
             <div className="app-shell">
               <aside className="app-shell__sidebar" aria-label="Menu">
                 <p className="app-shell__brand">
-                  <CheckCircleIcon aria-hidden />
+                  <LogoRotina />
                   Rotina
                 </p>
                 <nav className="app-shell__nav app-shell__nav--sidebar" aria-label="Principal">

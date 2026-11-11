@@ -46,7 +46,7 @@
 .app-shell__brand > svg {
   width: var(--icon-lg);
   height: var(--icon-lg);
-  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .app-shell__nav {
