@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlerotina.decidir.repository.ItemDecidirRepository;
 import com.controlerotina.projeto.dto.AtualizarProjetoRequest;
 import com.controlerotina.projeto.dto.CriarProjetoRequest;
 import com.controlerotina.projeto.dto.ProjetoResponse;
@@ -34,15 +35,18 @@ public class ProjetoService {
 
     private final ProjetoRepository projetoRepository;
     private final TagVinculoService tagVinculoService;
+    private final ItemDecidirRepository itemDecidirRepository;
     private final Clock clock;
 
     public ProjetoService(
             ProjetoRepository projetoRepository,
             TagVinculoService tagVinculoService,
+            ItemDecidirRepository itemDecidirRepository,
             Clock clock
     ) {
         this.projetoRepository = projetoRepository;
         this.tagVinculoService = tagVinculoService;
+        this.itemDecidirRepository = itemDecidirRepository;
         this.clock = clock;
     }
 
@@ -138,7 +142,9 @@ public class ProjetoService {
         if (projeto.getStatus() == StatusProjeto.ARQUIVADO) {
             throw new ProjetoJaArquivadoException();
         }
-        projeto.arquivar(clock.instant());
+        Instant agora = clock.instant();
+        projeto.arquivar(agora);
+        itemDecidirRepository.zerarProjetoId(projeto.getId(), agora);
         return ProjetoResponse.from(
                 projeto,
                 tagVinculoService.listarTagsProjeto(projeto.getId()),

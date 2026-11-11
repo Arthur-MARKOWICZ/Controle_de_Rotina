@@ -7,6 +7,7 @@ import {
   GaugeIcon,
   PlusIcon,
   RepeatIcon,
+  ScalesIcon,
   SunHorizonIcon,
   TagIcon,
   type Icon,
@@ -28,6 +29,7 @@ import { useAtalhosTeclado } from './useAtalhosTeclado'
 type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
 
 const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
+const DECIDIR: ItemNav = { to: '/decidir', label: 'Decidir', Icon: ScalesIcon }
 const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
 const PLANO: ItemNav = { to: '/plano', label: 'Plano', Icon: SunHorizonIcon, end: true }
 const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
@@ -37,10 +39,10 @@ const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartL
 const TAGS: ItemNav = { to: '/tags', label: 'Tags', Icon: TagIcon }
 
 /** Primário → secundário → terciário (sidebar). */
-const NAV_SIDEBAR_PRIMARIO = [TAREFAS, PROJETOS]
+const NAV_SIDEBAR_PRIMARIO = [TAREFAS, DECIDIR, PROJETOS]
 const NAV_SIDEBAR_SECUNDARIO = [PLANO, HABITOS]
 const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO, TAGS]
-const NAV_BOTTOM = [TAREFAS, PROJETOS, PLANO, HABITOS]
+const NAV_BOTTOM = [TAREFAS, DECIDIR, PROJETOS, PLANO, HABITOS]
 
 function linkClassName({ isActive }: { isActive: boolean }) {
   return isActive ? 'app-shell__link app-shell__link--active' : 'app-shell__link'

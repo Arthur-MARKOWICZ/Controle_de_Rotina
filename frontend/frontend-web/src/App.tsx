@@ -7,6 +7,8 @@ import { PerfilPage } from './auth/pages/PerfilPage'
 import { AuthProvider } from './auth/session/AuthContext'
 import { CalendarioPage } from './calendario/pages/CalendarioPage'
 import { CapacidadePage } from './capacidade/pages/CapacidadePage'
+import { DecidirDrawer } from './decidir/DecidirDrawer'
+import { DecidirPage } from './decidir/pages/DecidirPage'
 import { HabitoDrawer } from './habito/HabitoDrawer'
 import { HabitosPage } from './habito/pages/HabitosPage'
 import { HistoricoPage } from './historico/pages/HistoricoPage'
@@ -43,6 +45,10 @@ export default function App() {
               <Route path="/tarefas" element={<TarefasPage />}>
                 <Route path="nova" element={<TarefaDrawer />} />
                 <Route path=":id" element={<TarefaDrawer />} />
+              </Route>
+              <Route path="/decidir" element={<DecidirPage />}>
+                <Route path="nova" element={<DecidirDrawer />} />
+                <Route path=":id" element={<DecidirDrawer />} />
               </Route>
               <Route path="/projetos" element={<ProjetosPage />}>
                 <Route path="nova" element={<ProjetoDrawer />} />
