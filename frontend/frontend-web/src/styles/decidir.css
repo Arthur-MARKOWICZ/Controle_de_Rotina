@@ -1,0 +1,117 @@
+/* ——— Decidir ——— */
+
+.decidir-page {
+  min-width: 0;
+}
+
+.decidir-empty__icone {
+  width: 2rem;
+  height: 2rem;
+  color: var(--muted);
+}
+
+.decidir-empty__titulo {
+  margin: 0;
+  font-weight: 600;
+}
+
+.decidir-meta {
+  color: var(--muted);
+  margin: 0 0 var(--space-3);
+}
+
+.decidir-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.decidir-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.decidir-card--vencido {
+  border-color: color-mix(in srgb, var(--danger, #b45309) 45%, var(--line));
+  background: color-mix(in srgb, var(--danger, #b45309) 8%, var(--panel));
+}
+
+.decidir-card__principal {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.decidir-card__titulo {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.decidir-card__titulo:hover {
+  color: var(--accent-hover);
+}
+
+.decidir-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.decidir-card__aviso {
+  color: var(--danger, #b45309);
+  font-weight: 600;
+}
+
+.decidir-card__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.decidir-empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-5);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.decidir-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.decidir-promover {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.decidir-promover__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}

@@ -18,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.controlerotina.shared.exception.TagNaoEncontradaException;
 import com.controlerotina.tag.dto.TagResumoResponse;
+import com.controlerotina.tag.entity.DecidirTag;
 import com.controlerotina.tag.entity.HabitoTag;
 import com.controlerotina.tag.entity.ProjetoTag;
 import com.controlerotina.tag.entity.Tag;
 import com.controlerotina.tag.entity.TarefaTag;
+import com.controlerotina.tag.repository.DecidirTagRepository;
 import com.controlerotina.tag.repository.HabitoTagRepository;
 import com.controlerotina.tag.repository.ProjetoTagRepository;
 import com.controlerotina.tag.repository.TagRepository;
@@ -34,17 +36,20 @@ public class TagVinculoService {
     private final TarefaTagRepository tarefaTagRepository;
     private final HabitoTagRepository habitoTagRepository;
     private final ProjetoTagRepository projetoTagRepository;
+    private final DecidirTagRepository decidirTagRepository;
 
     public TagVinculoService(
             TagRepository tagRepository,
             TarefaTagRepository tarefaTagRepository,
             HabitoTagRepository habitoTagRepository,
-            ProjetoTagRepository projetoTagRepository
+            ProjetoTagRepository projetoTagRepository,
+            DecidirTagRepository decidirTagRepository
     ) {
         this.tagRepository = tagRepository;
         this.tarefaTagRepository = tarefaTagRepository;
         this.habitoTagRepository = habitoTagRepository;
         this.projetoTagRepository = projetoTagRepository;
+        this.decidirTagRepository = decidirTagRepository;
     }
 
     @Transactional
@@ -83,6 +88,18 @@ public class TagVinculoService {
         return tags.stream().map(TagResumoResponse::from).toList();
     }
 
+    @Transactional
+    public List<TagResumoResponse> substituirTagsDecidir(UUID usuarioId, UUID itemDecidirId, List<UUID> tagIds) {
+        List<Tag> tags = validarTagsDoUsuario(usuarioId, tagIds);
+        decidirTagRepository.deleteAllByItemDecidirId(itemDecidirId);
+        if (!tags.isEmpty()) {
+            decidirTagRepository.saveAll(tags.stream()
+                    .map(tag -> new DecidirTag(itemDecidirId, tag.getId()))
+                    .toList());
+        }
+        return tags.stream().map(TagResumoResponse::from).toList();
+    }
+
     @Transactional(readOnly = true)
     public List<TagResumoResponse> listarTagsTarefa(UUID tarefaId) {
         return resumir(tarefaTagRepository.findByTarefaId(tarefaId).stream()
@@ -101,6 +118,13 @@ public class TagVinculoService {
     public List<TagResumoResponse> listarTagsProjeto(UUID projetoId) {
         return resumir(projetoTagRepository.findByProjetoId(projetoId).stream()
                 .map(ProjetoTag::getTagId)
+                .toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TagResumoResponse> listarTagsDecidir(UUID itemDecidirId) {
+        return resumir(decidirTagRepository.findByItemDecidirId(itemDecidirId).stream()
+                .map(DecidirTag::getTagId)
                 .toList());
     }
 
@@ -132,6 +156,15 @@ public class TagVinculoService {
     }
 
     @Transactional(readOnly = true)
+    public Map<UUID, List<TagResumoResponse>> mapearTagsPorDecidir(Collection<UUID> itemDecidirIds) {
+        if (itemDecidirIds == null || itemDecidirIds.isEmpty()) {
+            return Map.of();
+        }
+        List<DecidirTag> vinculos = decidirTagRepository.findByItemDecidirIdIn(itemDecidirIds);
+        return mapear(vinculos, DecidirTag::getItemDecidirId, DecidirTag::getTagId);
+    }
+
+    @Transactional(readOnly = true)
     public Set<UUID> tarefaIdsComAlgumaTag(Collection<UUID> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return Set.of();
@@ -153,6 +186,14 @@ public class TagVinculoService {
             return Set.of();
         }
         return new HashSet<>(projetoTagRepository.findProjetoIdsComAlgumaTag(tagIds));
+    }
+
+    @Transactional(readOnly = true)
+    public Set<UUID> decidirIdsComAlgumaTag(Collection<UUID> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(decidirTagRepository.findItemDecidirIdsComAlgumaTag(tagIds));
     }
 
     public static int matchScore(Collection<UUID> tagsDoItem, Collection<UUID> filtro) {

@@ -78,6 +78,7 @@ function renderShell(path: string) {
             <Route path="/" element={<Navigate to="/tarefas" replace />} />
             <Route path="/plano" element={<PaginaPlano />} />
             <Route path="/tarefas" element={<h1>página tarefas</h1>} />
+            <Route path="/decidir" element={<h1>página decidir</h1>} />
             <Route path="/habitos" element={<p>página hábitos</p>} />
             <Route path="/projetos" element={<p>página projetos</p>} />
             <Route path="/calendario" element={<p>página calendário</p>} />
@@ -119,10 +120,11 @@ describe('AppShell', () => {
     localStorage.clear()
   })
 
-  it('renderiza links Tarefas, Projetos, Plano, Hábitos, Capacidade, Calendário e Histórico', () => {
+  it('renderiza links Tarefas, Decidir, Projetos, Plano, Hábitos, Capacidade, Calendário e Histórico', () => {
     renderShell('/tarefas')
 
     expect(screen.getAllByRole('link', { name: 'Tarefas' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Decidir' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Projetos' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Plano' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: 'Hábitos' }).length).toBeGreaterThan(0)
@@ -142,7 +144,7 @@ describe('AppShell', () => {
     expect(plano.every((link) => link.getAttribute('aria-current') !== 'page')).toBe(true)
   })
 
-  it('T1: sidebar ordena Tarefas/Projetos antes de Plano/Hábitos; terciários presentes', () => {
+  it('T1: sidebar ordena Tarefas/Decidir/Projetos antes de Plano/Hábitos; terciários presentes', () => {
     renderShell('/tarefas')
 
     const navs = screen.getAllByRole('navigation', { name: 'Principal' })
@@ -157,6 +159,7 @@ describe('AppShell', () => {
     const [sidebar, bottom] = navs
     expect(within(sidebar).getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Tarefas',
+      'Decidir',
       'Projetos',
       'Plano',
       'Hábitos',
@@ -167,6 +170,7 @@ describe('AppShell', () => {
     ])
     expect(within(bottom).getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Tarefas',
+      'Decidir',
       'Projetos',
       'Plano',
       'Hábitos',
@@ -174,7 +178,7 @@ describe('AppShell', () => {
     expect(within(bottom).getByRole('button', { name: 'Mais' })).toBeInTheDocument()
   })
 
-  it('T2: bottom tem Tarefas/Projetos/Plano/Hábitos + Mais; Mais tem Capacidade/Calendário/Histórico sem Projetos', async () => {
+  it('T2: bottom tem Tarefas/Decidir/Projetos/Plano/Hábitos + Mais; Mais tem Capacidade/Calendário/Histórico sem Projetos', async () => {
     const user = userEvent.setup()
     renderShell('/tarefas')
 

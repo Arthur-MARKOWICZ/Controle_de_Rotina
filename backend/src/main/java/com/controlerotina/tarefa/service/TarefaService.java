@@ -20,6 +20,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlerotina.decidir.repository.ItemDecidirRepository;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.historico.PeriodoBRT;
@@ -56,6 +57,7 @@ public class TarefaService {
     private final PropostaGeracaoService propostaGeracaoService;
     private final ExecucaoRepository execucaoRepository;
     private final TagVinculoService tagVinculoService;
+    private final ItemDecidirRepository itemDecidirRepository;
     private final Clock clock;
 
     public TarefaService(
@@ -64,6 +66,7 @@ public class TarefaService {
             PropostaGeracaoService propostaGeracaoService,
             ExecucaoRepository execucaoRepository,
             TagVinculoService tagVinculoService,
+            ItemDecidirRepository itemDecidirRepository,
             Clock clock
     ) {
         this.tarefaRepository = tarefaRepository;
@@ -71,6 +74,7 @@ public class TarefaService {
         this.propostaGeracaoService = propostaGeracaoService;
         this.execucaoRepository = execucaoRepository;
         this.tagVinculoService = tagVinculoService;
+        this.itemDecidirRepository = itemDecidirRepository;
         this.clock = clock;
     }
 
@@ -294,7 +298,9 @@ public class TarefaService {
         if (tarefa.getDeletedAt() != null) {
             throw new TarefaNaoEncontradaException();
         }
-        tarefa.softDelete(clock.instant());
+        Instant agora = clock.instant();
+        tarefa.softDelete(agora);
+        itemDecidirRepository.reabrirPorTarefa(usuarioId, tarefa.getId(), agora);
     }
 
     @Transactional

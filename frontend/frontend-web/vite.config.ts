@@ -47,6 +47,7 @@ export default defineConfig({
       '/projetos': spaApiSharedProxy,
       '/habitos': spaApiSharedProxy,
       '/tags': spaApiSharedProxy,
+      '/decidir': spaApiSharedProxy,
     },
   },
   test: {

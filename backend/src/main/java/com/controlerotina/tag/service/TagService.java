@@ -15,6 +15,7 @@ import com.controlerotina.tag.dto.AtualizarTagRequest;
 import com.controlerotina.tag.dto.CriarTagRequest;
 import com.controlerotina.tag.dto.TagResponse;
 import com.controlerotina.tag.entity.Tag;
+import com.controlerotina.tag.repository.DecidirTagRepository;
 import com.controlerotina.tag.repository.HabitoTagRepository;
 import com.controlerotina.tag.repository.ProjetoTagRepository;
 import com.controlerotina.tag.repository.TagRepository;
@@ -27,6 +28,7 @@ public class TagService {
     private final TarefaTagRepository tarefaTagRepository;
     private final HabitoTagRepository habitoTagRepository;
     private final ProjetoTagRepository projetoTagRepository;
+    private final DecidirTagRepository decidirTagRepository;
     private final Clock clock;
 
     public TagService(
@@ -34,12 +36,14 @@ public class TagService {
             TarefaTagRepository tarefaTagRepository,
             HabitoTagRepository habitoTagRepository,
             ProjetoTagRepository projetoTagRepository,
+            DecidirTagRepository decidirTagRepository,
             Clock clock
     ) {
         this.tagRepository = tagRepository;
         this.tarefaTagRepository = tarefaTagRepository;
         this.habitoTagRepository = habitoTagRepository;
         this.projetoTagRepository = projetoTagRepository;
+        this.decidirTagRepository = decidirTagRepository;
         this.clock = clock;
     }
 
@@ -90,6 +94,7 @@ public class TagService {
         tarefaTagRepository.deleteByTagId(tag.getId());
         habitoTagRepository.deleteByTagId(tag.getId());
         projetoTagRepository.deleteByTagId(tag.getId());
+        decidirTagRepository.deleteByTagId(tag.getId());
         tagRepository.delete(tag);
     }
 
