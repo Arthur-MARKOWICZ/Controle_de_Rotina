@@ -1,3 +1,4 @@
+import { compararOrdem } from '../lista/listaOrdem'
 import type { TarefaResponse } from './api/tarefaApi'
 import type { FiltrosListaUrl } from './listaUrl'
 
@@ -9,7 +10,10 @@ export function temFiltroIsolador(filtros: FiltrosListaUrl): boolean {
     Boolean(filtros.duracaoDe) ||
     Boolean(filtros.duracaoAte) ||
     Boolean(filtros.projetoId) ||
-    filtros.tagIds.length > 0
+    filtros.tagIds.length > 0 ||
+    filtros.semPrazo ||
+    filtros.semProjeto ||
+    filtros.semTag
   )
 }
 
@@ -33,5 +37,5 @@ export function filhosNaPagina(tarefas: TarefaResponse[], parentId: string): Tar
   return tarefas
     .filter((tarefa) => tarefa.parentId === parentId)
     .slice()
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .sort(compararOrdem)
 }

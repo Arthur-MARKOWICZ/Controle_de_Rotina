@@ -216,6 +216,11 @@
 .badge.badge--projeto {
   background: var(--accent-soft);
   color: var(--accent-hover);
+  text-decoration: none;
+}
+
+a.badge.badge--projeto:hover {
+  color: var(--accent-hover);
 }
 
 /* ——— Lista ——— */
@@ -503,6 +508,46 @@
 .inline-add-tarefa > input:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.inline-add-tarefa--completa {
+  grid-template-columns: 1fr auto auto auto;
+}
+
+.inline-add-tarefa__select {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.inline-add-tarefa__select:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.inline-add-tarefa__select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.inline-add-tarefa__select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 639.98px) {
+  .inline-add-tarefa--completa {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .inline-add-tarefa--completa > input {
+    grid-column: 1 / -1;
+  }
 }
 
 .inline-add-tarefa__erro {

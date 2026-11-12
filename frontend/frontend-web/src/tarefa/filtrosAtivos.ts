@@ -27,7 +27,13 @@ export function chipsAtivos(
       remover: { prioridade: [] },
     })
   }
-  if (filtros.prazoDe || filtros.prazoAte) {
+  if (filtros.semPrazo) {
+    chips.push({
+      id: 'prazo',
+      texto: 'Sem prazo',
+      remover: { semPrazo: false, prazoDe: '', prazoAte: '' },
+    })
+  } else if (filtros.prazoDe || filtros.prazoAte) {
     chips.push({
       id: 'prazo',
       texto: `Prazo: ${textoIntervalo(filtros.prazoDe, filtros.prazoAte, formatarDataHora)}`,
@@ -41,11 +47,23 @@ export function chipsAtivos(
       remover: { duracaoDe: '', duracaoAte: '' },
     })
   }
-  if (filtros.projetoId) {
+  if (filtros.semProjeto) {
+    chips.push({
+      id: 'projeto',
+      texto: 'Sem projeto',
+      remover: { semProjeto: false, projetoId: '' },
+    })
+  } else if (filtros.projetoId) {
     const nome = projetosAtivos.find((p) => p.id === filtros.projetoId)?.nome ?? 'Projeto'
     chips.push({ id: 'projeto', texto: `Projeto: ${nome}`, remover: { projetoId: '' } })
   }
-  if (filtros.tagIds.length) {
+  if (filtros.semTag) {
+    chips.push({
+      id: 'tags',
+      texto: 'Sem tag',
+      remover: { semTag: false, tagIds: [] },
+    })
+  } else if (filtros.tagIds.length) {
     const nomes = filtros.tagIds.map(
       (id) => catalogoTags.find((tag) => tag.id === id)?.nome ?? id.slice(0, 8),
     )

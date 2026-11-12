@@ -68,8 +68,10 @@ vi.mock('./capacidade/api/capacidadeOverrideApi', () => ({
 
 vi.mock('./tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
+  criarTarefa: vi.fn(),
   excluirTarefa: vi.fn(),
   restaurarTarefa: vi.fn(),
+  reordenarTarefas: vi.fn(),
 }))
 
 vi.mock('./execucao/api/execucaoApi', () => ({

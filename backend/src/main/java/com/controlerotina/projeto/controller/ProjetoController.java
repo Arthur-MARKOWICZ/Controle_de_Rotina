@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +25,7 @@ import com.controlerotina.pendencia.dto.CriarEsperaRequest;
 import com.controlerotina.pendencia.dto.EsperaResumo;
 import com.controlerotina.pendencia.entity.TipoRecursoEspera;
 import com.controlerotina.pendencia.service.EsperaService;
+import com.controlerotina.shared.dto.ReordenarRequest;
 import com.controlerotina.projeto.dto.AtualizarProjetoRequest;
 import com.controlerotina.projeto.dto.CriarProjetoRequest;
 import com.controlerotina.projeto.dto.ProjetoResponse;
@@ -127,12 +129,21 @@ public class ProjetoController {
         return projetoService.reativar(usuarioId, id);
     }
 
+    @PutMapping("/ordem")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reordenar(
+            @AuthenticationPrincipal UUID usuarioId,
+            @Valid @RequestBody ReordenarRequest request
+    ) {
+        projetoService.reordenar(usuarioId, request.ids());
+    }
+
     private static Pageable normalizarPageable(Pageable pageable) {
         int size = pageable.getPageSize() <= 0 ? SIZE_DEFAULT : Math.min(pageable.getPageSize(), SIZE_MAX);
         int page = Math.max(pageable.getPageNumber(), 0);
         Sort sort = pageable.getSort().isSorted()
                 ? pageable.getSort()
-                : Sort.by(Sort.Order.asc("nome"));
+                : Sort.by(Sort.Order.asc("ordem"), Sort.Order.asc("createdAt"));
         return PageRequest.of(page, size, sort);
     }
 }

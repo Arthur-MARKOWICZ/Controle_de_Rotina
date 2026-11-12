@@ -59,6 +59,7 @@ vi.mock('../api/habitoApi', () => ({
   atualizarHabito: vi.fn(),
   iniciarHabitoAvulso: vi.fn(),
   concluirHabitoDireto: vi.fn(),
+  reordenarHabitos: vi.fn(),
 }))
 
 const pagina = {
@@ -112,6 +113,8 @@ describe('HabitosPage', () => {
     vi.mocked(habitoApi.excluirHabito).mockReset()
     vi.mocked(habitoApi.iniciarHabitoAvulso).mockReset()
     vi.mocked(habitoApi.concluirHabitoDireto).mockReset()
+    vi.mocked(habitoApi.reordenarHabitos).mockReset()
+    vi.mocked(habitoApi.reordenarHabitos).mockResolvedValue(undefined)
     vi.mocked(execucaoApi.listarExecucoes).mockReset()
     vi.mocked(execucaoApi.concluirExecucao).mockReset()
     vi.mocked(execucaoApi.abortarExecucao).mockReset()
@@ -436,6 +439,28 @@ describe('HabitosPage', () => {
       expect(screen.queryByRole('button', { name: /iniciar pausado/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /iniciar excluído/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /iniciar só domingo/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('reordena hábitos com seta no handle', async () => {
+    vi.mocked(habitoApi.listarHabitos).mockResolvedValue({
+      ...pagina,
+      totalElements: 2,
+      content: [
+        { ...pagina.content[0], id: 'h-a', titulo: 'Alfa', ordem: 0, diasSemana: ['SEGUNDA'] },
+        { ...pagina.content[0], id: 'h-b', titulo: 'Beta', ordem: 1, diasSemana: ['TERCA'] },
+      ],
+    })
+    const user = userEvent.setup()
+    renderLista()
+
+    await screen.findByText('Alfa')
+    const handle = screen.getByRole('button', { name: 'Reordenar Alfa' })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+
+    await waitFor(() => {
+      expect(habitoApi.reordenarHabitos).toHaveBeenCalledWith(['h-b', 'h-a'])
     })
   })
 })

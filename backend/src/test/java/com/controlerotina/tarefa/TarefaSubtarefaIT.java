@@ -417,6 +417,41 @@ class TarefaSubtarefaIT {
     }
 
     @Test
+    void deveReordenarSubtarefasDoMesmoPai() {
+        UUID paiId = criarTarefa("Estudar Security");
+        UUID primeiro = criarFilho(paiId, "Ler OWASP");
+        UUID segundo = criarFilho(paiId, "Fazer lab");
+
+        ResponseEntity<Void> reordenar = restTemplate.exchange(
+                "/tarefas/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(segundo, primeiro))),
+                Void.class);
+        assertThat(reordenar.getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas?parentId=" + paiId + "&sort=ordem,asc",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(content(response)).extracting(m -> m.get("titulo"))
+                .containsExactly("Fazer lab", "Ler OWASP");
+    }
+
+    @Test
+    void deveRejeitarReordenarPaiComFilho() {
+        UUID paiId = criarTarefa("Pai");
+        UUID filhoId = criarFilho(paiId, "Filho");
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(filhoId, paiId))),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
     void deveIncluirRaizesEFilhosNaListaSemFiltroDeHierarquia() {
         UUID paiId = criarTarefa("Raiz");
         criarFilho(paiId, "Filho");
@@ -739,11 +774,11 @@ class TarefaSubtarefaIT {
         return new HttpEntity<>(headers);
     }
 
-    private HttpEntity<Map<String, Object>> autenticadoJson(Map<String, Object> body) {
+    private HttpEntity<?> autenticadoJson(Object body) {
         return autenticadoJsonCom(accessToken, body);
     }
 
-    private HttpEntity<Map<String, Object>> autenticadoJsonCom(String token, Map<String, Object> body) {
+    private HttpEntity<?> autenticadoJsonCom(String token, Object body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(token);

@@ -183,3 +183,11 @@
   padding: var(--space-1) 0;
   cursor: pointer;
 }
+
+.tag-filtro-opcao--ausencia {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}

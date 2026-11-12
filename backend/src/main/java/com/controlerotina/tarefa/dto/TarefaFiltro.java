@@ -23,6 +23,9 @@ public record TarefaFiltro(
         UUID projetoId,
         List<UUID> tagIds,
         UUID parentId,
-        boolean somenteRaizes
+        boolean somenteRaizes,
+        boolean semPrazo,
+        boolean semProjeto,
+        boolean semTag
 ) {
 }

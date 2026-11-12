@@ -233,7 +233,7 @@ class ProjetoIT {
     }
 
     @Test
-    void deveOrdenarPorNomeAscPorPadrao() {
+    void deveOrdenarPorOrdemAscPorPadrao() {
         criarProjeto("Zebra", null);
         criarProjeto("Alpha", null);
 
@@ -244,7 +244,7 @@ class ProjetoIT {
                 Map.class);
 
         assertThat(content(response)).extracting(m -> m.get("nome"))
-                .containsExactly("Alpha", "Zebra");
+                .containsExactly("Zebra", "Alpha");
     }
 
     @Test
@@ -805,6 +805,28 @@ class ProjetoIT {
         assertThat(aprovado.getStatusCode()).isEqualTo(OK);
         assertThat(aprovado.getBody().get("status")).isEqualTo("APROVADO");
         assertThat(((Number) aprovado.getBody().get("versao")).intValue()).isEqualTo(versaoAprovada);
+    }
+
+    @Test
+    void deveReordenarProjetosPreservandoOsDemais() {
+        UUID a = criarProjeto("A", null);
+        UUID b = criarProjeto("B", null);
+        UUID c = criarProjeto("C", null);
+
+        ResponseEntity<Void> reordenar = restTemplate.exchange(
+                "/projetos/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(c, a))),
+                Void.class);
+        assertThat(reordenar.getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Map> lista = restTemplate.exchange(
+                "/projetos",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(content(lista)).extracting(m -> m.get("id").toString())
+                .containsExactly(c.toString(), b.toString(), a.toString());
     }
 
     private void criarCapacidade(Map<String, Integer> horasPorDia) {

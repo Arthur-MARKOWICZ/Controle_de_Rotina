@@ -1,5 +1,5 @@
 import { CheckIcon, PauseIcon, PencilSimpleIcon, PlayIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { abortarExecucao, concluirExecucao } from '../execucao/api/execucaoApi'
@@ -34,6 +34,9 @@ type Props = {
   onReativar: (id: string) => void
   onExcluir: (id: string, titulo: string) => void
   onRestaurar: (id: string) => void
+  arrasteHandle?: ReactNode
+  itemRef?: (el: HTMLLIElement | null) => void
+  arrastando?: boolean
 }
 
 export function podeSessaoHabito(habito: HabitoResponse, hojeIso = dataHojeIso()): boolean {
@@ -51,6 +54,9 @@ export function HabitoCard({
   onReativar,
   onExcluir,
   onRestaurar,
+  arrasteHandle,
+  itemRef,
+  arrastando = false,
 }: Props) {
   const toast = useToast()
   const { progresso, aplicarProgresso } = useXpProgress()
@@ -148,12 +154,17 @@ export function HabitoCard({
 
   return (
     <li
-      className={
+      ref={itemRef}
+      className={[
         habito.status === 'PAUSADO' || habito.deletada
           ? 'habito-card habito-card--pausado'
-          : 'habito-card'
-      }
+          : 'habito-card',
+        arrastando ? 'lista-arraste__item--arrastando' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
+      {arrasteHandle}
       <div className="habito-card__principal">
         <Link to={destino} state={DRAWER_STATE} className="habito-card__titulo">
           {habito.titulo}

@@ -12,6 +12,9 @@ export type FiltrosListaUrl = {
   duracaoAte: string
   projetoId: string
   tagIds: string[]
+  semPrazo: boolean
+  semProjeto: boolean
+  semTag: boolean
   sort: SortCampo
   direction: SortDirection
   size: number
@@ -27,6 +30,9 @@ export const FILTROS_LISTA_INICIAIS: FiltrosListaUrl = {
   duracaoAte: '',
   projetoId: '',
   tagIds: [],
+  semPrazo: false,
+  semProjeto: false,
+  semTag: false,
   sort: 'prazo',
   direction: 'asc',
   size: 20,
@@ -84,6 +90,9 @@ export function lerFiltrosDaUrl(params: URLSearchParams): FiltrosListaUrl {
     duracaoAte: params.get('duracaoAte') ?? '',
     projetoId: params.get('projetoId')?.trim() ?? '',
     tagIds: [...new Set(params.getAll('tagId').map((s) => s.trim()).filter(Boolean))],
+    semPrazo: params.get('semPrazo') === 'true',
+    semProjeto: params.get('semProjeto') === 'true',
+    semTag: params.get('semTag') === 'true',
     sort,
     direction,
     size,
@@ -99,11 +108,15 @@ export function escreverFiltrosNaUrl(filtros: FiltrosListaUrl): URLSearchParams 
   if (filtros.prioridade.length) {
     params.set('prioridade', filtros.prioridade.join(','))
   }
-  if (filtros.prazoDe) {
-    params.set('prazoDe', filtros.prazoDe)
-  }
-  if (filtros.prazoAte) {
-    params.set('prazoAte', filtros.prazoAte)
+  if (filtros.semPrazo) {
+    params.set('semPrazo', 'true')
+  } else {
+    if (filtros.prazoDe) {
+      params.set('prazoDe', filtros.prazoDe)
+    }
+    if (filtros.prazoAte) {
+      params.set('prazoAte', filtros.prazoAte)
+    }
   }
   if (filtros.duracaoDe) {
     params.set('duracaoDe', filtros.duracaoDe)
@@ -111,11 +124,17 @@ export function escreverFiltrosNaUrl(filtros: FiltrosListaUrl): URLSearchParams 
   if (filtros.duracaoAte) {
     params.set('duracaoAte', filtros.duracaoAte)
   }
-  if (filtros.projetoId) {
+  if (filtros.semProjeto) {
+    params.set('semProjeto', 'true')
+  } else if (filtros.projetoId) {
     params.set('projetoId', filtros.projetoId)
   }
-  for (const tagId of filtros.tagIds) {
-    params.append('tagId', tagId)
+  if (filtros.semTag) {
+    params.set('semTag', 'true')
+  } else {
+    for (const tagId of filtros.tagIds) {
+      params.append('tagId', tagId)
+    }
   }
   if (filtros.sort !== 'prazo') {
     params.set('sort', filtros.sort)

@@ -11,7 +11,23 @@ import { useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
 import { useToast } from '../feedback/ToastProvider'
-import { criarTarefa, type TarefaResponse } from './api/tarefaApi'
+import { PRIORIDADE_LABEL } from '../home/labels'
+import { criarTarefa, type CriarTarefaRequest, type TarefaResponse } from './api/tarefaApi'
+import type { Prioridade } from './validation/tarefaForm'
+
+const PRIORIDADES: Prioridade[] = ['ALTA', 'MEDIA', 'BAIXA']
+const PRIORIDADE_PADRAO: Prioridade = 'MEDIA'
+const DURACOES_MINUTOS = [15, 30, 45, 60, 90, 120, 180, 240]
+const DURACAO_PADRAO = 30
+
+function formatarDuracao(minutos: number): string {
+  if (minutos < 60) {
+    return `${minutos} min`
+  }
+  const horas = Math.floor(minutos / 60)
+  const resto = minutos % 60
+  return resto ? `${horas}h${resto}` : `${horas}h`
+}
 
 export type InlineAddTarefaHandle = {
   focus: () => void
@@ -31,8 +47,12 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
   const toast = useToast()
   const inputId = useId()
   const erroId = useId()
+  const prioridadeId = useId()
+  const duracaoId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [titulo, setTitulo] = useState('')
+  const [prioridade, setPrioridade] = useState<Prioridade>(PRIORIDADE_PADRAO)
+  const [duracaoMinutos, setDuracaoMinutos] = useState(DURACAO_PADRAO)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -68,11 +88,14 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
     setEnviando(true)
     setErro(null)
     try {
-      const body = projetoId
-        ? { titulo: texto, projetoId }
-        : { titulo: texto }
+      const body: CriarTarefaRequest = { titulo: texto, prioridade, duracaoMinutos }
+      if (projetoId) {
+        body.projetoId = projetoId
+      }
       const criada = await criarTarefa(body)
       setTitulo('')
+      setPrioridade(PRIORIDADE_PADRAO)
+      setDuracaoMinutos(DURACAO_PADRAO)
       onCriada(criada)
       toast.success('Tarefa criada', {
         action: {
@@ -92,7 +115,7 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
   }
 
   return (
-    <form className="inline-add-tarefa" onSubmit={(e) => void handleSubmit(e)} noValidate>
+    <form className="inline-add-tarefa inline-add-tarefa--completa" onSubmit={(e) => void handleSubmit(e)} noValidate>
       <label className="visually-hidden" htmlFor={inputId}>
         Adicionar tarefa
       </label>
@@ -113,6 +136,41 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
         }}
         onKeyDown={handleKeyDown}
       />
+      <label className="visually-hidden" htmlFor={prioridadeId}>
+        Prioridade
+      </label>
+      <select
+        id={prioridadeId}
+        name="prioridade"
+        className="inline-add-tarefa__select"
+        data-prioridade={prioridade}
+        value={prioridade}
+        disabled={enviando}
+        onChange={(e) => setPrioridade(e.target.value as Prioridade)}
+      >
+        {PRIORIDADES.map((p) => (
+          <option key={p} value={p}>
+            {PRIORIDADE_LABEL[p]}
+          </option>
+        ))}
+      </select>
+      <label className="visually-hidden" htmlFor={duracaoId}>
+        Duração
+      </label>
+      <select
+        id={duracaoId}
+        name="duracaoMinutos"
+        className="inline-add-tarefa__select"
+        value={duracaoMinutos}
+        disabled={enviando}
+        onChange={(e) => setDuracaoMinutos(Number(e.target.value))}
+      >
+        {DURACOES_MINUTOS.map((m) => (
+          <option key={m} value={m}>
+            {formatarDuracao(m)}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         className="btn btn--ghost btn--sm"

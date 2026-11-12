@@ -24,6 +24,32 @@ public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecif
 
     List<Tarefa> findByParentIdAndDeletedAtIsNull(UUID parentId);
 
+    @Query("""
+            SELECT COALESCE(MAX(t.ordem), -1)
+              FROM Tarefa t
+             WHERE t.usuarioId = :usuarioId
+               AND t.deletedAt IS NULL
+               AND ((:parentId IS NULL AND t.parentId IS NULL) OR t.parentId = :parentId)
+            """)
+    int findMaxOrdemIrmaos(@Param("usuarioId") UUID usuarioId, @Param("parentId") UUID parentId);
+
+    @Query("""
+            SELECT t FROM Tarefa t
+             WHERE t.usuarioId = :usuarioId
+               AND ((:parentId IS NULL AND t.parentId IS NULL) OR t.parentId = :parentId)
+               AND (
+                     (:deletadas = true AND t.deletedAt IS NOT NULL)
+                     OR
+                     (:deletadas = false AND t.deletedAt IS NULL)
+                   )
+             ORDER BY t.ordem ASC, t.createdAt ASC
+            """)
+    List<Tarefa> findIrmaosOrdenados(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("parentId") UUID parentId,
+            @Param("deletadas") boolean deletadas
+    );
+
     List<Tarefa> findByParentIdAndDeletedAtIsNotNull(UUID parentId);
 
     boolean existsByParentIdAndDeletedAtIsNullAndStatusNot(UUID parentId, StatusTarefa status);

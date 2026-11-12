@@ -11,6 +11,7 @@ import {
   listarEsperasProjeto,
   listarProjetos,
   reativarProjeto,
+  reordenarProjetos,
   type ProjetoResponse,
 } from './projetoApi'
 
@@ -151,6 +152,18 @@ describe('projetoApi', () => {
     await excluirEsperaProjeto('p-1', 'e-1')
     expect(apiClient.apiFetch).toHaveBeenCalledWith('/projetos/p-1/esperas/e-1', {
       method: 'DELETE',
+    })
+  })
+
+  it('reordena projetos via PUT /projetos/ordem', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+    await reordenarProjetos(['p-2', 'p-1'])
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/projetos/ordem', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['p-2', 'p-1'] }),
     })
   })
 })

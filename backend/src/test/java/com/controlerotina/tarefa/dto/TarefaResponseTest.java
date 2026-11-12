@@ -35,6 +35,7 @@ class TarefaResponseTest {
         assertThat(response.parentId()).isNull();
         assertThat(response.parentTitulo()).isNull();
         assertThat(response.temFilhos()).isFalse();
+        assertThat(response.ordem()).isEqualTo(0);
     }
 
     @Test

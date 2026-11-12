@@ -14,6 +14,7 @@ import type { Prioridade } from './validation/tarefaForm'
 export const DEBOUNCE_FILTRO_MS = 400
 
 const PRIORIDADE_OPCOES: Prioridade[] = ['ALTA', 'MEDIA', 'BAIXA']
+const SEM_PROJETO = '__sem__'
 
 const VISOES: { id: VisaoLista; label: string }[] = [
   { id: 'todas', label: 'Todas' },
@@ -163,14 +164,30 @@ export function FiltrosBarra({
 
         <Popover
           label={<RotuloFiltro texto="Prazo" />}
-          triggerClassName={classeGatilho(Boolean(filtros.prazoDe || filtros.prazoAte))}
+          triggerClassName={classeGatilho(Boolean(filtros.semPrazo || filtros.prazoDe || filtros.prazoAte))}
         >
           <div className="popover__campos">
+            <label className="chip">
+              <input
+                type="checkbox"
+                checked={filtros.semPrazo}
+                onChange={() => {
+                  if (filtros.semPrazo) {
+                    aplicar({ semPrazo: false })
+                    return
+                  }
+                  setRascunho({ ...rascunho, prazoDe: '', prazoAte: '' })
+                  aplicar({ semPrazo: true, prazoDe: '', prazoAte: '' })
+                }}
+              />
+              Sem prazo
+            </label>
             <label className="field">
               Prazo de
               <input
                 type="datetime-local"
                 value={rascunho.prazoDe}
+                disabled={filtros.semPrazo}
                 onChange={(e) => alterarComDebounce('prazoDe', e.target.value)}
               />
             </label>
@@ -179,6 +196,7 @@ export function FiltrosBarra({
               <input
                 type="datetime-local"
                 value={rascunho.prazoAte}
+                disabled={filtros.semPrazo}
                 onChange={(e) => alterarComDebounce('prazoAte', e.target.value)}
               />
             </label>
@@ -213,20 +231,30 @@ export function FiltrosBarra({
 
         <TagFiltroPopover
           tagIds={filtros.tagIds}
-          onAplicar={(tagIds) => aplicar({ tagIds })}
+          semTag={filtros.semTag}
+          onAplicar={(tagIds) => aplicar({ tagIds, semTag: false })}
+          onSemTag={(semTag) => aplicar({ semTag, tagIds: semTag ? [] : filtros.tagIds })}
         />
 
         <Popover
           label={<RotuloFiltro texto="Projeto" />}
-          triggerClassName={classeGatilho(Boolean(filtros.projetoId))}
+          triggerClassName={classeGatilho(Boolean(filtros.semProjeto || filtros.projetoId))}
         >
           <label className="field">
             Projeto
             <select
-              value={filtros.projetoId}
-              onChange={(e) => aplicar({ projetoId: e.target.value })}
+              value={filtros.semProjeto ? SEM_PROJETO : filtros.projetoId}
+              onChange={(e) => {
+                const valor = e.target.value
+                if (valor === SEM_PROJETO) {
+                  aplicar({ projetoId: '', semProjeto: true })
+                } else {
+                  aplicar({ projetoId: valor, semProjeto: false })
+                }
+              }}
             >
               <option value="">Todos os projetos</option>
+              <option value={SEM_PROJETO}>Sem projeto</option>
               {projetosAtivos.map((projeto) => (
                 <option key={projeto.id} value={projeto.id}>
                   {projeto.nome}

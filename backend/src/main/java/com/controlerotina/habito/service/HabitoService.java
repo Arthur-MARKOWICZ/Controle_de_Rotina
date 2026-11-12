@@ -26,6 +26,8 @@ import com.controlerotina.habito.repository.HabitoSpecs;
 import com.controlerotina.shared.exception.HabitoJaAtivoException;
 import com.controlerotina.shared.exception.HabitoJaPausadoException;
 import com.controlerotina.shared.exception.HabitoNaoEncontradoException;
+import com.controlerotina.shared.exception.ReordenacaoInvalidaException;
+import com.controlerotina.shared.ordem.Reordenacao;
 import com.controlerotina.tag.dto.TagResumoResponse;
 import com.controlerotina.tag.service.TagVinculoService;
 
@@ -66,6 +68,7 @@ public class HabitoService {
                 agora,
                 agora
         );
+        habito.definirOrdem(habitoRepository.findMaxOrdemAtivos(usuarioId) + 1, agora);
         Habito salvo = habitoRepository.save(habito);
         habitoRepository.flush();
         List<TagResumoResponse> tags = tagVinculoService.substituirTagsHabito(
@@ -207,6 +210,27 @@ public class HabitoService {
                 tagVinculoService.listarTagsHabito(habito.getId()),
                 null
         );
+    }
+
+    @Transactional
+    public void reordenar(UUID usuarioId, List<UUID> ids) {
+        List<Habito> itens = habitoRepository.findAllById(ids);
+        if (itens.size() != ids.size() || itens.stream().anyMatch(h -> !h.getUsuarioId().equals(usuarioId))) {
+            throw new HabitoNaoEncontradoException();
+        }
+        boolean deletados = itens.get(0).isDeletado();
+        if (itens.stream().anyMatch(h -> h.isDeletado() != deletados)) {
+            throw new ReordenacaoInvalidaException("Não misture hábitos excluídos e ativos.");
+        }
+        List<Habito> atuais = deletados
+                ? habitoRepository.findByUsuarioIdAndDeletedAtIsNotNullOrderByOrdemAscCreatedAtAsc(usuarioId)
+                : habitoRepository.findByUsuarioIdAndDeletedAtIsNullOrderByOrdemAscCreatedAtAsc(usuarioId);
+        List<Habito> reordenados = Reordenacao.aplicar(atuais, ids, Habito::getId);
+        Instant agora = clock.instant();
+        for (int i = 0; i < reordenados.size(); i++) {
+            reordenados.get(i).definirOrdem(i, agora);
+        }
+        habitoRepository.saveAll(reordenados);
     }
 
     private Habito buscarNaoDeletado(UUID usuarioId, UUID id) {

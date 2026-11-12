@@ -30,6 +30,7 @@ import com.controlerotina.projeto.repository.ProjetoSpecs;
 import com.controlerotina.shared.exception.ProjetoJaArquivadoException;
 import com.controlerotina.shared.exception.ProjetoJaAtivoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
+import com.controlerotina.shared.ordem.Reordenacao;
 import com.controlerotina.tag.dto.TagResumoResponse;
 import com.controlerotina.tag.service.TagVinculoService;
 
@@ -68,6 +69,7 @@ public class ProjetoService {
                 agora,
                 agora
         );
+        projeto.definirOrdem(projetoRepository.findMaxOrdem(usuarioId) + 1, agora);
         Projeto salvo = projetoRepository.save(projeto);
         projetoRepository.flush();
         List<TagResumoResponse> tags = tagVinculoService.substituirTagsProjeto(
@@ -165,6 +167,21 @@ public class ProjetoService {
         }
         projeto.reativar(clock.instant());
         return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
+    }
+
+    @Transactional
+    public void reordenar(UUID usuarioId, List<UUID> ids) {
+        List<Projeto> itens = projetoRepository.findAllById(ids);
+        if (itens.size() != ids.size() || itens.stream().anyMatch(p -> !p.getUsuarioId().equals(usuarioId))) {
+            throw new ProjetoNaoEncontradoException();
+        }
+        List<Projeto> atuais = projetoRepository.findByUsuarioIdOrderByOrdemAscCreatedAtAsc(usuarioId);
+        List<Projeto> reordenados = Reordenacao.aplicar(atuais, ids, Projeto::getId);
+        Instant agora = clock.instant();
+        for (int i = 0; i < reordenados.size(); i++) {
+            reordenados.get(i).definirOrdem(i, agora);
+        }
+        projetoRepository.saveAll(reordenados);
     }
 
     private ProjetoResponse toResponse(

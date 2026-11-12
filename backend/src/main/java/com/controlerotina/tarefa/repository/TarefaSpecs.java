@@ -132,6 +132,37 @@ public final class TarefaSpecs {
         };
     }
 
+    public static Specification<Tarefa> semPrazo(boolean semPrazo) {
+        return (root, query, cb) -> {
+            if (!semPrazo) {
+                return cb.conjunction();
+            }
+            return cb.isNull(root.get("prazo"));
+        };
+    }
+
+    public static Specification<Tarefa> semProjeto(boolean semProjeto) {
+        return (root, query, cb) -> {
+            if (!semProjeto) {
+                return cb.conjunction();
+            }
+            return cb.isNull(root.get("projetoId"));
+        };
+    }
+
+    public static Specification<Tarefa> semTag(boolean semTag) {
+        return (root, query, cb) -> {
+            if (!semTag) {
+                return cb.conjunction();
+            }
+            Subquery<UUID> subquery = query.subquery(UUID.class);
+            Root<TarefaTag> tagRoot = subquery.from(TarefaTag.class);
+            subquery.select(tagRoot.get("tarefaId"))
+                    .where(cb.equal(tagRoot.get("tarefaId"), root.get("id")));
+            return cb.not(cb.exists(subquery));
+        };
+    }
+
     private static Specification<Tarefa> intervaloInstant(String campo, Instant de, Instant ate) {
         return (root, query, cb) -> {
             if (de == null && ate == null) {

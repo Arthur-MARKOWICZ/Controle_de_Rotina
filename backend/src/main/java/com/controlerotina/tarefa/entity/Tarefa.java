@@ -46,6 +46,9 @@ public class Tarefa {
     @Column(name = "parent_id")
     private UUID parentId;
 
+    @Column(nullable = false)
+    private int ordem;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -122,6 +125,10 @@ public class Tarefa {
         return parentId;
     }
 
+    public int getOrdem() {
+        return ordem;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -171,6 +178,11 @@ public class Tarefa {
 
     public void definirParentId(UUID parentId) {
         this.parentId = parentId;
+    }
+
+    public void definirOrdem(int ordem, Instant updatedAt) {
+        this.ordem = ordem;
+        this.updatedAt = updatedAt;
     }
 
     public void softDelete(Instant deletedAt) {

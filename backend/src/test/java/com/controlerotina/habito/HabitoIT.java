@@ -432,6 +432,28 @@ class HabitoIT {
         assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
     }
 
+    @Test
+    void deveReordenarHabitosPreservandoOsDemais() {
+        UUID a = criarHabito("A", List.of("SEGUNDA"), 30);
+        UUID b = criarHabito("B", List.of("SEGUNDA"), 30);
+        UUID c = criarHabito("C", List.of("SEGUNDA"), 30);
+
+        ResponseEntity<Void> reordenar = restTemplate.exchange(
+                "/habitos/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(c, a))),
+                Void.class);
+        assertThat(reordenar.getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Map> lista = restTemplate.exchange(
+                "/habitos",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(content(lista)).extracting(m -> m.get("id").toString())
+                .containsExactly(c.toString(), b.toString(), a.toString());
+    }
+
     private UUID criarHabitoComHorario(
             String titulo,
             List<String> dias,

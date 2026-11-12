@@ -1,0 +1,63 @@
+/* ——— Reordenação por arraste ——— */
+
+.arraste-handle {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--muted);
+  touch-action: none;
+}
+
+.arraste-handle:hover {
+  color: var(--ink);
+}
+
+.arraste-handle:active,
+.arraste-handle[aria-pressed='true'] {
+  cursor: grabbing;
+}
+
+.projeto-card .arraste-handle,
+.habito-card .arraste-handle {
+  align-self: center;
+}
+
+.lista-arraste__item {
+  min-width: 0;
+}
+
+.lista-arraste__item--arrastando {
+  opacity: 0.65;
+  user-select: none;
+}
+
+.tarefa-card .arraste-handle {
+  align-self: center;
+}
+
+.lista-arraste__item--arrastando .tarefa-card,
+.lista-arraste__item--arrastando .projeto-card,
+.lista-arraste__item--arrastando .habito-card,
+.lista-arraste__item--arrastando .tarefa-subtarefas__item {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--accent);
+}
+
+.tarefa-subtarefas__linha {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tarefa-subtarefas__linha .tarefa-subtarefas__item {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lista-arraste__item--arrastando {
+    opacity: 1;
+  }
+}
