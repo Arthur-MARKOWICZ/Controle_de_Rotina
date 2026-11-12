@@ -30,6 +30,8 @@ export type TarefaResponse = {
   esperas?: EsperaResumo[]
   /** Bloqueada por espera própria, de pai ou do projeto de origem. */
   bloqueada?: boolean
+  /** Posição manual na lista de irmãos. Ausente em payloads antigos. */
+  ordem?: number
 }
 
 export type SessaoTarefaRequest = {
@@ -46,7 +48,7 @@ export type PageTarefa = {
   size: number
 }
 
-export type SortCampo = 'prazo' | 'duracao' | 'prioridade'
+export type SortCampo = 'prazo' | 'duracao' | 'prioridade' | 'ordem'
 export type SortDirection = 'asc' | 'desc'
 
 export type ListarTarefasParams = {
@@ -66,6 +68,9 @@ export type ListarTarefasParams = {
   somenteDeletadas?: boolean
   parentId?: string
   somenteRaizes?: boolean
+  semPrazo?: boolean
+  semProjeto?: boolean
+  semTag?: boolean
   page?: number
   size?: number
   sort?: SortCampo
@@ -130,6 +135,9 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   if (filtro.somenteRaizes != null) {
     params.set('somenteRaizes', String(filtro.somenteRaizes))
   }
+  if (filtro.semPrazo) params.set('semPrazo', 'true')
+  if (filtro.semProjeto) params.set('semProjeto', 'true')
+  if (filtro.semTag) params.set('semTag', 'true')
 
   params.set('page', String(filtro.page ?? 0))
   params.set('size', String(filtro.size ?? 20))
@@ -259,5 +267,16 @@ export async function excluirEsperaTarefa(id: string, esperaId: string): Promise
   const response = await apiFetch(`/tarefas/${id}/esperas/${esperaId}`, { method: 'DELETE' })
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível remover a espera.')
+  }
+}
+
+export async function reordenarTarefas(ids: string[]): Promise<void> {
+  const response = await apiFetch('/tarefas/ordem', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível reordenar as tarefas.')
   }
 }

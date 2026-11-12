@@ -7,12 +7,16 @@ import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
+import { ArrasteHandle } from '../../lista/ArrasteHandle'
+import { compararOrdem } from '../../lista/listaOrdem'
+import { useListaArrastavel } from '../../lista/useListaArrastavel'
 import {
   excluirHabito,
   listarHabitos,
   pausarHabito,
   reativarHabito,
   restaurarHabito,
+  reordenarHabitos,
   type HabitoResponse,
   type PageHabito,
 } from '../api/habitoApi'
@@ -42,6 +46,76 @@ function lerVisaoDaUrl(params: URLSearchParams): Visao {
 
 function lerPageDaUrl(params: URLSearchParams): number {
   return Math.max(0, Number(params.get('page') ?? 0) || 0)
+}
+
+function HabitosLista({
+  habitos,
+  tagIds,
+  visao,
+  acaoId,
+  onPausar,
+  onReativar,
+  onExcluir,
+  onRestaurar,
+  onReordenar,
+}: {
+  habitos: HabitoResponse[]
+  tagIds: string[]
+  visao: Visao
+  acaoId: string | null
+  onPausar: (id: string) => void
+  onReativar: (id: string) => void
+  onExcluir: (id: string, titulo: string) => void
+  onRestaurar: (id: string) => void
+  onReordenar: (ids: string[]) => void | Promise<void>
+}) {
+  const podeArrastar = visao !== 'EXCLUIDOS' && tagIds.length < 2
+  const ordenados = useMemo(
+    () =>
+      podeArrastar ? [...habitos].sort(compararOrdem) : ordenarPorTagMatch(habitos, tagIds),
+    [habitos, tagIds, podeArrastar],
+  )
+  const ids = useMemo(() => ordenados.map((habito) => habito.id), [ordenados])
+  const { idsVisiveis, arrastandoId, registrarItem, handleProps } = useListaArrastavel({
+    ids,
+    onReordenar,
+    disabled: !podeArrastar,
+  })
+  const porId = useMemo(
+    () => new Map(ordenados.map((habito) => [habito.id, habito])),
+    [ordenados],
+  )
+
+  return (
+    <ul className="habito-cards">
+      {idsVisiveis.map((id) => {
+        const habito = porId.get(id)
+        if (!habito) {
+          return null
+        }
+        return (
+          <HabitoCard
+            key={habito.id}
+            habito={habito}
+            acaoId={acaoId}
+            onPausar={onPausar}
+            onReativar={onReativar}
+            onExcluir={onExcluir}
+            onRestaurar={onRestaurar}
+            arrastando={arrastandoId === habito.id}
+            itemRef={(el) => registrarItem(habito.id, el)}
+            arrasteHandle={
+              <ArrasteHandle
+                label={`Reordenar ${habito.titulo}`}
+                disabled={!podeArrastar}
+                {...handleProps(habito.id)}
+              />
+            }
+          />
+        )
+      })}
+    </ul>
+  )
 }
 
 export function HabitosPage() {
@@ -294,19 +368,29 @@ export function HabitosPage() {
               )}
             </div>
           ) : (
-            <ul className="habito-cards">
-              {ordenarPorTagMatch(resultado.content, tagIds).map((habito) => (
-                <HabitoCard
-                  key={habito.id}
-                  habito={habito}
-                  acaoId={acaoId}
-                  onPausar={(id) => void handlePausar(id)}
-                  onReativar={(id) => void handleReativar(id)}
-                  onExcluir={(id, titulo) => void handleExcluir(id, titulo)}
-                  onRestaurar={(id) => void handleRestaurar(id)}
-                />
-              ))}
-            </ul>
+            <HabitosLista
+              habitos={resultado.content}
+              tagIds={tagIds}
+              visao={visao}
+              acaoId={acaoId}
+              onPausar={(id) => void handlePausar(id)}
+              onReativar={(id) => void handleReativar(id)}
+              onExcluir={(id, titulo) => void handleExcluir(id, titulo)}
+              onRestaurar={(id) => void handleRestaurar(id)}
+              onReordenar={async (ids) => {
+                try {
+                  await reordenarHabitos(ids)
+                } catch (error) {
+                  setErro(
+                    error instanceof ApiError
+                      ? error.message
+                      : 'Não foi possível reordenar os hábitos.',
+                  )
+                  setRecarregarEm((n) => n + 1)
+                  throw error
+                }
+              }}
+            />
           )}
 
           {totalPages > 1 ? (

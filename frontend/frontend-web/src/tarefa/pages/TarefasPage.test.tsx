@@ -21,6 +21,7 @@ vi.mock('../api/tarefaApi', () => ({
   restaurarTarefa: vi.fn(),
   iniciarTarefaSessao: vi.fn(),
   concluirTarefaDireto: vi.fn(),
+  reordenarTarefas: vi.fn(),
 }))
 
 vi.mock('../../projeto/api/projetoApi', () => ({
@@ -195,6 +196,8 @@ describe('TarefasPage', () => {
     vi.mocked(tarefaApi.criarTarefa).mockReset()
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
+    vi.mocked(tarefaApi.reordenarTarefas).mockReset()
+    vi.mocked(tarefaApi.reordenarTarefas).mockResolvedValue(undefined)
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina)
     vi.mocked(projetoApi.listarProjetos).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
@@ -322,7 +325,7 @@ describe('TarefasPage', () => {
       expect(link).toHaveAttribute('href', '/plano')
     })
 
-    it('T1: Enter no inline com título chama criarTarefa só com titulo e limpa o campo', async () => {
+    it('T1: Enter no inline com título chama criarTarefa com prioridade e duração padrão e limpa o campo', async () => {
       vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
         id: 't-nova',
         titulo: 'Comprar leite',
@@ -344,7 +347,11 @@ describe('TarefasPage', () => {
       await user.type(input, 'Comprar leite{Enter}')
 
       await waitFor(() => {
-        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({ titulo: 'Comprar leite' })
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({
+          titulo: 'Comprar leite',
+          prioridade: 'MEDIA',
+          duracaoMinutos: 30,
+        })
       })
       expect(input).toHaveValue('')
       expect(await screen.findByText('Tarefa criada')).toBeInTheDocument()
@@ -375,9 +382,46 @@ describe('TarefasPage', () => {
       await waitFor(() => {
         expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({
           titulo: 'Item do TCC',
+          prioridade: 'MEDIA',
+          duracaoMinutos: 30,
           projetoId: 'proj-tcc',
         })
       })
+    })
+
+    it('inline permite escolher prioridade e duração antes de criar', async () => {
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+        id: 't-alta',
+        titulo: 'Relatório',
+        descricao: '',
+        prioridade: 'ALTA',
+        prazo: null,
+        status: 'PENDENTE',
+        duracaoMinutos: 90,
+        createdAt: '2026-10-28T12:00:00Z',
+        updatedAt: '2026-10-28T12:00:00Z',
+        deletedAt: null,
+        deletada: false,
+      })
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Hoje item')
+
+      const prioridade = screen.getByRole('combobox', { name: /^prioridade$/i })
+      const duracao = screen.getByRole('combobox', { name: /^duração$/i })
+      await user.selectOptions(prioridade, 'ALTA')
+      await user.selectOptions(duracao, '90')
+      await user.type(screen.getByRole('textbox', { name: /adicionar tarefa/i }), 'Relatório{Enter}')
+
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith({
+          titulo: 'Relatório',
+          prioridade: 'ALTA',
+          duracaoMinutos: 90,
+        })
+      })
+      await waitFor(() => expect(prioridade).toHaveValue('MEDIA'))
+      expect(duracao).toHaveValue('30')
     })
 
     it('T3: título vazio não chama API e mostra feedback acessível', async () => {
@@ -468,6 +512,65 @@ describe('TarefasPage', () => {
       expect(
         await screen.findByRole('button', { name: /remover filtro projeto: tcc/i }),
       ).toBeInTheDocument()
+    })
+
+    it('filtros de ausência na URL chamam a API e mostram chips', async () => {
+      renderLista('/tarefas?semPrazo=true&semProjeto=true&semTag=true')
+
+      await waitFor(() => {
+        const filtro = vi.mocked(tarefaApi.listarTarefas).mock.calls.at(-1)?.[0]
+        expect(filtro?.semPrazo).toBe(true)
+        expect(filtro?.semProjeto).toBe(true)
+        expect(filtro?.semTag).toBe(true)
+        expect(filtro?.somenteRaizes).toBeUndefined()
+      })
+      expect(await screen.findByRole('button', { name: /remover filtro sem prazo/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /remover filtro sem projeto/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /remover filtro sem tag/i })).toBeInTheDocument()
+    })
+
+    it('escolher Sem projeto, Sem prazo e Sem tag atualiza a URL', async () => {
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Hoje item')
+
+      await user.click(screen.getByRole('button', { name: /^projeto$/i }))
+      await user.selectOptions(screen.getByLabelText(/^projeto$/i), 'Sem projeto')
+
+      await user.click(screen.getByRole('button', { name: /^prazo$/i }))
+      await user.click(screen.getByLabelText(/^sem prazo$/i))
+
+      await user.click(screen.getByRole('button', { name: /^tags$/i }))
+      await user.click(await screen.findByLabelText(/^sem tag$/i))
+
+      expect(screen.getByTestId('local')).toHaveTextContent('semProjeto=true')
+      expect(screen.getByTestId('local')).toHaveTextContent('semPrazo=true')
+      expect(screen.getByTestId('local')).toHaveTextContent('semTag=true')
+      await waitFor(() => {
+        const filtro = vi.mocked(tarefaApi.listarTarefas).mock.calls.at(-1)?.[0]
+        expect(filtro?.semProjeto).toBe(true)
+        expect(filtro?.semPrazo).toBe(true)
+        expect(filtro?.semTag).toBe(true)
+      })
+    })
+
+    it('chip do projeto no card leva à lista filtrada do projeto', async () => {
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(
+        paginaDe([
+          tarefaLista({
+            id: 't-hoje',
+            titulo: 'Hoje item',
+            projetoId: 'proj-tcc',
+            projetoNome: 'TCC',
+          }),
+        ]),
+      )
+      renderLista()
+
+      expect(await screen.findByRole('link', { name: 'TCC' })).toHaveAttribute(
+        'href',
+        '/tarefas?projetoId=proj-tcc',
+      )
     })
 
     it('visão aplica filtro imediatamente', async () => {
@@ -916,6 +1019,33 @@ describe('TarefasPage', () => {
         await screen.findByRole('button', { name: /iniciar escrever doc/i }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /concluir escrever doc/i })).toBeInTheDocument()
+    })
+  })
+
+  it('reordena tarefas do mesmo grupo com seta no handle', async () => {
+    const primeira = tarefaLista({
+      id: 't-hoje-1',
+      titulo: 'Primeira de hoje',
+      ordem: 0,
+      prazo: '2026-10-28T18:00:00Z',
+    })
+    const segunda = tarefaLista({
+      id: 't-hoje-2',
+      titulo: 'Segunda de hoje',
+      ordem: 1,
+      prazo: '2026-10-28T19:00:00Z',
+    })
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([primeira, segunda]))
+    const user = setupUser()
+    renderLista()
+
+    await screen.findByText('Primeira de hoje')
+    const handle = screen.getByRole('button', { name: 'Reordenar Primeira de hoje' })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+
+    await waitFor(() => {
+      expect(tarefaApi.reordenarTarefas).toHaveBeenCalledWith(['t-hoje-2', 't-hoje-1'])
     })
   })
 })

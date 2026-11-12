@@ -913,6 +913,62 @@ class TarefaIT {
     }
 
     @Test
+    void deveFiltrarTarefasSemPrazo() {
+        criarTarefaAutenticada("Com prazo", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        Map<String, Object> semPrazo = tarefaValida("Sem prazo", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        semPrazo.remove("prazo");
+        restTemplate.exchange("/tarefas", HttpMethod.POST, autenticadoJson(semPrazo), Map.class);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas?semPrazo=true",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(content(response)).extracting(m -> m.get("titulo")).containsExactly("Sem prazo");
+        assertThat(content(response).get(0).get("prazo")).isNull();
+    }
+
+    @Test
+    void deveFiltrarTarefasSemProjeto() {
+        UUID projetoId = criarProjeto("Com projeto");
+        Map<String, Object> comProjeto = tarefaValida("Vinculada", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        comProjeto.put("projetoId", projetoId.toString());
+        restTemplate.exchange("/tarefas", HttpMethod.POST, autenticadoJson(comProjeto), Map.class);
+        criarTarefaAutenticada("Livre", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas?semProjeto=true",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(content(response)).extracting(m -> m.get("titulo")).containsExactly("Livre");
+        assertThat(content(response).get(0).get("projetoId")).isNull();
+    }
+
+    @Test
+    void deveFiltrarTarefasSemTag() {
+        UUID tagId = criarTag("backend");
+        Map<String, Object> comTag = tarefaValida("Etiquetada", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        comTag.put("tagIds", List.of(tagId.toString()));
+        restTemplate.exchange("/tarefas", HttpMethod.POST, autenticadoJson(comTag), Map.class);
+        criarTarefaAutenticada("Sem tag", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas?semTag=true",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(content(response)).extracting(m -> m.get("titulo")).containsExactly("Sem tag");
+        assertThat((List<?>) content(response).get(0).get("tags")).isEmpty();
+    }
+
+    @Test
     void t6_patchSemProjetoIdNaoDesvincula() {
         UUID projetoId = criarProjeto("Manter");
         Map<String, Object> body = tarefaValida();
@@ -946,6 +1002,16 @@ class TarefaIT {
         assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
     }
 
+    private UUID criarTag(String nome) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tags",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("nome", nome)),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return UUID.fromString(response.getBody().get("id").toString());
+    }
+
     private UUID criarProjeto(String nome) {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/projetos",
@@ -975,6 +1041,93 @@ class TarefaIT {
                 "/auth/login",
                 json(Map.of("email", email, "senha", SENHA)),
                 Map.class).getBody().get("accessToken").toString();
+    }
+
+    @Test
+    void deveReordenarTarefasRaizEPreservarAsDemais() {
+        Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
+        UUID a = criarTarefaAutenticada("A", prazo, "MEDIA", 60);
+        UUID b = criarTarefaAutenticada("B", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 60);
+        UUID c = criarTarefaAutenticada("C", prazo.plus(2, ChronoUnit.HOURS), "MEDIA", 60);
+
+        ResponseEntity<Void> reordenar = restTemplate.exchange(
+                "/tarefas/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(c, a))),
+                Void.class);
+        assertThat(reordenar.getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Map> lista = restTemplate.exchange(
+                "/tarefas?sort=ordem,asc",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(lista.getStatusCode()).isEqualTo(OK);
+        assertThat(content(lista)).extracting(m -> m.get("titulo")).containsExactly("C", "B", "A");
+    }
+
+    @Test
+    void deveReordenarTarefasExcluidasSemAlterarAtivas() {
+        Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
+        UUID ativa = criarTarefaAutenticada("Ativa", prazo, "MEDIA", 60);
+        UUID excluidaA = criarTarefaAutenticada("ExcluidaA", prazo.plus(1, ChronoUnit.HOURS), "MEDIA", 60);
+        UUID excluidaB = criarTarefaAutenticada("ExcluidaB", prazo.plus(2, ChronoUnit.HOURS), "MEDIA", 60);
+
+        assertThat(restTemplate.exchange(
+                "/tarefas/" + excluidaA,
+                HttpMethod.DELETE,
+                autenticado(),
+                Void.class).getStatusCode()).isEqualTo(NO_CONTENT);
+        assertThat(restTemplate.exchange(
+                "/tarefas/" + excluidaB,
+                HttpMethod.DELETE,
+                autenticado(),
+                Void.class).getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Void> reordenar = restTemplate.exchange(
+                "/tarefas/ordem",
+                HttpMethod.PUT,
+                autenticadoJson(Map.of("ids", List.of(excluidaB, excluidaA))),
+                Void.class);
+        assertThat(reordenar.getStatusCode()).isEqualTo(NO_CONTENT);
+
+        ResponseEntity<Map> excluidas = restTemplate.exchange(
+                "/tarefas?somenteDeletadas=true&sort=ordem,asc",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(excluidas.getStatusCode()).isEqualTo(OK);
+        assertThat(content(excluidas)).extracting(m -> m.get("titulo"))
+                .containsExactly("ExcluidaB", "ExcluidaA");
+
+        ResponseEntity<Map> ativas = restTemplate.exchange(
+                "/tarefas?sort=ordem,asc",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(ativas.getStatusCode()).isEqualTo(OK);
+        assertThat(content(ativas)).extracting(m -> m.get("id").toString())
+                .containsExactly(ativa.toString());
+    }
+
+    @Test
+    void deveRetornar404AoReordenarTarefaDeOutroUsuario() {
+        Instant prazo = Instant.now().plus(2, ChronoUnit.DAYS);
+        UUID minha = criarTarefaAutenticada("Minha", prazo, "MEDIA", 60);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/ordem",
+                HttpMethod.PUT,
+                autenticadoJsonCom(tokenDeNovoUsuario(), Map.of("ids", List.of(minha))),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
+    private HttpEntity<?> autenticadoJsonCom(String token, Object body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+        return new HttpEntity<>(body, headers);
     }
 
     private HttpEntity<Void> autenticadoCom(String token) {
@@ -1023,11 +1176,8 @@ class TarefaIT {
         return new HttpEntity<>(headers);
     }
 
-    private HttpEntity<Map<String, Object>> autenticadoJson(Map<String, Object> body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(accessToken);
-        return new HttpEntity<>(body, headers);
+    private HttpEntity<?> autenticadoJson(Object body) {
+        return autenticadoJsonCom(accessToken, body);
     }
 
     private static HttpEntity<Map<String, ?>> json(Map<String, ?> body) {

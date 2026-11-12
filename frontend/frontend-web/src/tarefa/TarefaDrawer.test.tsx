@@ -26,6 +26,7 @@ vi.mock('./api/tarefaApi', () => ({
   criarEsperaTarefa: vi.fn(),
   excluirEsperaTarefa: vi.fn(),
   listarEsperasTarefa: vi.fn(),
+  reordenarTarefas: vi.fn(),
 }))
 
 vi.mock('../projeto/api/projetoApi', () => ({
@@ -193,6 +194,8 @@ describe('TarefaDrawer', () => {
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
     vi.mocked(tarefaApi.criarEsperaTarefa).mockReset()
     vi.mocked(tarefaApi.excluirEsperaTarefa).mockReset()
+    vi.mocked(tarefaApi.reordenarTarefas).mockReset()
+    vi.mocked(tarefaApi.reordenarTarefas).mockResolvedValue(undefined)
     mockLista([tarefa])
     vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(tarefa)
     vi.mocked(projetoApi.listarProjetos).mockReset()
@@ -628,6 +631,23 @@ describe('TarefaDrawer', () => {
       parentTitulo: 'Estudar',
       temFilhos: false,
     }
+
+    it('reordena subtarefas com seta no handle', async () => {
+      const primeiro = { ...filho, id: 't-filho-a', titulo: 'Ler OWASP', ordem: 0 }
+      const segundo = { ...filho, id: 't-filho-b', titulo: 'Fazer lab', ordem: 1 }
+      mockLista([{ ...tarefa, temFilhos: true }], [primeiro, segundo])
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({ ...tarefa, temFilhos: true })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      const handle = await screen.findByRole('button', { name: 'Reordenar Ler OWASP' })
+      handle.focus()
+      await user.keyboard('{ArrowDown}')
+
+      await waitFor(() => {
+        expect(tarefaApi.reordenarTarefas).toHaveBeenCalledWith(['t-filho-b', 't-filho-a'])
+      })
+    })
 
     it('tela do pai cria subtarefa só com título e parentId, no padrão do add da lista', async () => {
       vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(filho)

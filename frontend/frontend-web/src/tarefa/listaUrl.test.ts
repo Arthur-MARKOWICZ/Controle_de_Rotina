@@ -42,6 +42,35 @@ describe('listaUrl (T1)', () => {
     expect(lerFiltrosDaUrl(params).projetoId).toBe('proj-abc')
   })
 
+  it('round-trip preserva filtros de ausência sem prazo, projeto e tag', () => {
+    const filtros = {
+      ...FILTROS_LISTA_INICIAIS,
+      semPrazo: true,
+      semProjeto: true,
+      semTag: true,
+    }
+    const params = escreverFiltrosNaUrl(filtros)
+    expect(params.get('semPrazo')).toBe('true')
+    expect(params.get('semProjeto')).toBe('true')
+    expect(params.get('semTag')).toBe('true')
+    expect(lerFiltrosDaUrl(params)).toEqual(filtros)
+  })
+
+  it('ausência não grava o valor positivo correspondente na URL', () => {
+    const params = escreverFiltrosNaUrl({
+      ...FILTROS_LISTA_INICIAIS,
+      prazoDe: '2026-11-01T10:00',
+      projetoId: 'proj-abc',
+      tagIds: ['tag-a'],
+      semPrazo: true,
+      semProjeto: true,
+      semTag: true,
+    })
+    expect(params.get('prazoDe')).toBeNull()
+    expect(params.get('projetoId')).toBeNull()
+    expect(params.getAll('tagId')).toEqual([])
+  })
+
   it('paramsApiDaVisao mapeia chips para API', () => {
     expect(paramsApiDaVisao('todas')).toEqual({
       status: ['PENDENTE', 'EM_PROGRESSO', 'ATRASADA', 'CANCELADA'],

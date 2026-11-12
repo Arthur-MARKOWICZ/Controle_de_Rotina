@@ -13,9 +13,17 @@ type Props = {
   tagIds: string[]
   onAplicar: (tagIds: string[]) => void
   triggerClassName?: string
+  semTag?: boolean
+  onSemTag?: (semTag: boolean) => void
 }
 
-export function TagFiltroPopover({ tagIds, onAplicar, triggerClassName }: Props) {
+export function TagFiltroPopover({
+  tagIds,
+  onAplicar,
+  triggerClassName,
+  semTag = false,
+  onSemTag,
+}: Props) {
   const [catalogo, setCatalogo] = useState<TagResponse[]>([])
   const [carregando, setCarregando] = useState(true)
 
@@ -44,7 +52,7 @@ export function TagFiltroPopover({ tagIds, onAplicar, triggerClassName }: Props)
     }
   }, [])
 
-  const ativo = tagIds.length > 0
+  const ativo = tagIds.length > 0 || semTag
   const classeGatilho =
     triggerClassName ??
     (ativo ? 'btn btn--secondary btn--sm filtro-gatilho filtro-gatilho--ativo' : 'btn btn--secondary btn--sm filtro-gatilho')
@@ -53,6 +61,16 @@ export function TagFiltroPopover({ tagIds, onAplicar, triggerClassName }: Props)
     <Popover label={<><FunnelSimpleIcon aria-hidden />Tags</>} triggerClassName={classeGatilho}>
       <fieldset className="tag-filtro-fieldset">
         <legend className="visually-hidden">Filtrar por tags</legend>
+        {onSemTag ? (
+          <label className="tag-filtro-opcao tag-filtro-opcao--ausencia">
+            <input
+              type="checkbox"
+              checked={semTag}
+              onChange={() => onSemTag(!semTag)}
+            />
+            Sem tag
+          </label>
+        ) : null}
         {carregando ? (
           <p role="status">Carregando…</p>
         ) : catalogo.length === 0 ? (

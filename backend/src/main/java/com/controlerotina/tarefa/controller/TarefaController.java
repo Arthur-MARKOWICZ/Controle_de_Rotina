@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +31,7 @@ import com.controlerotina.pendencia.dto.CriarEsperaRequest;
 import com.controlerotina.pendencia.dto.EsperaResumo;
 import com.controlerotina.pendencia.entity.TipoRecursoEspera;
 import com.controlerotina.pendencia.service.EsperaService;
+import com.controlerotina.shared.dto.ReordenarRequest;
 import com.controlerotina.shared.exception.OrdenacaoInvalidaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
@@ -48,7 +50,7 @@ import jakarta.validation.Valid;
 @RequestMapping("/tarefas")
 public class TarefaController {
 
-    private static final Set<String> SORTS_PERMITIDOS = Set.of("prazo", "duracao", "prioridade");
+    private static final Set<String> SORTS_PERMITIDOS = Set.of("prazo", "duracao", "prioridade", "ordem");
     private static final int SIZE_MAX = 100;
     private static final int SIZE_DEFAULT = 20;
 
@@ -94,6 +96,9 @@ public class TarefaController {
             @RequestParam(required = false) List<UUID> tagId,
             @RequestParam(required = false) UUID parentId,
             @RequestParam(defaultValue = "false") boolean somenteRaizes,
+            @RequestParam(defaultValue = "false") boolean semPrazo,
+            @RequestParam(defaultValue = "false") boolean semProjeto,
+            @RequestParam(defaultValue = "false") boolean semTag,
             Pageable pageable
     ) {
         TarefaFiltro filtro = new TarefaFiltro(
@@ -112,7 +117,10 @@ public class TarefaController {
                 projetoId,
                 tagId,
                 parentId,
-                somenteRaizes
+                somenteRaizes,
+                semPrazo,
+                semProjeto,
+                semTag
         );
         return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
     }
@@ -212,6 +220,15 @@ public class TarefaController {
             @PathVariable UUID id
     ) {
         return tarefaService.restaurar(usuarioId, id);
+    }
+
+    @PutMapping("/ordem")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reordenar(
+            @AuthenticationPrincipal UUID usuarioId,
+            @Valid @RequestBody ReordenarRequest request
+    ) {
+        tarefaService.reordenar(usuarioId, request.ids());
     }
 
     private static Pageable normalizarPageable(Pageable pageable) {

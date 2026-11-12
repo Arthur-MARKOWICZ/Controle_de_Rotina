@@ -9,7 +9,7 @@ import {
   PlayIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { Popover } from '../feedback/Popover'
@@ -57,6 +57,7 @@ type Props = {
   expandido?: boolean
   onToggleExpand?: () => void
   indicadorPai?: boolean
+  arrasteHandle?: ReactNode
 }
 
 type PickerState = { acao: 'iniciar' | 'concluir' } | null
@@ -81,6 +82,7 @@ export function TarefaCard({
   expandido = false,
   onToggleExpand,
   indicadorPai = false,
+  arrasteHandle,
 }: Props) {
   const toast = useToast()
   const { progresso, aplicarProgresso } = useXpProgress()
@@ -169,6 +171,7 @@ export function TarefaCard({
 
   return (
     <article className={tarefa.deletada ? 'tarefa-card tarefa-card--deletada' : 'tarefa-card'}>
+      {arrasteHandle}
       {onToggleExpand ? (
         <button
           type="button"
@@ -203,7 +206,11 @@ export function TarefaCard({
             {tarefa.duracaoMinutos} min
             {restante < tarefa.duracaoMinutos ? ` · ${restante} rest.` : null}
           </span>
-          {tarefa.projetoNome ? (
+          {tarefa.projetoNome && tarefa.projetoId ? (
+            <Link to={`/tarefas?projetoId=${tarefa.projetoId}`} className="badge badge--projeto">
+              {tarefa.projetoNome}
+            </Link>
+          ) : tarefa.projetoNome ? (
             <span className="badge badge--projeto">{tarefa.projetoNome}</span>
           ) : null}
           <TagChipList tags={tarefa.tags} />

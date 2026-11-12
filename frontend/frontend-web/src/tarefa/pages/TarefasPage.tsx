@@ -11,10 +11,12 @@ import { PageHeader } from '../../layout/PageHeader'
 import { useQuickAdd } from '../../layout/QuickAddContext'
 import { listarProjetos, type ProjetoResponse } from '../../projeto/api/projetoApi'
 import { listarTags, type TagResponse } from '../../tag/api/tagApi'
+import { compararOrdem } from '../../lista/listaOrdem'
 import {
   excluirTarefa,
   listarTarefas,
   restaurarTarefa,
+  reordenarTarefas,
   type PageTarefa,
   type TarefaResponse,
 } from '../api/tarefaApi'
@@ -36,6 +38,7 @@ import {
   tarefasNoNivelDaLista,
 } from '../listaArvore'
 import { TarefaCard } from '../TarefaCard'
+import { TarefaListaArrastavel } from '../TarefaListaArrastavel'
 import type { TarefasOutletContext } from '../TarefaDrawer'
 
 function paraInstantOuUndefined(local: string): string | undefined {
@@ -61,12 +64,15 @@ function paramsApi(filtros: FiltrosListaUrl) {
   return {
     ...paramsApiDaVisao(filtros.visao),
     prioridade: filtros.prioridade.length ? filtros.prioridade : undefined,
-    prazoDe: paraInstantOuUndefined(filtros.prazoDe),
-    prazoAte: paraInstantOuUndefined(filtros.prazoAte),
+    prazoDe: filtros.semPrazo ? undefined : paraInstantOuUndefined(filtros.prazoDe),
+    prazoAte: filtros.semPrazo ? undefined : paraInstantOuUndefined(filtros.prazoAte),
     duracaoDe: paraNumeroOuUndefined(filtros.duracaoDe),
     duracaoAte: paraNumeroOuUndefined(filtros.duracaoAte),
-    projetoId: filtros.projetoId || undefined,
-    tagIds: filtros.tagIds.length ? filtros.tagIds : undefined,
+    projetoId: filtros.semProjeto ? undefined : filtros.projetoId || undefined,
+    tagIds: filtros.semTag ? undefined : filtros.tagIds.length ? filtros.tagIds : undefined,
+    semPrazo: filtros.semPrazo || undefined,
+    semProjeto: filtros.semProjeto || undefined,
+    semTag: filtros.semTag || undefined,
     page: filtros.page,
     size: filtros.size,
     sort: filtros.sort,
@@ -85,6 +91,9 @@ function ehFiltroBasicoTodas(filtros: FiltrosListaUrl): boolean {
     !filtros.duracaoAte &&
     !filtros.projetoId &&
     filtros.tagIds.length === 0 &&
+    !filtros.semPrazo &&
+    !filtros.semProjeto &&
+    !filtros.semTag &&
     filtros.sort === 'prazo' &&
     filtros.direction === 'asc'
   )
@@ -333,7 +342,7 @@ export function TarefasPage() {
       return
     }
     try {
-      const page = await listarTarefas({ parentId: id, size: 100 })
+      const page = await listarTarefas({ parentId: id, size: 100, sort: 'ordem' })
       setFilhosPorPai((atual) => ({ ...atual, [id]: page.content }))
     } catch (error) {
       setExpandidoIds((atual) => {
@@ -363,6 +372,16 @@ export function TarefasPage() {
     lerSilenciosamente()
   }
 
+  async function handleReordenar(ids: string[]) {
+    try {
+      await reordenarTarefas(ids)
+    } catch (error) {
+      toast.error(mensagemErro(error, 'Não foi possível reordenar as tarefas.'))
+      lerSilenciosamente()
+      throw error
+    }
+  }
+
   const contextoDrawer: TarefasOutletContext = {
     projetosAtivos,
     aoAtualizar: (tarefa) => {
@@ -385,7 +404,16 @@ export function TarefasPage() {
       : visaoArvore || visaoPlana
         ? resultado.content
         : tarefasNoNivelDaLista(resultado.content)
-  const grupos = agruparPorPrazo(tarefasTopo, new Date(), false, filtrosUrl.tagIds)
+  const podeArrastar =
+    filtrosUrl.sort === 'prazo' &&
+    filtrosUrl.visao !== 'excluidas' &&
+    filtrosUrl.tagIds.length < 2
+  const grupos = agruparPorPrazo(
+    podeArrastar ? [...tarefasTopo].sort(compararOrdem) : tarefasTopo,
+    new Date(),
+    false,
+    filtrosUrl.tagIds,
+  )
   const listaVazia = resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
   const temChips = chipsAtivos(filtrosUrl, projetosAtivos, catalogoTags).length > 0
@@ -478,8 +506,12 @@ export function TarefasPage() {
                     {grupo.label}{' '}
                     <span className="tarefa-grupo__contador">({grupo.tarefas.length})</span>
                   </h2>
-                  <ul className="tarefa-cards">
-                    {grupo.tarefas.map((tarefa) => {
+                  <TarefaListaArrastavel
+                    tarefas={grupo.tarefas}
+                    onReordenar={(ids) => handleReordenar(ids)}
+                    disabled={!podeArrastar}
+                    className="tarefa-cards"
+                    renderItem={(tarefa, handle) => {
                       const filhos = visaoArvore
                         ? (filhosPorPai[tarefa.id] ?? [])
                         : visaoPlana || resultado == null
@@ -492,7 +524,7 @@ export function TarefasPage() {
                       const indicadorPai =
                         Boolean(tarefa.parentId) && !visaoPlana && !visaoArvore
                       return (
-                        <li key={tarefa.id} className="tarefa-arvore-item">
+                        <>
                           <TarefaCard
                             tarefa={tarefa}
                             visao={filtrosUrl.visao}
@@ -505,30 +537,32 @@ export function TarefasPage() {
                               podeExpandir ? () => void handleToggleExpand(tarefa) : undefined
                             }
                             indicadorPai={indicadorPai}
+                            arrasteHandle={handle}
                           />
                           {expandido && filhos.length > 0 ? (
-                            <ul
+                            <TarefaListaArrastavel
+                              tarefas={filhos}
+                              onReordenar={(ids) => handleReordenar(ids)}
+                              disabled={!podeArrastar}
                               className="tarefa-cards tarefa-cards--aninhados"
-                              aria-label={`Subtarefas de ${tarefa.titulo}`}
-                            >
-                              {filhos.map((filho) => (
-                                <li key={filho.id} className="tarefa-arvore-item">
-                                  <TarefaCard
-                                    tarefa={filho}
-                                    visao={filtrosUrl.visao}
-                                    search={location.search}
-                                    onExcluir={(t) => void handleExcluir(t)}
-                                    onRestaurar={(t) => void handleRestaurar(t)}
-                                    onSessaoAlterada={lerSilenciosamente}
-                                  />
-                                </li>
-                              ))}
-                            </ul>
+                              ariaLabel={`Subtarefas de ${tarefa.titulo}`}
+                              renderItem={(filho, filhoHandle) => (
+                                <TarefaCard
+                                  tarefa={filho}
+                                  visao={filtrosUrl.visao}
+                                  search={location.search}
+                                  onExcluir={(t) => void handleExcluir(t)}
+                                  onRestaurar={(t) => void handleRestaurar(t)}
+                                  onSessaoAlterada={lerSilenciosamente}
+                                  arrasteHandle={filhoHandle}
+                                />
+                              )}
+                            />
                           ) : null}
-                        </li>
+                        </>
                       )
-                    })}
-                  </ul>
+                    }}
+                  />
                 </section>
               ))}
             </div>

@@ -14,6 +14,7 @@ import {
   iniciarTarefaSessao,
   listarTarefas,
   restaurarTarefa,
+  reordenarTarefas,
   type TarefaResponse,
 } from './tarefaApi'
 
@@ -211,6 +212,28 @@ describe('tarefaApi', () => {
         message: 'O prazo não pode estar no passado.',
       })
     }
+  })
+
+  it('lista com filtros de ausência sem prazo, projeto e tag', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          number: 0,
+          size: 20,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    await listarTarefas({ semPrazo: true, semProjeto: true, semTag: true })
+
+    const [url] = vi.mocked(apiClient.apiFetch).mock.calls[0]
+    expect(url).toContain('semPrazo=true')
+    expect(url).toContain('semProjeto=true')
+    expect(url).toContain('semTag=true')
   })
 
   it('lista com filtro projetoId', async () => {
@@ -469,5 +492,17 @@ describe('tarefaApi', () => {
       expect(error).toBeInstanceOf(ApiError)
       expect(error).toMatchObject({ status: 400, message: 'Isso criaria um ciclo.' })
     }
+  })
+
+  it('reordena tarefas via PUT /tarefas/ordem', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+    await reordenarTarefas(['t-2', 't-1'])
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/ordem', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ['t-2', 't-1'] }),
+    })
   })
 })

@@ -7,11 +7,16 @@ import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
+import { ArrasteHandle } from '../../lista/ArrasteHandle'
+import { compararOrdem } from '../../lista/listaOrdem'
+import { useListaArrastavel } from '../../lista/useListaArrastavel'
 import {
   arquivarProjeto,
   listarProjetos,
   reativarProjeto,
+  reordenarProjetos,
   type PageProjeto,
+  type ProjetoResponse,
   type StatusProjeto,
 } from '../api/projetoApi'
 import { TagChipList } from '../../tag/TagChip'
@@ -49,6 +54,114 @@ function truncarDescricao(descricao: string | null, max = 120): string | null {
     return texto
   }
   return `${texto.slice(0, max - 1)}…`
+}
+
+function ProjetosLista({
+  projetos,
+  tagIds,
+  acaoId,
+  onArquivar,
+  onReativar,
+  onReordenar,
+}: {
+  projetos: ProjetoResponse[]
+  tagIds: string[]
+  acaoId: string | null
+  onArquivar: (id: string, nome: string) => void
+  onReativar: (id: string) => void
+  onReordenar: (ids: string[]) => void | Promise<void>
+}) {
+  const podeArrastar = tagIds.length < 2
+  const ordenados = useMemo(
+    () =>
+      podeArrastar ? [...projetos].sort(compararOrdem) : ordenarPorTagMatch(projetos, tagIds),
+    [projetos, tagIds, podeArrastar],
+  )
+  const ids = useMemo(() => ordenados.map((projeto) => projeto.id), [ordenados])
+  const { idsVisiveis, arrastandoId, registrarItem, handleProps } = useListaArrastavel({
+    ids,
+    onReordenar,
+    disabled: !podeArrastar,
+  })
+  const porId = useMemo(
+    () => new Map(ordenados.map((projeto) => [projeto.id, projeto])),
+    [ordenados],
+  )
+
+  return (
+    <ul className="projeto-cards">
+      {idsVisiveis.map((id) => {
+        const projeto = porId.get(id)
+        if (!projeto) {
+          return null
+        }
+        const descricaoCurta = truncarDescricao(projeto.descricao)
+        return (
+          <li
+            key={projeto.id}
+            ref={(el) => registrarItem(projeto.id, el)}
+            className={[
+              projeto.status === 'ARQUIVADO' ? 'projeto-card projeto-card--arquivado' : 'projeto-card',
+              arrastandoId === projeto.id ? 'lista-arraste__item--arrastando' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <ArrasteHandle
+              label={`Reordenar ${projeto.nome}`}
+              disabled={!podeArrastar}
+              {...handleProps(projeto.id)}
+            />
+            <div className="projeto-card__principal">
+              <Link to={`/tarefas?projetoId=${projeto.id}`} className="projeto-card__titulo">
+                {projeto.nome}
+              </Link>
+              <div className="projeto-card__meta">
+                <span className={`badge status-${projeto.status.toLowerCase()}`}>
+                  {STATUS_LABEL[projeto.status]}
+                </span>
+                <TagChipList tags={projeto.tags} />
+              </div>
+              {descricaoCurta ? (
+                <p className="projeto-card__descricao">{descricaoCurta}</p>
+              ) : null}
+            </div>
+            <div className="projeto-card__acoes">
+              <Link to={`/projetos/${projeto.id}`} className="btn btn--ghost btn--sm">
+                <PencilSimpleIcon aria-hidden />
+                Editar
+              </Link>
+              <Link to={`/tarefas?projetoId=${projeto.id}`} className="btn btn--ghost btn--sm">
+                Ver tarefas
+              </Link>
+              <Link to="/capacidade" className="btn btn--ghost btn--sm">
+                Reservar tempo
+              </Link>
+              {projeto.status === 'ARQUIVADO' ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={acaoId === projeto.id}
+                  onClick={() => onReativar(projeto.id)}
+                >
+                  {acaoId === projeto.id ? 'Reativando…' : 'Reativar'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={acaoId === projeto.id}
+                  onClick={() => onArquivar(projeto.id, projeto.nome)}
+                >
+                  {acaoId === projeto.id ? 'Arquivando…' : 'Arquivar'}
+                </button>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 export function ProjetosPage() {
@@ -242,75 +355,26 @@ export function ProjetosPage() {
               )}
             </div>
           ) : (
-            <ul className="projeto-cards">
-              {ordenarPorTagMatch(resultado.content, tagIds).map((projeto) => {
-                const descricaoCurta = truncarDescricao(projeto.descricao)
-                return (
-                  <li
-                    key={projeto.id}
-                    className={
-                      projeto.status === 'ARQUIVADO'
-                        ? 'projeto-card projeto-card--arquivado'
-                        : 'projeto-card'
-                    }
-                  >
-                    <div className="projeto-card__principal">
-                      <Link to={`/projetos/${projeto.id}`} className="projeto-card__titulo">
-                        {projeto.nome}
-                      </Link>
-                      <div className="projeto-card__meta">
-                        <span
-                          className={`badge status-${projeto.status.toLowerCase()}`}
-                        >
-                          {STATUS_LABEL[projeto.status]}
-                        </span>
-                        <TagChipList tags={projeto.tags} />
-                      </div>
-                      {descricaoCurta ? (
-                        <p className="projeto-card__descricao">{descricaoCurta}</p>
-                      ) : null}
-                    </div>
-                    <div className="projeto-card__acoes">
-                      <Link
-                        to={`/projetos/${projeto.id}`}
-                        className="btn btn--ghost btn--sm"
-                      >
-                        <PencilSimpleIcon aria-hidden />
-                        Editar
-                      </Link>
-                      <Link
-                        to={`/tarefas?projetoId=${projeto.id}`}
-                        className="btn btn--ghost btn--sm"
-                      >
-                        Ver tarefas
-                      </Link>
-                      <Link to="/capacidade" className="btn btn--ghost btn--sm">
-                        Reservar tempo
-                      </Link>
-                      {projeto.status === 'ARQUIVADO' ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === projeto.id}
-                          onClick={() => void handleReativar(projeto.id)}
-                        >
-                          {acaoId === projeto.id ? 'Reativando…' : 'Reativar'}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === projeto.id}
-                          onClick={() => void handleArquivar(projeto.id, projeto.nome)}
-                        >
-                          {acaoId === projeto.id ? 'Arquivando…' : 'Arquivar'}
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <ProjetosLista
+              projetos={resultado.content}
+              tagIds={tagIds}
+              acaoId={acaoId}
+              onArquivar={(id, nome) => void handleArquivar(id, nome)}
+              onReativar={(id) => void handleReativar(id)}
+              onReordenar={async (ids) => {
+                try {
+                  await reordenarProjetos(ids)
+                } catch (error) {
+                  setErro(
+                    error instanceof ApiError
+                      ? error.message
+                      : 'Não foi possível reordenar os projetos.',
+                  )
+                  setRecarregarEm((n) => n + 1)
+                  throw error
+                }
+              }}
+            />
           )}
 
           {totalPages > 1 ? (

@@ -18,6 +18,8 @@ export type ProjetoResponse = {
   esperas?: EsperaResumo[]
   /** Projeto bloqueado por espera irresolvida. */
   bloqueada?: boolean
+  /** Posição manual na lista. Ausente em payloads antigos. */
+  ordem?: number
 }
 
 export type PageProjeto = {
@@ -155,5 +157,16 @@ export async function excluirEsperaProjeto(id: string, esperaId: string): Promis
   const response = await apiFetch(`/projetos/${id}/esperas/${esperaId}`, { method: 'DELETE' })
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível remover a espera.')
+  }
+}
+
+export async function reordenarProjetos(ids: string[]): Promise<void> {
+  const response = await apiFetch('/projetos/ordem', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível reordenar os projetos.')
   }
 }

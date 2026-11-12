@@ -24,6 +24,7 @@ vi.mock('../api/projetoApi', () => ({
   arquivarProjeto: vi.fn(),
   reativarProjeto: vi.fn(),
   criarProjeto: vi.fn(),
+  reordenarProjetos: vi.fn(),
 }))
 
 const pagina = {
@@ -67,6 +68,8 @@ describe('ProjetosPage', () => {
     vi.mocked(projetoApi.arquivarProjeto).mockReset()
     vi.mocked(projetoApi.reativarProjeto).mockReset()
     vi.mocked(projetoApi.criarProjeto).mockReset()
+    vi.mocked(projetoApi.reordenarProjetos).mockReset()
+    vi.mocked(projetoApi.reordenarProjetos).mockResolvedValue(undefined)
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue(pagina)
   })
 
@@ -164,6 +167,16 @@ describe('ProjetosPage', () => {
       name: /ver tarefas/i,
     })
     expect(verTarefas).toHaveAttribute('href', '/tarefas?projetoId=p-tcc')
+  })
+
+  it('clicar no nome do projeto entra na lista de tarefas do projeto', async () => {
+    const user = userEvent.setup()
+    renderLista()
+
+    await user.click(await screen.findByRole('link', { name: 'TCC' }))
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/tarefas?projetoId=p-tcc')
+    expect(screen.getByText('página tarefas')).toBeInTheDocument()
   })
 
   it('T4: há caminho para /capacidade a partir da lista', async () => {
@@ -299,5 +312,27 @@ describe('ProjetosPage', () => {
     })
     expect(screen.queryByRole('dialog', { name: /novo projeto/i })).not.toBeInTheDocument()
     expect(projetoApi.criarProjeto).not.toHaveBeenCalled()
+  })
+
+  it('reordena projetos com seta no handle', async () => {
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      ...pagina,
+      totalElements: 2,
+      content: [
+        { ...pagina.content[0], id: 'p-a', nome: 'Alpha', ordem: 0 },
+        { ...pagina.content[0], id: 'p-b', nome: 'Beta', ordem: 1 },
+      ],
+    })
+    const user = userEvent.setup()
+    renderLista()
+
+    await screen.findByText('Alpha')
+    const handle = screen.getByRole('button', { name: 'Reordenar Alpha' })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+
+    await waitFor(() => {
+      expect(projetoApi.reordenarProjetos).toHaveBeenCalledWith(['p-b', 'p-a'])
+    })
   })
 })

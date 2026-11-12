@@ -30,6 +30,9 @@ public class Projeto {
     @Column(nullable = false, length = 20)
     private StatusProjeto status;
 
+    @Column(nullable = false)
+    private int ordem;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -77,12 +80,21 @@ public class Projeto {
         return status;
     }
 
+    public int getOrdem() {
+        return ordem;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void definirOrdem(int ordem, Instant updatedAt) {
+        this.ordem = ordem;
+        this.updatedAt = updatedAt;
     }
 
     public void atualizar(String nome, String descricao, Instant updatedAt) {

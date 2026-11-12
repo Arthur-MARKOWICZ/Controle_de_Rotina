@@ -40,6 +40,9 @@ describe('listaArvore', () => {
     expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, duracaoDe: '30' })).toBe(true)
     expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, projetoId: 'p-1' })).toBe(true)
     expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, tagIds: ['tag-1'] })).toBe(true)
+    expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, semPrazo: true })).toBe(true)
+    expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, semProjeto: true })).toBe(true)
+    expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, semTag: true })).toBe(true)
     expect(ehVisaoArvore({ ...FILTROS_LISTA_INICIAIS, prioridade: ['ALTA'] })).toBe(false)
   })
 
@@ -60,14 +63,24 @@ describe('listaArvore', () => {
     ])
   })
 
-  it('filhos na página vêm só daquele pai, na ordem de criação', () => {
-    const segundo = tarefa({ id: 'b', parentId: 'pai', createdAt: '2026-01-01T12:00:00Z' })
-    const primeiro = tarefa({ id: 'a', parentId: 'pai', createdAt: '2026-01-01T10:00:00Z' })
+  it('filhos na página vêm só daquele pai, na ordem manual', () => {
+    const segundo = tarefa({
+      id: 'b',
+      parentId: 'pai',
+      ordem: 0,
+      createdAt: '2026-01-01T12:00:00Z',
+    })
+    const primeiro = tarefa({
+      id: 'a',
+      parentId: 'pai',
+      ordem: 1,
+      createdAt: '2026-01-01T10:00:00Z',
+    })
     const outro = tarefa({ id: 'c', parentId: 'outro' })
 
-    expect(filhosNaPagina([segundo, primeiro, outro], 'pai').map((item) => item.id)).toEqual([
-      'a',
+    expect(filhosNaPagina([primeiro, segundo, outro], 'pai').map((item) => item.id)).toEqual([
       'b',
+      'a',
     ])
   })
 })

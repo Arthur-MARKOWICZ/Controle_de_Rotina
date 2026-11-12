@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.controlerotina.habito.entity.Habito;
 import com.controlerotina.habito.entity.StatusHabito;
@@ -37,4 +39,16 @@ public interface HabitoRepository extends JpaRepository<Habito, UUID>, JpaSpecif
             StatusHabito status,
             Pageable pageable
     );
+
+    List<Habito> findByUsuarioIdAndDeletedAtIsNullOrderByOrdemAscCreatedAtAsc(UUID usuarioId);
+
+    List<Habito> findByUsuarioIdAndDeletedAtIsNotNullOrderByOrdemAscCreatedAtAsc(UUID usuarioId);
+
+    @Query("""
+            SELECT COALESCE(MAX(h.ordem), -1)
+              FROM Habito h
+             WHERE h.usuarioId = :usuarioId
+               AND h.deletedAt IS NULL
+            """)
+    int findMaxOrdemAtivos(@Param("usuarioId") UUID usuarioId);
 }

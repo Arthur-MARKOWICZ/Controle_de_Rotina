@@ -1,18 +1,21 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
 import { useToast } from '../feedback/ToastProvider'
 import { STATUS_TAREFA_LABEL } from '../home/labels'
-import { buscarTarefa, criarTarefa, listarTarefas, type TarefaResponse } from './api/tarefaApi'
+import { ArrasteHandle } from '../lista/ArrasteHandle'
+import { compararOrdem } from '../lista/listaOrdem'
+import { useListaArrastavel } from '../lista/useListaArrastavel'
+import { buscarTarefa, criarTarefa, listarTarefas, reordenarTarefas, type TarefaResponse } from './api/tarefaApi'
 
 type Props = {
   parent: TarefaResponse
   onPaiAtualizado: (tarefa: TarefaResponse) => void
 }
 
-function ordenarPorCriacao(filhos: TarefaResponse[]): TarefaResponse[] {
-  return [...filhos].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+function ordenarFilhos(filhos: TarefaResponse[]): TarefaResponse[] {
+  return [...filhos].sort(compararOrdem)
 }
 
 function mensagemErro(error: unknown, fallback: string): string {
@@ -36,9 +39,9 @@ export function TarefaSubtarefasSection({ parent, onPaiAtualizado }: Props) {
     async function carregar() {
       setCarregando(true)
       try {
-        const page = await listarTarefas({ parentId: parent.id, size: 100 })
+        const page = await listarTarefas({ parentId: parent.id, size: 100, sort: 'ordem' })
         if (ativo) {
-          setFilhos(ordenarPorCriacao(page.content))
+          setFilhos(ordenarFilhos(page.content))
         }
       } catch {
         if (ativo) {
@@ -87,7 +90,7 @@ export function TarefaSubtarefasSection({ parent, onPaiAtualizado }: Props) {
         titulo: texto,
         parentId: parent.id,
       })
-      setFilhos((atual) => ordenarPorCriacao([...atual.filter((item) => item.id !== criada.id), criada]))
+      setFilhos((atual) => ordenarFilhos([...atual.filter((item) => item.id !== criada.id), criada]))
       setTitulo('')
       toast.success('Subtarefa criada')
       try {
@@ -102,6 +105,28 @@ export function TarefaSubtarefasSection({ parent, onPaiAtualizado }: Props) {
     }
   }
 
+  const ids = useMemo(() => filhos.map((filho) => filho.id), [filhos])
+  const { idsVisiveis, arrastandoId, registrarItem, handleProps } = useListaArrastavel({
+    ids,
+    disabled: filhos.length < 2,
+    onReordenar: async (novos) => {
+      try {
+        await reordenarTarefas(novos)
+        setFilhos((atual) => {
+          const porId = new Map(atual.map((item) => [item.id, item]))
+          return novos.flatMap((id, index) => {
+            const item = porId.get(id)
+            return item ? [{ ...item, ordem: index }] : []
+          })
+        })
+      } catch (error) {
+        toast.error(mensagemErro(error, 'Não foi possível reordenar as subtarefas.'))
+        throw error
+      }
+    },
+  })
+  const filhosPorId = useMemo(() => new Map(filhos.map((filho) => [filho.id, filho])), [filhos])
+
   return (
     <section className="tarefa-subtarefas" aria-labelledby="tarefa-subtarefas-titulo">
       <div className="tarefa-subtarefas__cabecalho">
@@ -115,20 +140,39 @@ export function TarefaSubtarefasSection({ parent, onPaiAtualizado }: Props) {
         <p role="status">Carregando subtarefas…</p>
       ) : filhos.length > 0 ? (
         <ul className="tarefa-subtarefas__lista">
-          {filhos.map((filho) => (
-            <li key={filho.id}>
-              <Link
-                to={{ pathname: `/tarefas/${filho.id}`, search: location.search }}
-                state={{ daLista: true }}
-                className="tarefa-subtarefas__item"
+          {idsVisiveis.map((id) => {
+            const filho = filhosPorId.get(id)
+            if (!filho) {
+              return null
+            }
+            return (
+              <li
+                key={filho.id}
+                ref={(el) => registrarItem(filho.id, el)}
+                className={
+                  arrastandoId === filho.id
+                    ? 'tarefa-subtarefas__linha lista-arraste__item lista-arraste__item--arrastando'
+                    : 'tarefa-subtarefas__linha lista-arraste__item'
+                }
               >
-                <span className="tarefa-subtarefas__nome">{filho.titulo}</span>
-                <span className="tarefa-subtarefas__meta">
-                  {filho.duracaoMinutos} min · {STATUS_TAREFA_LABEL[filho.status]}
-                </span>
-              </Link>
-            </li>
-          ))}
+                <ArrasteHandle
+                  label={`Reordenar ${filho.titulo}`}
+                  disabled={filhos.length < 2}
+                  {...handleProps(filho.id)}
+                />
+                <Link
+                  to={{ pathname: `/tarefas/${filho.id}`, search: location.search }}
+                  state={{ daLista: true }}
+                  className="tarefa-subtarefas__item"
+                >
+                  <span className="tarefa-subtarefas__nome">{filho.titulo}</span>
+                  <span className="tarefa-subtarefas__meta">
+                    {filho.duracaoMinutos} min · {STATUS_TAREFA_LABEL[filho.status]}
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="tarefa-subtarefas__vazio">Nenhuma subtarefa ainda.</p>

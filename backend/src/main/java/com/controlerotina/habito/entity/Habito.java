@@ -57,6 +57,9 @@ public class Habito {
     @Column(name = "melhor_streak", nullable = false)
     private int melhorStreak;
 
+    @Column(nullable = false)
+    private int ordem;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -137,6 +140,10 @@ public class Habito {
         return melhorStreak;
     }
 
+    public int getOrdem() {
+        return ordem;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -151,6 +158,11 @@ public class Habito {
 
     public boolean isDeletado() {
         return deletedAt != null;
+    }
+
+    public void definirOrdem(int ordem, Instant updatedAt) {
+        this.ordem = ordem;
+        this.updatedAt = updatedAt;
     }
 
     public void atualizar(

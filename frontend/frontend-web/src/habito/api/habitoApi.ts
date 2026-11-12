@@ -22,6 +22,8 @@ export type HabitoResponse = {
   deletada: boolean
   tags?: TagResumo[]
   tagMatchScore?: number | null
+  /** Posição manual na lista. Ausente em payloads antigos. */
+  ordem?: number
 }
 
 export type PageHabito = {
@@ -157,6 +159,17 @@ export async function restaurarHabito(id: string): Promise<HabitoResponse> {
     throw await lerErroApi(response, 'Não foi possível restaurar o hábito.')
   }
   return (await response.json()) as HabitoResponse
+}
+
+export async function reordenarHabitos(ids: string[]): Promise<void> {
+  const response = await apiFetch('/habitos/ordem', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível reordenar os hábitos.')
+  }
 }
 
 export type SlotExecucaoHabito = {

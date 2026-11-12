@@ -38,8 +38,10 @@ import com.controlerotina.shared.exception.PaiComBlocoConcluidoException;
 import com.controlerotina.shared.exception.PrazoNoPassadoException;
 import com.controlerotina.shared.exception.ProjetoArquivadoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
+import com.controlerotina.shared.exception.ReordenacaoInvalidaException;
 import com.controlerotina.shared.exception.SubtarefaNivelInvalidoException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
+import com.controlerotina.shared.ordem.Reordenacao;
 import com.controlerotina.tag.dto.TagResumoResponse;
 import com.controlerotina.tag.service.TagVinculoService;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
@@ -130,6 +132,10 @@ public class TarefaService {
         if (pai != null) {
             tarefa.definirParentId(pai.getId());
         }
+        tarefa.definirOrdem(
+                tarefaRepository.findMaxOrdemIrmaos(usuarioId, pai == null ? null : pai.getId()) + 1,
+                agora
+        );
 
         Tarefa salva = tarefaRepository.save(tarefa);
         tarefaRepository.flush();
@@ -161,7 +167,7 @@ public class TarefaService {
 
     @Transactional(readOnly = true)
     public Page<TarefaResponse> listar(UUID usuarioId, TarefaFiltro filtro, Pageable pageable) {
-        List<UUID> tagIds = filtro.tagIds() == null
+        List<UUID> tagIds = filtro.semTag() || filtro.tagIds() == null
                 ? List.of()
                 : filtro.tagIds().stream().filter(Objects::nonNull).distinct().toList();
 
@@ -169,15 +175,21 @@ public class TarefaService {
                 TarefaSpecs.doUsuario(usuarioId),
                 TarefaSpecs.comStatus(filtro.status()),
                 TarefaSpecs.comPrioridade(filtro.prioridade()),
-                TarefaSpecs.prazoEntre(filtro.prazoDe(), filtro.prazoAte()),
+                TarefaSpecs.prazoEntre(
+                        filtro.semPrazo() ? null : filtro.prazoDe(),
+                        filtro.semPrazo() ? null : filtro.prazoAte()
+                ),
                 TarefaSpecs.duracaoEntre(filtro.duracaoDe(), filtro.duracaoAte()),
                 TarefaSpecs.criadoEntre(filtro.criadoDe(), filtro.criadoAte()),
                 TarefaSpecs.atualizadoEntre(filtro.atualizadoDe(), filtro.atualizadoAte()),
                 TarefaSpecs.filtroDelecao(filtro.incluirDeletadas(), filtro.somenteDeletadas()),
-                TarefaSpecs.comProjetoId(filtro.projetoId()),
+                TarefaSpecs.comProjetoId(filtro.semProjeto() ? null : filtro.projetoId()),
                 TarefaSpecs.comAlgumaTag(tagIds),
                 TarefaSpecs.comParentId(filtro.parentId()),
-                TarefaSpecs.somenteRaizes(filtro.somenteRaizes())
+                TarefaSpecs.somenteRaizes(filtro.somenteRaizes()),
+                TarefaSpecs.semPrazo(filtro.semPrazo()),
+                TarefaSpecs.semProjeto(filtro.semProjeto()),
+                TarefaSpecs.semTag(filtro.semTag())
         );
 
         Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
@@ -511,6 +523,37 @@ public class TarefaService {
                 tarefa,
                 tagVinculoService.listarTagsTarefa(tarefa.getId())
         );
+    }
+
+    @Transactional
+    public void reordenar(UUID usuarioId, List<UUID> ids) {
+        List<Tarefa> itens = carregarItensDoUsuario(ids, usuarioId);
+        UUID parentId = itens.get(0).getParentId();
+        boolean deletadas = itens.get(0).getDeletedAt() != null;
+        for (Tarefa item : itens) {
+            if (!Objects.equals(item.getParentId(), parentId)) {
+                throw new ReordenacaoInvalidaException("Reordene apenas tarefas do mesmo nível.");
+            }
+            if ((item.getDeletedAt() != null) != deletadas) {
+                throw new ReordenacaoInvalidaException("Não misture itens excluídos e ativos.");
+            }
+        }
+
+        List<Tarefa> irmaos = tarefaRepository.findIrmaosOrdenados(usuarioId, parentId, deletadas);
+        List<Tarefa> reordenados = Reordenacao.aplicar(irmaos, ids, Tarefa::getId);
+        Instant agora = clock.instant();
+        for (int i = 0; i < reordenados.size(); i++) {
+            reordenados.get(i).definirOrdem(i, agora);
+        }
+        tarefaRepository.saveAll(reordenados);
+    }
+
+    private List<Tarefa> carregarItensDoUsuario(List<UUID> ids, UUID usuarioId) {
+        List<Tarefa> itens = tarefaRepository.findAllById(ids);
+        if (itens.size() != ids.size() || itens.stream().anyMatch(t -> !t.getUsuarioId().equals(usuarioId))) {
+            throw new TarefaNaoEncontradaException();
+        }
+        return itens;
     }
 
     private Map<UUID, Integer> carregarRestantes(UUID usuarioId, List<Tarefa> tarefas) {
