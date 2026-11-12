@@ -69,7 +69,7 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/usuarios`     | cadastro                                   |
 | `/auth`         | login, refresh, logout                     |
 | `/me`           | perfil                                     |
-| `/tarefas`      | CRUD tarefas                               |
+| `/tarefas`      | CRUD tarefas (SPA e API no mesmo path; ver nota abaixo) |
 | `/capacidades`  | semanal, overrides, resolvida              |
 | `/planos`       | planner (consulta, gerar, ajuste, aprovar) |
 | `/execucoes`    | execução de blocos (listar, iniciar, concluir, abortar) |
@@ -80,7 +80,7 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/tags`         | CRUD de tags (SPA e API no mesmo path; ver nota abaixo) |
 | `/decidir`      | fila Decidir (SPA e API no mesmo path; ver nota abaixo) |
 
-**Nota `/calendario`, `/projetos`, `/habitos`, `/tags` e `/decidir`:** a tela React e a API compartilham o path.  
+**Nota `/calendario`, `/projetos`, `/habitos`, `/tags`, `/decidir` e `/tarefas`:** a tela React e a API compartilham o path.  
 No Vite, o proxy usa `bypass` quando `Accept` contém `text/html` (navegação → SPA).  
 No Nginx, `map $http_accept` + `error_page 418` encaminha só pedidos com `application/json` ao backend.  
 O `apiFetch` já envia `Accept: application/json`.
@@ -105,9 +105,9 @@ curl -sI "http://localhost:5173/planos?data=2026-10-20" | head -5
 
 ## Não abra esses URLs como “página” no browser
 
-`/capacidades/...`, `/planos`, `/tarefas`, etc. são **API**, não telas.  
+`/capacidades/...`, `/planos`, etc. são **API**, não telas.  
 Abrir no browser sem header `Authorization` → **401** (antes podia parecer página em branco).  
-Use a UI logada (`/capacidade`, `/`) ou o DevTools → Network com a sessão ativa.
+Use a UI logada (`/tarefas`, `/capacidade`, `/plano`) ou o DevTools → Network com a sessão ativa.
 
 | Path | O que é |
 |------|---------|
@@ -123,6 +123,8 @@ Use a UI logada (`/capacidade`, `/`) ou o DevTools → Network com a sessão ati
 | `/habitos`, `/habitos/{id}`, … (Accept JSON) | API (proxy → backend) |
 | `/decidir` (navegação HTML) | Tela React (SPA) |
 | `/decidir`, `/decidir/{id}`, … (Accept JSON) | API (proxy → backend) |
+| `/tarefas` (navegação HTML) | Tela React (SPA) |
+| `/tarefas`, `/tarefas/{id}`, … (Accept JSON) | API (proxy → backend) |
 
 ## Erro “API devolveu a página do front (SPA)”
 

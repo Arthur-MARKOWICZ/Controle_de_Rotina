@@ -29,13 +29,23 @@ export type SessaoAtiva = {
   titulo: string
   duracaoMinutos: number
   iniciadoEm: string | null
+  habitoId?: string | null
+}
+
+type OrigemSessao = {
+  habitoId?: string
 }
 
 type SessaoAtivaContextValue = {
   sessao: SessaoAtiva | null
   ocupado: boolean
   definirSessao: (sessao: SessaoAtiva) => void
-  registrarInicio: (titulo: string, duracaoMinutos: number, execucao: ExecucaoResponse) => void
+  registrarInicio: (
+    titulo: string,
+    duracaoMinutos: number,
+    execucao: ExecucaoResponse,
+    origem?: OrigemSessao,
+  ) => void
   refrescarDoDia: () => Promise<void>
   limpar: () => void
 }
@@ -64,6 +74,7 @@ function itemParaSessao(item: ItemExecucaoResponse): SessaoAtiva | null {
     titulo: tituloDoItemExecucao(item),
     duracaoMinutos: item.bloco.duracaoMinutos,
     iniciadoEm: item.execucao.iniciadoEm,
+    habitoId: item.habitoResumo?.id ?? null,
   }
 }
 
@@ -78,7 +89,16 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
     try {
       const dia = await listarExecucoes(dataHojeIso())
       const ativo = escolherMaisRecente(dia.itens)
-      setSessao(ativo ? itemParaSessao(ativo) : null)
+      setSessao((atual) => {
+        if (ativo) {
+          return itemParaSessao(ativo)
+        }
+        // GET /execucoes só lista o plano APROVADO; sessão avulsa de hábito não vem nessa lista.
+        if (atual?.habitoId) {
+          return atual
+        }
+        return null
+      })
     } catch {
       // Mantém sessão local se a listagem falhar (ex.: avulso ainda não listável).
     }
@@ -97,7 +117,12 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const registrarInicio = useCallback(
-    (titulo: string, duracaoMinutos: number, execucao: ExecucaoResponse) => {
+    (
+      titulo: string,
+      duracaoMinutos: number,
+      execucao: ExecucaoResponse,
+      origem?: OrigemSessao,
+    ) => {
       if (!execucao.blocoPlanoId) {
         return
       }
@@ -107,6 +132,7 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
         titulo,
         duracaoMinutos,
         iniciadoEm: execucao.iniciadoEm,
+        habitoId: origem?.habitoId ?? null,
       })
     },
     [],

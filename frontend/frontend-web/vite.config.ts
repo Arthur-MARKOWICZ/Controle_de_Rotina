@@ -9,7 +9,6 @@ const API_PROXY_PREFIXES = [
   '/usuarios',
   '/auth',
   '/me',
-  '/tarefas',
   '/capacidades',
   '/planos',
   '/execucoes',
@@ -24,7 +23,7 @@ const backendProxy = {
 }
 
 /**
- * SPA e API compartilham o path (ex.: /calendario, /projetos).
+ * SPA e API compartilham o path (ex.: /tarefas, /calendario, /projetos).
  * Navegação do browser (Accept: text/html) → index.html;
  * fetch da API (Accept: application/json) → proxy no backend.
  */
@@ -48,6 +47,7 @@ export default defineConfig({
       '/habitos': spaApiSharedProxy,
       '/tags': spaApiSharedProxy,
       '/decidir': spaApiSharedProxy,
+      '/tarefas': spaApiSharedProxy,
     },
   },
   test: {

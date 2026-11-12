@@ -1,4 +1,4 @@
-import { CheckIcon, PencilSimpleIcon } from '@phosphor-icons/react'
+import { CheckIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
@@ -7,7 +7,6 @@ import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
-import { formatarCapacidadeMinutos } from '../../planner/data'
 import {
   excluirHabito,
   listarHabitos,
@@ -16,23 +15,16 @@ import {
   restaurarHabito,
   type HabitoResponse,
   type PageHabito,
-  type StatusHabito,
 } from '../api/habitoApi'
+import { HabitoCard } from '../HabitoCard'
 import type { HabitoDrawerState, HabitosOutletContext } from '../HabitoDrawer'
-import { TagChipList } from '../../tag/TagChip'
 import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
 import { lerTagIdsDaUrl, escreverTagIdsNaUrl } from '../../tag/listaTagUrl'
 import { ordenarPorTagMatch } from '../../tag/tagMatch'
-import { rotuloDiasSemana } from '../validation/habitoForm'
 
 const DRAWER_STATE: HabitoDrawerState = { daLista: true }
 
 type Visao = 'ATIVO' | 'PAUSADO' | 'EXCLUIDOS'
-
-const STATUS_LABEL: Record<StatusHabito, string> = {
-  ATIVO: 'Ativo',
-  PAUSADO: 'Pausado',
-}
 
 const VISOES: { id: Visao; label: string }[] = [
   { id: 'ATIVO', label: 'Ativos' },
@@ -97,7 +89,10 @@ export function HabitosPage() {
     let ativo = true
 
     async function carregar() {
-      setCarregando(true)
+      const primeiraCarga = resultado == null
+      if (primeiraCarga) {
+        setCarregando(true)
+      }
       setErro(null)
       try {
         const data = await listarHabitos(
@@ -300,101 +295,17 @@ export function HabitosPage() {
             </div>
           ) : (
             <ul className="habito-cards">
-              {ordenarPorTagMatch(resultado.content, tagIds).map((habito) => {
-                const dias = rotuloDiasSemana(habito.diasSemana)
-                return (
-                  <li
-                    key={habito.id}
-                    className={
-                      habito.status === 'PAUSADO' || habito.deletada
-                        ? 'habito-card habito-card--pausado'
-                        : 'habito-card'
-                    }
-                  >
-                    <div className="habito-card__principal">
-                      <Link to={`/habitos/${habito.id}`} state={DRAWER_STATE} className="habito-card__titulo">
-                        {habito.titulo}
-                      </Link>
-                      <div className="habito-card__meta">
-                        <span
-                          className={
-                            habito.deletada
-                              ? 'badge status-deletada'
-                              : `badge status-${habito.status.toLowerCase()}`
-                          }
-                        >
-                          {habito.deletada ? 'Excluído' : STATUS_LABEL[habito.status]}
-                        </span>
-                        {dias ? (
-                          <span className="habito-card__dias" aria-label={`Dias: ${dias}`}>
-                            {dias}
-                          </span>
-                        ) : null}
-                        <span>{formatarCapacidadeMinutos(habito.duracaoMinutos)}</span>
-                        {habito.horarioPreferencial ? (
-                          <span aria-label="Horário preferencial">
-                            Pref. {habito.horarioPreferencial.slice(0, 5)}
-                          </span>
-                        ) : null}
-                        {!habito.deletada ? (
-                          <span className="habito-card__streak" aria-label={`Sequência atual ${habito.streakAtual}`}>
-                            Sequência {habito.streakAtual}
-                          </span>
-                        ) : null}
-                        <TagChipList tags={habito.tags} />
-                      </div>
-                    </div>
-                    <div className="habito-card__acoes">
-                      <Link
-                        to={`/habitos/${habito.id}`}
-                        state={DRAWER_STATE}
-                        className="btn btn--ghost btn--sm"
-                      >
-                        <PencilSimpleIcon aria-hidden />
-                        {habito.deletada ? 'Ver' : 'Editar'}
-                      </Link>
-                      {habito.deletada ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === habito.id}
-                          onClick={() => void handleRestaurar(habito.id)}
-                        >
-                          {acaoId === habito.id ? 'Restaurando…' : 'Restaurar'}
-                        </button>
-                      ) : habito.status === 'PAUSADO' ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === habito.id}
-                          onClick={() => void handleReativar(habito.id)}
-                        >
-                          {acaoId === habito.id ? 'Reativando…' : 'Reativar'}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === habito.id}
-                          onClick={() => void handlePausar(habito.id)}
-                        >
-                          {acaoId === habito.id ? 'Pausando…' : 'Pausar'}
-                        </button>
-                      )}
-                      {!habito.deletada ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={acaoId === habito.id}
-                          onClick={() => void handleExcluir(habito.id, habito.titulo)}
-                        >
-                          Excluir
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                )
-              })}
+              {ordenarPorTagMatch(resultado.content, tagIds).map((habito) => (
+                <HabitoCard
+                  key={habito.id}
+                  habito={habito}
+                  acaoId={acaoId}
+                  onPausar={(id) => void handlePausar(id)}
+                  onReativar={(id) => void handleReativar(id)}
+                  onExcluir={(id, titulo) => void handleExcluir(id, titulo)}
+                  onRestaurar={(id) => void handleRestaurar(id)}
+                />
+              ))}
             </ul>
           )}
 
