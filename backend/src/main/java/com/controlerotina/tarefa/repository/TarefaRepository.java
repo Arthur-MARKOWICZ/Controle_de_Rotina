@@ -49,6 +49,10 @@ public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecif
             Collection<StatusTarefa> status
     );
 
+    List<Tarefa> findByProjetoIdAndDeletedAtIsNull(UUID projetoId);
+
+    List<Tarefa> findByProjetoIdInAndDeletedAtIsNull(Collection<UUID> projetoIds);
+
     @Query("""
             SELECT t FROM Tarefa t
              WHERE t.usuarioId = :usuarioId

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '../../feedback/ToastProvider'
+import * as tarefaApi from '../../tarefa/api/tarefaApi'
 import * as projetoApi from '../api/projetoApi'
 import { ProjetoFormPage } from './ProjetoFormPage'
 
@@ -19,6 +20,14 @@ vi.mock('../api/projetoApi', () => ({
   atualizarProjeto: vi.fn(),
   arquivarProjeto: vi.fn(),
   reativarProjeto: vi.fn(),
+  listarProjetos: vi.fn(),
+  criarEsperaProjeto: vi.fn(),
+  excluirEsperaProjeto: vi.fn(),
+  listarEsperasProjeto: vi.fn(),
+}))
+
+vi.mock('../../tarefa/api/tarefaApi', () => ({
+  listarTarefas: vi.fn(),
 }))
 
 const projetoExistente = {
@@ -52,6 +61,22 @@ describe('ProjetoFormPage (F1)', () => {
     vi.mocked(projetoApi.atualizarProjeto).mockReset()
     vi.mocked(projetoApi.arquivarProjeto).mockReset()
     vi.mocked(projetoApi.reativarProjeto).mockReset()
+    vi.mocked(projetoApi.criarEsperaProjeto).mockReset()
+    vi.mocked(projetoApi.excluirEsperaProjeto).mockReset()
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+    })
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+    })
   })
 
   it('T1: edit não usa layout auth-page', async () => {
@@ -190,5 +215,94 @@ describe('ProjetoFormPage (F4 hub)', () => {
       expect(projetoApi.reativarProjeto).toHaveBeenCalledWith('p-tcc')
     })
     expect(await screen.findByRole('button', { name: /^arquivar$/i })).toBeInTheDocument()
+  })
+
+  describe('espera no hub', () => {
+    function secaoEspera() {
+      return screen.getByRole('region', { name: /^espera$/i })
+    }
+
+    it('projeto ativo espera uma tarefa e o hub indica o bloqueio', async () => {
+      const criada = {
+        id: 'e-1',
+        alvoTipo: 'TAREFA' as const,
+        alvoId: 't-1',
+        alvoTitulo: 'Revisar API',
+        resolvida: false,
+      }
+      vi.mocked(projetoApi.buscarProjeto)
+        .mockResolvedValueOnce(projetoExistente)
+        .mockResolvedValue({ ...projetoExistente, esperas: [criada], bloqueada: true })
+      vi.mocked(projetoApi.criarEsperaProjeto).mockResolvedValue(criada)
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
+        content: [
+          {
+            id: 't-1',
+            titulo: 'Revisar API',
+            descricao: '',
+            prioridade: 'MEDIA',
+            prazo: null,
+            status: 'PENDENTE',
+            duracaoMinutos: 30,
+            createdAt: '2026-01-01T10:00:00Z',
+            updatedAt: '2026-01-01T10:00:00Z',
+            deletedAt: null,
+            deletada: false,
+          },
+        ],
+        totalElements: 1,
+        totalPages: 1,
+        number: 0,
+        size: 20,
+      })
+
+      const user = userEvent.setup()
+      renderEditar()
+      await screen.findByRole('heading', { name: 'TCC' })
+
+      await user.click(within(secaoEspera()).getByRole('button', { name: /adicionar espera/i }))
+      await waitFor(() => {
+        expect(within(secaoEspera()).getByRole('combobox')).toBeEnabled()
+      })
+      await user.selectOptions(within(secaoEspera()).getByRole('combobox'), 'TAREFA:t-1')
+      await user.click(within(secaoEspera()).getByRole('button', { name: /confirmar espera/i }))
+
+      await waitFor(() => {
+        expect(projetoApi.criarEsperaProjeto).toHaveBeenCalledWith('p-tcc', {
+          alvoTipo: 'TAREFA',
+          alvoId: 't-1',
+        })
+      })
+      expect(await within(secaoEspera()).findByText('Revisar API')).toBeInTheDocument()
+      expect(within(secaoEspera()).getByText(/bloqueada por/i)).toBeInTheDocument()
+    })
+
+    it('hub de projeto arquivado só lê as esperas', async () => {
+      vi.mocked(projetoApi.buscarProjeto).mockResolvedValue({
+        ...projetoExistente,
+        status: 'ARQUIVADO',
+        esperas: [
+          {
+            id: 'e-1',
+            alvoTipo: 'TAREFA',
+            alvoId: 't-1',
+            alvoTitulo: 'Revisar API',
+            resolvida: false,
+          },
+        ],
+        bloqueada: true,
+      })
+
+      renderEditar()
+      await screen.findByRole('heading', { name: 'TCC' })
+
+      expect(within(secaoEspera()).getByText('Revisar API')).toBeInTheDocument()
+      expect(
+        within(secaoEspera()).queryByRole('button', { name: /adicionar espera/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        within(secaoEspera()).queryByRole('button', { name: /^remover$/i }),
+      ).not.toBeInTheDocument()
+    })
   })
 })

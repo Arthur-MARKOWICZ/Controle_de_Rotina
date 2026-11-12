@@ -17,6 +17,7 @@ import { useToast } from '../feedback/ToastProvider'
 import { useSessaoAtiva } from '../execucao/SessaoAtivaContext'
 import { listarExecucoes } from '../execucao/api/execucaoApi'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../home/labels'
+import { rotuloEspera } from '../pendencia/api/espera'
 import { dataHojeIso } from '../planner/data'
 import { mensagensFeedbackXp } from '../xp/feedbackXp'
 import { useXpProgress } from '../xp/XpProgressContext'
@@ -91,11 +92,14 @@ export function TarefaCard({
   const mostrarStatus = tarefa.status !== STATUS_PADRAO_DA_VISAO[visao]
   const prioridade = tarefa.prioridade.toLowerCase()
   const restante = tarefa.restanteMinutos ?? tarefa.duracaoMinutos
+  const bloqueada = tarefa.bloqueada ?? false
+  const espera = rotuloEspera(tarefa.esperas)
   const podeSessao =
     !tarefa.deletada &&
     restante > 0 &&
     STATUS_SESSAO.includes(tarefa.status) &&
-    !tarefa.temFilhos
+    !tarefa.temFilhos &&
+    !bloqueada
 
   const [picker, setPicker] = useState<PickerState>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -209,6 +213,11 @@ export function TarefaCard({
             </span>
           ) : null}
           {tarefa.deletada ? <span className="badge status-deletada">Excluída</span> : null}
+          {bloqueada ? (
+            <span className="badge status-atrasada tarefa-card__espera" title={espera ?? undefined}>
+              {espera ?? 'Bloqueada por espera'}
+            </span>
+          ) : null}
           {indicadorPai && destinoPai && tarefa.parentTitulo ? (
             <Link to={destinoPai} state={DRAWER_STATE} className="tarefa-card__pai">
               Subtarefa de {tarefa.parentTitulo}

@@ -102,4 +102,13 @@ class ApiExceptionHandlerTest {
                 new DataIntegrityViolationException("uq_capacidade_override_usuario_data_ativo")).getTitle())
                 .isEqualTo("Capacidade override já existe");
     }
+
+    @Test
+    void deveMapearUqEsperaUsuarioOrigemAlvoPara409() {
+        ProblemDetail problem = handler.handleDataIntegrity(
+                new DataIntegrityViolationException("violates unique constraint \"uq_espera_usuario_origem_alvo\""));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(problem.getTitle()).isEqualTo("Espera já existe");
+    }
 }

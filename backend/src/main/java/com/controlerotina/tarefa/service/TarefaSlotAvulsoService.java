@@ -14,6 +14,7 @@ import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.historico.PeriodoBRT;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
@@ -38,6 +39,7 @@ public class TarefaSlotAvulsoService {
     private final PlanoRepository planoRepository;
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final ExecucaoRepository execucaoRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public TarefaSlotAvulsoService(
@@ -45,12 +47,14 @@ public class TarefaSlotAvulsoService {
             PlanoRepository planoRepository,
             BlocoPlanoRepository blocoPlanoRepository,
             ExecucaoRepository execucaoRepository,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.tarefaRepository = tarefaRepository;
         this.planoRepository = planoRepository;
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.execucaoRepository = execucaoRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -101,6 +105,7 @@ public class TarefaSlotAvulsoService {
         if (tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefaId)) {
             throw new TarefaNaoElegivelException(tarefaId);
         }
+        esperaService.garantirTarefaNaoBloqueada(usuarioId, tarefa);
         return tarefa;
     }
 

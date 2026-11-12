@@ -21,6 +21,7 @@ import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.habito.entity.Habito;
 import com.controlerotina.habito.entity.StatusHabito;
 import com.controlerotina.habito.repository.HabitoRepository;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.dto.AdicionarBlocoRequest;
 import com.controlerotina.planner.dto.PlanoResponse;
 import com.controlerotina.planner.entity.BlocoPlano;
@@ -65,6 +66,7 @@ public class PlanoAjusteService {
     private final CapacidadeResolvidaService capacidadeResolvidaService;
     private final PlanoConsultaService planoConsultaService;
     private final ExecucaoRepository execucaoRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public PlanoAjusteService(
@@ -75,6 +77,7 @@ public class PlanoAjusteService {
             CapacidadeResolvidaService capacidadeResolvidaService,
             PlanoConsultaService planoConsultaService,
             ExecucaoRepository execucaoRepository,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.planoRepository = planoRepository;
@@ -84,6 +87,7 @@ public class PlanoAjusteService {
         this.capacidadeResolvidaService = capacidadeResolvidaService;
         this.planoConsultaService = planoConsultaService;
         this.execucaoRepository = execucaoRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -112,6 +116,7 @@ public class PlanoAjusteService {
         Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(tarefaId, usuarioId)
                 .orElseThrow(TarefaNaoEncontradaException::new);
         garantirElegivel(tarefa);
+        esperaService.garantirTarefaNaoBloqueada(usuarioId, tarefa);
 
         if (blocoPlanoRepository.existsByPlanoIdAndTarefaId(plano.getId(), tarefa.getId())) {
             throw new TarefaJaNoPlanoException(tarefa.getId());

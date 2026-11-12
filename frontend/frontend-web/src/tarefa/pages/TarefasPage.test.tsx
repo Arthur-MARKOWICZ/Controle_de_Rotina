@@ -841,4 +841,81 @@ describe('TarefasPage', () => {
       expect(screen.getByRole('button', { name: /concluir capítulo 1/i })).toBeInTheDocument()
     })
   })
+
+  describe('espera na lista', () => {
+    const alvo = {
+      id: 'e-1',
+      alvoTipo: 'TAREFA' as const,
+      alvoId: 't-2',
+      alvoTitulo: 'Revisar API',
+      resolvida: false,
+    }
+
+    it('card bloqueado mostra o alvo e esconde Iniciar e Concluir', async () => {
+      const bloqueada = tarefaLista({
+        id: 't-bloqueada',
+        titulo: 'Escrever doc',
+        esperas: [alvo],
+        bloqueada: true,
+      })
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([bloqueada]))
+
+      renderLista('/tarefas')
+
+      const card = (await screen.findByRole('link', { name: /escrever doc/i })).closest('article')!
+      expect(within(card).getByText('Espera Revisar API')).toBeInTheDocument()
+      expect(
+        within(card).queryByRole('button', { name: /iniciar escrever doc/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        within(card).queryByRole('button', { name: /concluir escrever doc/i }),
+      ).not.toBeInTheDocument()
+      expect(within(card).getByRole('link', { name: /escrever doc/i })).toBeInTheDocument()
+    })
+
+    it('várias esperas viram um resumo no card', async () => {
+      const bloqueada = tarefaLista({
+        id: 't-bloqueada',
+        titulo: 'Escrever doc',
+        esperas: [alvo, { ...alvo, id: 'e-2', alvoId: 'p-1', alvoTipo: 'PROJETO', alvoTitulo: 'TCC' }],
+        bloqueada: true,
+      })
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([bloqueada]))
+
+      renderLista('/tarefas')
+
+      const card = (await screen.findByRole('link', { name: /escrever doc/i })).closest('article')!
+      expect(within(card).getByText('Espera 2 itens')).toBeInTheDocument()
+      expect(within(card).queryByText('Revisar API')).not.toBeInTheDocument()
+    })
+
+    it('bloqueio herdado sem espera própria ainda esconde a sessão', async () => {
+      const bloqueada = tarefaLista({
+        id: 't-filha',
+        titulo: 'Escrever doc',
+        bloqueada: true,
+      })
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([bloqueada]))
+
+      renderLista('/tarefas')
+
+      const card = (await screen.findByRole('link', { name: /escrever doc/i })).closest('article')!
+      expect(within(card).getByText('Bloqueada por espera')).toBeInTheDocument()
+      expect(
+        within(card).queryByRole('button', { name: /iniciar escrever doc/i }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('tarefa sem espera mantém Iniciar e Concluir', async () => {
+      const livre = tarefaLista({ id: 't-livre', titulo: 'Escrever doc' })
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([livre]))
+
+      renderLista('/tarefas')
+
+      expect(
+        await screen.findByRole('button', { name: /iniciar escrever doc/i }),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /concluir escrever doc/i })).toBeInTheDocument()
+    })
+  })
 })

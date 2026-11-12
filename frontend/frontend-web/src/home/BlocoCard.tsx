@@ -31,6 +31,8 @@ type BlocoCardProps = {
   removendo?: boolean
   /** Mutação otimista ainda aguardando a API. */
   pendente?: boolean
+  /** Rótulo da espera que bloqueia a tarefa deste bloco. */
+  espera?: string | null
   acoes?: ReactNode
 }
 
@@ -86,6 +88,7 @@ export function BlocoCard({
   onRemover,
   removendo = false,
   pendente = false,
+  espera = null,
   acoes,
 }: BlocoCardProps) {
   const justificativa =
@@ -138,6 +141,11 @@ export function BlocoCard({
           ) : null}
           {tempoRestanteLabel ? (
             <span aria-label="Tempo restante">Restante: {tempoRestanteLabel}</span>
+          ) : null}
+          {espera ? (
+            <span className="badge status-atrasada" title={espera}>
+              {espera}
+            </span>
           ) : null}
         </p>
         {justificativa ? (

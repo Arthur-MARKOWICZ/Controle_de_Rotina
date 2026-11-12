@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +20,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.controlerotina.pendencia.dto.CriarEsperaRequest;
+import com.controlerotina.pendencia.dto.EsperaResumo;
+import com.controlerotina.pendencia.entity.TipoRecursoEspera;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.projeto.dto.AtualizarProjetoRequest;
 import com.controlerotina.projeto.dto.CriarProjetoRequest;
 import com.controlerotina.projeto.dto.ProjetoResponse;
@@ -35,9 +40,11 @@ public class ProjetoController {
     private static final int SIZE_DEFAULT = 20;
 
     private final ProjetoService projetoService;
+    private final EsperaService esperaService;
 
-    public ProjetoController(ProjetoService projetoService) {
+    public ProjetoController(ProjetoService projetoService, EsperaService esperaService) {
         this.projetoService = projetoService;
+        this.esperaService = esperaService;
     }
 
     @PostMapping
@@ -57,6 +64,34 @@ public class ProjetoController {
             Pageable pageable
     ) {
         return projetoService.listar(usuarioId, status, tagId, normalizarPageable(pageable));
+    }
+
+    @PostMapping("/{id}/esperas")
+    @ResponseStatus(HttpStatus.CREATED)
+    public EsperaResumo criarEspera(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @Valid @RequestBody CriarEsperaRequest request
+    ) {
+        return esperaService.criar(usuarioId, TipoRecursoEspera.PROJETO, id, request);
+    }
+
+    @GetMapping("/{id}/esperas")
+    public List<EsperaResumo> listarEsperas(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id
+    ) {
+        return esperaService.listar(usuarioId, TipoRecursoEspera.PROJETO, id);
+    }
+
+    @DeleteMapping("/{id}/esperas/{esperaId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluirEspera(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @PathVariable UUID esperaId
+    ) {
+        esperaService.excluir(usuarioId, TipoRecursoEspera.PROJETO, id, esperaId);
     }
 
     @GetMapping("/{id}")

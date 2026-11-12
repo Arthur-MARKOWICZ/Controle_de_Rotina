@@ -23,6 +23,9 @@ vi.mock('./api/tarefaApi', () => ({
   restaurarTarefa: vi.fn(),
   iniciarTarefaSessao: vi.fn(),
   concluirTarefaDireto: vi.fn(),
+  criarEsperaTarefa: vi.fn(),
+  excluirEsperaTarefa: vi.fn(),
+  listarEsperasTarefa: vi.fn(),
 }))
 
 vi.mock('../projeto/api/projetoApi', () => ({
@@ -188,6 +191,8 @@ describe('TarefaDrawer', () => {
     vi.mocked(tarefaApi.atualizarTarefa).mockReset()
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
+    vi.mocked(tarefaApi.criarEsperaTarefa).mockReset()
+    vi.mocked(tarefaApi.excluirEsperaTarefa).mockReset()
     mockLista([tarefa])
     vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(tarefa)
     vi.mocked(projetoApi.listarProjetos).mockReset()
@@ -838,6 +843,91 @@ describe('TarefaDrawer', () => {
           expect.objectContaining({ status: 'FINALIZADA' }),
         )
       })
+    })
+  })
+
+  describe('espera', () => {
+    const alvo: TarefaResponse = { ...tarefa, id: 't-2', titulo: 'Revisar API' }
+
+    function secaoEspera() {
+      return screen.getByRole('region', { name: /^espera$/i })
+    }
+
+    it('cria uma espera pela ficha e mostra o bloqueio', async () => {
+      const user = userEvent.setup()
+      mockLista([tarefa, alvo])
+      const criada = {
+        id: 'e-1',
+        alvoTipo: 'TAREFA' as const,
+        alvoId: 't-2',
+        alvoTitulo: 'Revisar API',
+        resolvida: false,
+      }
+      vi.mocked(tarefaApi.criarEsperaTarefa).mockResolvedValue(criada)
+      vi.mocked(tarefaApi.buscarTarefa)
+        .mockResolvedValueOnce(tarefa)
+        .mockResolvedValue({ ...tarefa, esperas: [criada], bloqueada: true })
+
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+
+      await user.click(within(secaoEspera()).getByRole('button', { name: /adicionar espera/i }))
+      await waitFor(() => {
+        expect(within(secaoEspera()).getByRole('combobox')).toBeEnabled()
+      })
+      await user.selectOptions(within(secaoEspera()).getByRole('combobox'), 'TAREFA:t-2')
+      await user.click(within(secaoEspera()).getByRole('button', { name: /confirmar espera/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.criarEsperaTarefa).toHaveBeenCalledWith('t-1', {
+          alvoTipo: 'TAREFA',
+          alvoId: 't-2',
+        })
+      })
+      expect(await within(secaoEspera()).findByText('Revisar API')).toBeInTheDocument()
+      expect(within(secaoEspera()).getByText(/bloqueada por/i)).toBeInTheDocument()
+    })
+
+    it('remove a espera e o bloqueio some', async () => {
+      const user = userEvent.setup()
+      const existente = {
+        id: 'e-1',
+        alvoTipo: 'PROJETO' as const,
+        alvoId: 'proj-tcc',
+        alvoTitulo: 'TCC',
+        resolvida: false,
+      }
+      mockLista([tarefa])
+      vi.mocked(tarefaApi.buscarTarefa)
+        .mockResolvedValueOnce({ ...tarefa, esperas: [existente], bloqueada: true })
+        .mockResolvedValue({ ...tarefa, esperas: [], bloqueada: false })
+      vi.mocked(tarefaApi.excluirEsperaTarefa).mockResolvedValue(undefined)
+
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+      expect(within(secaoEspera()).getByText('TCC')).toBeInTheDocument()
+
+      await user.click(within(secaoEspera()).getByRole('button', { name: /^remover$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.excluirEsperaTarefa).toHaveBeenCalledWith('t-1', 'e-1')
+      })
+      await waitFor(() => {
+        expect(within(secaoEspera()).queryByText('TCC')).not.toBeInTheDocument()
+      })
+      expect(within(secaoEspera()).queryByText(/bloqueada por/i)).not.toBeInTheDocument()
+    })
+
+    it('a ficha de nova tarefa não pede espera e a copy não usa "pendente"', async () => {
+      renderApp('/tarefas/nova')
+
+      await screen.findByRole('region', { name: /nova tarefa/i })
+      expect(screen.queryByRole('region', { name: /^espera$/i })).not.toBeInTheDocument()
+
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(tarefa)
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+      expect(within(secaoEspera()).queryByText(/pendente/i)).not.toBeInTheDocument()
     })
   })
 })

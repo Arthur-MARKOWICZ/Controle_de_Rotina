@@ -1,6 +1,7 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { ExecucaoResponse } from '../../execucao/api/execucaoApi'
+import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
 import type { TagResumo } from '../../tag/api/tagApi'
 import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
 
@@ -25,6 +26,10 @@ export type TarefaResponse = {
   parentId?: string | null
   parentTitulo?: string | null
   temFilhos?: boolean
+  /** Esperas da própria tarefa. Ausente em payloads antigos. */
+  esperas?: EsperaResumo[]
+  /** Bloqueada por espera própria, de pai ou do projeto de origem. */
+  bloqueada?: boolean
 }
 
 export type SessaoTarefaRequest = {
@@ -225,4 +230,34 @@ export async function concluirTarefaDireto(
     throw await lerErroApi(response, 'Não foi possível concluir a sessão da tarefa.')
   }
   return readApiJson<ExecucaoResponse>(response)
+}
+
+export async function listarEsperasTarefa(id: string): Promise<EsperaResumo[]> {
+  const response = await apiFetch(`/tarefas/${id}/esperas`)
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar as esperas da tarefa.')
+  }
+  return (await response.json()) as EsperaResumo[]
+}
+
+export async function criarEsperaTarefa(
+  id: string,
+  body: CriarEsperaRequest,
+): Promise<EsperaResumo> {
+  const response = await apiFetch(`/tarefas/${id}/esperas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível criar a espera.')
+  }
+  return (await response.json()) as EsperaResumo
+}
+
+export async function excluirEsperaTarefa(id: string, esperaId: string): Promise<void> {
+  const response = await apiFetch(`/tarefas/${id}/esperas/${esperaId}`, { method: 'DELETE' })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível remover a espera.')
+  }
 }

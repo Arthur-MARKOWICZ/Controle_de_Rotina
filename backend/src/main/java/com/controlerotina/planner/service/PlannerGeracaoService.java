@@ -31,6 +31,7 @@ import com.controlerotina.planner.motor.BlocoAlocado;
 import com.controlerotina.planner.motor.MotorAlocacao;
 import com.controlerotina.planner.motor.ResultadoAlocacao;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.projeto.entity.ReservaProjetoSemanal;
 import com.controlerotina.projeto.repository.ReservaProjetoSemanalRepository;
@@ -56,6 +57,7 @@ public class PlannerGeracaoService {
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final ExecucaoRepository execucaoRepository;
     private final ReservaProjetoSemanalRepository reservaProjetoSemanalRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
     private final TransactionTemplate transactionTemplate;
 
@@ -67,6 +69,7 @@ public class PlannerGeracaoService {
             BlocoPlanoRepository blocoPlanoRepository,
             ExecucaoRepository execucaoRepository,
             ReservaProjetoSemanalRepository reservaProjetoSemanalRepository,
+            EsperaService esperaService,
             Clock clock,
             PlatformTransactionManager transactionManager
     ) {
@@ -77,6 +80,7 @@ public class PlannerGeracaoService {
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.execucaoRepository = execucaoRepository;
         this.reservaProjetoSemanalRepository = reservaProjetoSemanalRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -137,10 +141,14 @@ public class PlannerGeracaoService {
                 STATUS_ELEGIVEIS
         );
         Set<UUID> paisComFilhos = idsComFilhosNaoDeletados(candidatas);
+        Set<UUID> bloqueadas = esperaService.idsTarefasBloqueadas(usuarioId, candidatas);
         Map<UUID, Integer> saldoPorTarefa = new HashMap<>();
         List<Tarefa> elegiveis = new ArrayList<>();
         for (Tarefa tarefa : candidatas) {
             if (paisComFilhos.contains(tarefa.getId())) {
+                continue;
+            }
+            if (bloqueadas.contains(tarefa.getId())) {
                 continue;
             }
             long minutosConcluidos = execucaoRepository.somarDuracaoMinutosPorTarefaEStatus(

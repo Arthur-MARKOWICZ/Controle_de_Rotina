@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.controlerotina.decidir.repository.ItemDecidirRepository;
+import com.controlerotina.pendencia.dto.EsperasDeOrigem;
+import com.controlerotina.pendencia.entity.TipoRecursoEspera;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.projeto.dto.AtualizarProjetoRequest;
 import com.controlerotina.projeto.dto.CriarProjetoRequest;
 import com.controlerotina.projeto.dto.ProjetoResponse;
@@ -36,17 +39,20 @@ public class ProjetoService {
     private final ProjetoRepository projetoRepository;
     private final TagVinculoService tagVinculoService;
     private final ItemDecidirRepository itemDecidirRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public ProjetoService(
             ProjetoRepository projetoRepository,
             TagVinculoService tagVinculoService,
             ItemDecidirRepository itemDecidirRepository,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.projetoRepository = projetoRepository;
         this.tagVinculoService = tagVinculoService;
         this.itemDecidirRepository = itemDecidirRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -69,7 +75,7 @@ public class ProjetoService {
                 salvo.getId(),
                 request.tagIds()
         );
-        return ProjetoResponse.from(salvo, tags, null);
+        return toResponse(usuarioId, salvo, tags, null);
     }
 
     @Transactional(readOnly = true)
@@ -91,9 +97,9 @@ public class ProjetoService {
         );
 
         Page<Projeto> page = projetoRepository.findAll(spec, pageable);
-        Map<UUID, List<TagResumoResponse>> tagsPorProjeto = tagVinculoService.mapearTagsPorProjeto(
-                page.getContent().stream().map(Projeto::getId).toList()
-        );
+        List<UUID> ids = page.getContent().stream().map(Projeto::getId).toList();
+        Map<UUID, List<TagResumoResponse>> tagsPorProjeto = tagVinculoService.mapearTagsPorProjeto(ids);
+        EsperasDeOrigem esperas = esperaService.enriquecerProjetos(usuarioId, ids);
 
         List<ProjetoResponse> conteudo = new ArrayList<>();
         for (Projeto p : page.getContent()) {
@@ -104,7 +110,13 @@ public class ProjetoService {
                             tags.stream().map(TagResumoResponse::id).toList(),
                             filtroTagIds
                     );
-            conteudo.add(ProjetoResponse.from(p, tags, score));
+            conteudo.add(ProjetoResponse.from(
+                    p,
+                    tags,
+                    score,
+                    esperas.de(p.getId()),
+                    esperas.bloqueada(p.getId())
+            ));
         }
 
         if (filtroTagIds.size() >= 2) {
@@ -119,11 +131,7 @@ public class ProjetoService {
     @Transactional(readOnly = true)
     public ProjetoResponse buscarPorId(UUID usuarioId, UUID id) {
         Projeto projeto = buscarDoUsuario(usuarioId, id);
-        return ProjetoResponse.from(
-                projeto,
-                tagVinculoService.listarTagsProjeto(projeto.getId()),
-                null
-        );
+        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
     }
 
     @Transactional
@@ -133,7 +141,7 @@ public class ProjetoService {
         List<TagResumoResponse> tags = request.tagIdsPresente()
                 ? tagVinculoService.substituirTagsProjeto(usuarioId, projeto.getId(), request.tagIds())
                 : tagVinculoService.listarTagsProjeto(projeto.getId());
-        return ProjetoResponse.from(projeto, tags, null);
+        return toResponse(usuarioId, projeto, tags, null);
     }
 
     @Transactional
@@ -144,12 +152,9 @@ public class ProjetoService {
         }
         Instant agora = clock.instant();
         projeto.arquivar(agora);
+        esperaService.apagarPorRecurso(usuarioId, TipoRecursoEspera.PROJETO, projeto.getId());
         itemDecidirRepository.zerarProjetoId(projeto.getId(), agora);
-        return ProjetoResponse.from(
-                projeto,
-                tagVinculoService.listarTagsProjeto(projeto.getId()),
-                null
-        );
+        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
     }
 
     @Transactional
@@ -159,10 +164,22 @@ public class ProjetoService {
             throw new ProjetoJaAtivoException();
         }
         projeto.reativar(clock.instant());
+        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
+    }
+
+    private ProjetoResponse toResponse(
+            UUID usuarioId,
+            Projeto projeto,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore
+    ) {
+        EsperasDeOrigem esperas = esperaService.enriquecerProjetos(usuarioId, List.of(projeto.getId()));
         return ProjetoResponse.from(
                 projeto,
-                tagVinculoService.listarTagsProjeto(projeto.getId()),
-                null
+                tags,
+                tagMatchScore,
+                esperas.de(projeto.getId()),
+                esperas.bloqueada(projeto.getId())
         );
     }
 
