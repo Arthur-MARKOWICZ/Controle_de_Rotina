@@ -10,7 +10,7 @@ import { QuickAddProvider } from '../../layout/QuickAddContext'
 import * as projetoApi from '../../projeto/api/projetoApi'
 import { XpProgressProvider } from '../../xp/XpProgressContext'
 import * as tarefaApi from '../api/tarefaApi'
-import type { PageTarefa } from '../api/tarefaApi'
+import type { PageTarefa, TarefaResponse } from '../api/tarefaApi'
 import { DEBOUNCE_FILTRO_MS } from '../FiltrosBarra'
 import { TarefasPage } from './TarefasPage'
 
@@ -121,6 +121,34 @@ const pagina = {
   totalPages: 1,
   number: 0,
   size: 20,
+}
+
+function tarefaLista(
+  parcial: Partial<TarefaResponse> & { id: string; titulo: string },
+): TarefaResponse {
+  return {
+    descricao: '',
+    prioridade: 'MEDIA',
+    prazo: '2026-10-28T20:00:00Z',
+    status: 'PENDENTE',
+    duracaoMinutos: 60,
+    restanteMinutos: 60,
+    createdAt: '2026-01-01T10:00:00Z',
+    updatedAt: '2026-01-01T10:00:00Z',
+    deletedAt: null,
+    deletada: false,
+    ...parcial,
+  }
+}
+
+function paginaDe(content: TarefaResponse[], size = 20): PageTarefa {
+  return {
+    content,
+    totalElements: content.length,
+    totalPages: content.length ? 1 : 0,
+    number: 0,
+    size,
+  }
 }
 
 function deferred<T>() {
@@ -571,6 +599,21 @@ describe('TarefasPage', () => {
   })
 
   describe('excluir e restaurar', () => {
+    it('excluir pai com filhos: voltar no diálogo de cascata não chama API', async () => {
+      const pai = { ...pagina.content[0], temFilhos: true, titulo: 'Pai com filhos' }
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({ ...pagina, content: [pai] })
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Pai com filhos')
+
+      await user.click(screen.getByRole('button', { name: /^excluir pai com filhos$/i }))
+      const dialog = screen.getByRole('dialog', { name: /excluir tarefa e subtarefas/i })
+      await user.click(within(dialog).getByRole('button', { name: /^voltar$/i }))
+
+      expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+      expect(screen.getByText('Pai com filhos')).toBeInTheDocument()
+    })
+
     it('excluir: cancelar confirmação não chama API', async () => {
       const user = setupUser()
       renderLista()
@@ -661,6 +704,141 @@ describe('TarefasPage', () => {
 
       expect(await screen.findByText('Não foi possível restaurar a tarefa.')).toBeInTheDocument()
       expect(screen.getByText('Excluída')).toBeInTheDocument()
+    })
+  })
+
+  describe('árvore e subtarefas', () => {
+    const pai = tarefaLista({
+      id: 't-pai',
+      titulo: 'Estudar Security',
+      temFilhos: true,
+      duracaoMinutos: 120,
+      restanteMinutos: 120,
+    })
+    const filho1 = tarefaLista({
+      id: 't-filho-1',
+      titulo: 'Capítulo 1',
+      parentId: 't-pai',
+      parentTitulo: 'Estudar Security',
+      createdAt: '2026-01-01T10:00:00Z',
+    })
+    const filho2 = tarefaLista({
+      id: 't-filho-2',
+      titulo: 'Capítulo 2',
+      parentId: 't-pai',
+      parentTitulo: 'Estudar Security',
+      createdAt: '2026-01-01T11:00:00Z',
+    })
+
+    function mockArvore() {
+      vi.mocked(tarefaApi.listarTarefas).mockImplementation(async (filtro = {}) => {
+        if (filtro.parentId === 't-pai') {
+          return paginaDe([filho1, filho2], 100)
+        }
+        return paginaDe([pai])
+      })
+    }
+
+    it('visão todas sem filtro isolador lista só raízes', async () => {
+      mockArvore()
+      renderLista()
+
+      expect(await screen.findByText('Estudar Security')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(tarefaApi.listarTarefas).toHaveBeenCalledWith(
+          expect.objectContaining({ somenteRaizes: true }),
+          expect.any(AbortSignal),
+        )
+      })
+      expect(screen.queryByText('Capítulo 1')).not.toBeInTheDocument()
+      expect(screen.queryByText('Capítulo 2')).not.toBeInTheDocument()
+    })
+
+    it('pai recolhido esconde filhos; expandir busca parentId e mostra os filhos', async () => {
+      mockArvore()
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Estudar Security')
+
+      expect(screen.queryByText('Capítulo 1')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /expandir subtarefas de estudar security/i }))
+
+      expect(await screen.findByText('Capítulo 1')).toBeInTheDocument()
+      expect(screen.getByText('Capítulo 2')).toBeInTheDocument()
+      expect(screen.queryByText(/subtarefa de estudar security/i)).not.toBeInTheDocument()
+      expect(tarefaApi.listarTarefas).toHaveBeenCalledWith(
+        expect.objectContaining({ parentId: 't-pai', size: 100 }),
+      )
+
+      const lista = screen.getByRole('region', { name: /lista de tarefas/i })
+      expect(within(lista).queryByRole('button', { name: /adicionar subtarefa/i })).not.toBeInTheDocument()
+      const nested = screen.getByRole('list', { name: /subtarefas de estudar security/i })
+      expect(within(nested).getByText('Capítulo 1')).toBeInTheDocument()
+    })
+
+    it('card do pai não oferece Iniciar nem Concluir de sessão', async () => {
+      mockArvore()
+      renderLista()
+      await screen.findByText('Estudar Security')
+
+      expect(screen.queryByRole('button', { name: /iniciar estudar security/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /concluir estudar security/i })).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /expandir subtarefas de estudar security/i }),
+      ).toBeInTheDocument()
+    })
+
+    it('filtro que solta o filho mostra card próprio com indicador do pai', async () => {
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([filho1]))
+      renderLista('/tarefas?prioridade=ALTA')
+
+      expect(await screen.findByText('Capítulo 1')).toBeInTheDocument()
+      const indicador = screen.getByRole('link', { name: /subtarefa de estudar security/i })
+      expect(indicador).toHaveAttribute('href', '/tarefas/t-pai?prioridade=ALTA')
+      expect(screen.queryByText('Estudar Security', { selector: '.tarefa-card__titulo' })).not.toBeInTheDocument()
+      await waitFor(() => {
+        const filtro = vi.mocked(tarefaApi.listarTarefas).mock.calls.at(-1)?.[0]
+        expect(filtro?.somenteRaizes).toBeUndefined()
+        expect(filtro?.prioridade).toEqual(['ALTA'])
+      })
+    })
+
+    it('quando pai e filho estão no resultado, o filho fica aninhado e não duplica no mesmo nível', async () => {
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([pai, filho1]))
+      const user = setupUser()
+      renderLista('/tarefas?prioridade=ALTA')
+      await screen.findByText('Estudar Security')
+
+      expect(screen.queryByText('Capítulo 1')).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /subtarefa de estudar security/i })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /expandir subtarefas de estudar security/i }))
+
+      const nested = await screen.findByRole('list', { name: /subtarefas de estudar security/i })
+      expect(within(nested).getByText('Capítulo 1')).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /subtarefa de estudar security/i })).not.toBeInTheDocument()
+      expect(
+        vi.mocked(tarefaApi.listarTarefas).mock.calls.some(([filtro]) => filtro?.parentId === 't-pai'),
+      ).toBe(false)
+    })
+
+    it('folha aninhada mantém Iniciar e Concluir de sessão', async () => {
+      mockArvore()
+      const user = setupUser()
+      renderLista()
+      await screen.findByText('Estudar Security')
+      await user.click(screen.getByRole('button', { name: /expandir subtarefas de estudar security/i }))
+
+      expect(await screen.findByRole('button', { name: /iniciar capítulo 1/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /concluir capítulo 1/i })).toBeInTheDocument()
+    })
+
+    it('folha solta no filtro mantém Iniciar e Concluir de sessão', async () => {
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(paginaDe([filho1]))
+      renderLista('/tarefas?prioridade=ALTA')
+
+      expect(await screen.findByRole('button', { name: /iniciar capítulo 1/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /concluir capítulo 1/i })).toBeInTheDocument()
     })
   })
 })

@@ -27,7 +27,9 @@ public record CriarTarefaRequest(
 
         UUID projetoId,
 
-        List<UUID> tagIds
+        List<UUID> tagIds,
+
+        UUID parentId
 ) {
     public CriarTarefaRequest {
         if (titulo != null) {

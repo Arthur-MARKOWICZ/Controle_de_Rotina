@@ -101,7 +101,6 @@ function BarraSuperior() {
 
 /** Páginas cujas rotas filhas abrem um drawer por cima: o foco é gerido pelo drawer. */
 const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
-  { base: '/tarefas', drawer: /^\/tarefas\/[^/]+$/ },
   // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
   { base: '/projetos', drawer: /^\/projetos\/nova$/ },
   { base: '/habitos', drawer: /^\/habitos\/[^/]+$/ },

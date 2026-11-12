@@ -85,6 +85,8 @@ public class TarefaController {
             @RequestParam(defaultValue = "false") boolean somenteDeletadas,
             @RequestParam(required = false) UUID projetoId,
             @RequestParam(required = false) List<UUID> tagId,
+            @RequestParam(required = false) UUID parentId,
+            @RequestParam(defaultValue = "false") boolean somenteRaizes,
             Pageable pageable
     ) {
         TarefaFiltro filtro = new TarefaFiltro(
@@ -101,7 +103,9 @@ public class TarefaController {
                 incluirDeletadas,
                 somenteDeletadas,
                 projetoId,
-                tagId
+                tagId,
+                parentId,
+                somenteRaizes
         );
         return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
     }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -154,6 +155,27 @@ class TarefaSlotAvulsoServiceTest {
                 TAREFA_ID, USUARIO, StatusExecucao.CONCLUIDO)).thenReturn(40L);
 
         assertThat(service.restanteMinutos(USUARIO, tarefa)).isEqualTo(80);
+    }
+
+    @Test
+    void deveRejeitarPaiComFilhos() {
+        Tarefa tarefa = tarefaPendente(120);
+        when(tarefaRepository.findByIdAndUsuarioId(TAREFA_ID, USUARIO)).thenReturn(Optional.of(tarefa));
+        when(tarefaRepository.existsByParentIdAndDeletedAtIsNull(TAREFA_ID)).thenReturn(true);
+        lenient().when(planoRepository.findByUsuarioIdAndDataAndStatus(USUARIO, TERCA, StatusPlano.TAREFA_AVULSA))
+                .thenReturn(Optional.empty());
+        lenient().when(planoRepository.findMaxVersaoByUsuarioIdAndData(USUARIO, TERCA)).thenReturn(0);
+        lenient().when(planoRepository.save(any(Plano.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(blocoPlanoRepository.findMaxOrdemByPlanoId(any())).thenReturn(0);
+        lenient().when(blocoPlanoRepository.findByPlanoIdAndTarefaIdOrderByOrdemAsc(any(), eq(TAREFA_ID)))
+                .thenReturn(List.of());
+        lenient().when(blocoPlanoRepository.save(any(BlocoPlano.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(execucaoRepository.findByBlocoPlanoId(any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.materializar(USUARIO, TAREFA_ID, TERCA, 30))
+                .isInstanceOf(TarefaNaoElegivelException.class);
+        verify(planoRepository, never()).save(any());
+        verify(blocoPlanoRepository, never()).save(any());
     }
 
     @Test

@@ -530,7 +530,24 @@ public class ExecucaoService {
             tarefa.atualizar(null, null, null, null, StatusTarefa.FINALIZADA, null, agora);
         }
 
-        return tarefaRepository.save(tarefa);
+        Tarefa salva = tarefaRepository.save(tarefa);
+        if (salva.getStatus() == StatusTarefa.FINALIZADA && salva.getParentId() != null) {
+            finalizarPaiSeTodosFilhosFinalizados(salva.getParentId(), agora);
+        }
+        return salva;
+    }
+
+    private void finalizarPaiSeTodosFilhosFinalizados(UUID parentId, Instant agora) {
+        if (tarefaRepository.existsByParentIdAndDeletedAtIsNullAndStatusNot(
+                parentId, StatusTarefa.FINALIZADA)) {
+            return;
+        }
+        Tarefa pai = tarefaRepository.findById(parentId).orElse(null);
+        if (pai == null || pai.getDeletedAt() != null || pai.getStatus() == StatusTarefa.FINALIZADA) {
+            return;
+        }
+        pai.atualizar(null, null, null, null, StatusTarefa.FINALIZADA, null, agora);
+        tarefaRepository.save(pai);
     }
 
     private void marcarTarefaEmProgressoSeAplicavel(BlocoPlano bloco, UUID usuarioId, Instant agora) {

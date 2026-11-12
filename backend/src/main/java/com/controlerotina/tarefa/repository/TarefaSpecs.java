@@ -101,6 +101,24 @@ public final class TarefaSpecs {
         };
     }
 
+    public static Specification<Tarefa> comParentId(UUID parentId) {
+        return (root, query, cb) -> {
+            if (parentId == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("parentId"), parentId);
+        };
+    }
+
+    public static Specification<Tarefa> somenteRaizes(boolean somenteRaizes) {
+        return (root, query, cb) -> {
+            if (!somenteRaizes) {
+                return cb.conjunction();
+            }
+            return cb.isNull(root.get("parentId"));
+        };
+    }
+
     public static Specification<Tarefa> comAlgumaTag(Collection<UUID> tagIds) {
         return (root, query, cb) -> {
             if (tagIds == null || tagIds.isEmpty()) {

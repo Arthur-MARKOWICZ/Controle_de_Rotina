@@ -195,6 +195,13 @@
   width: 100%;
 }
 
+.prazo-dialog,
+.tarefa-edicoes-dialog {
+  max-width: min(100% - 2rem, 28rem);
+  width: 100%;
+  overflow: visible;
+}
+
 .sessao-duracao__presets {
   display: flex;
   flex-wrap: wrap;

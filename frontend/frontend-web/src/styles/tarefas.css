@@ -8,6 +8,12 @@
   margin-bottom: var(--space-5);
 }
 
+.tarefas-page--ficha {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--app-shell-top-height) - var(--space-5) * 2);
+}
+
 .chip-group {
   display: flex;
   flex-wrap: wrap;
@@ -258,6 +264,18 @@
   gap: var(--space-2);
 }
 
+.tarefa-arvore-item {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tarefa-cards--aninhados {
+  margin: 0;
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--line);
+}
+
 .tarefa-card {
   position: relative;
   display: flex;
@@ -369,6 +387,24 @@
   align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
+}
+
+.tarefa-card__expandir {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.tarefa-card__pai {
+  position: relative;
+  z-index: 1;
+  color: var(--accent-hover);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tarefa-card__pai:hover {
+  text-decoration: underline;
 }
 
 @media (min-width: 640px) {
@@ -523,10 +559,27 @@
 .tarefa-form {
   display: grid;
   gap: var(--space-4);
+  min-width: 0;
+}
+
+.tarefa-form__linha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.tarefa-form__acoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .tarefa-descricao-entrada {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   width: 100%;
   margin: 0;
   padding: var(--space-3) var(--space-4);
@@ -537,6 +590,13 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
+}
+
+.tarefa-descricao-entrada > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 .tarefa-descricao-entrada:hover:not(:disabled) {
@@ -558,6 +618,8 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
   color: var(--muted);
   white-space: pre-wrap;
   word-break: break-word;
@@ -620,6 +682,87 @@
   margin-right: auto;
 }
 
+/* ——— Ficha de tarefa (tela completa) ——— */
+
+.tarefa-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  flex: 1;
+  min-width: 0;
+}
+
+.tarefa-ficha:not(.tarefa-ficha--nota) {
+  max-width: var(--app-content-max-narrow);
+}
+
+.tarefa-ficha__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tarefa-ficha__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.tarefa-ficha__heading > .btn {
+  margin-top: 0.15rem;
+}
+
+.tarefa-ficha__titulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.tarefa-ficha__subtitulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tarefa-ficha__corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.tarefa-ficha__principal {
+  min-width: 0;
+}
+
+.tarefa-ficha__rodape {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.tarefa-ficha__excluir {
+  margin-right: auto;
+}
+
+.tarefa-ficha--nota .tarefa-nota {
+  min-height: min(70vh, 32rem);
+}
+
 .tarefa-deletada-aviso {
   margin: 0 0 var(--space-4);
   padding: 0.7rem 0.85rem;
@@ -631,4 +774,92 @@
 
 .badge.status-deletada {
   margin-left: var(--space-2);
+}
+
+.tarefa-subtarefas {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.tarefa-subtarefas__cabecalho {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.tarefa-subtarefas__titulo {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.tarefa-subtarefas__dica,
+.tarefa-subtarefas__vazio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tarefa-subtarefas__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tarefa-subtarefas__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.tarefa-subtarefas__item:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  box-shadow: var(--shadow-sm);
+}
+
+.tarefa-subtarefas__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tarefa-subtarefas__nome {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.tarefa-subtarefas__meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tarefa-subtarefas .inline-add-tarefa {
+  margin-bottom: 0;
+}
+
+@media (max-width: 639.98px) {
+  .tarefa-ficha__rodape {
+    bottom: calc(var(--app-shell-bottom-height) + env(safe-area-inset-bottom, 0));
+  }
+
+  .tarefa-subtarefas {
+    padding: var(--space-4);
+  }
 }

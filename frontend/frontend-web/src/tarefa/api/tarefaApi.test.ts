@@ -122,6 +122,35 @@ describe('tarefaApi', () => {
     })
   })
 
+  it('cria subtarefa com parentId no POST /tarefas', async () => {
+    const filha: TarefaResponse = {
+      ...tarefa,
+      id: 't-filho',
+      titulo: 'Capítulo 1',
+      parentId: 't-1',
+      parentTitulo: 'Estudar',
+      temFilhos: false,
+    }
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify(filha), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const body = { titulo: 'Capítulo 1', duracaoMinutos: 60, parentId: 't-1' }
+    const criada = await criarTarefa(body)
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    expect(criada.parentId).toBe('t-1')
+    expect(criada.parentTitulo).toBe('Estudar')
+    expect(criada.temFilhos).toBe(false)
+  })
+
   it('busca tarefa por id', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
       new Response(JSON.stringify(tarefa), {
@@ -199,6 +228,50 @@ describe('tarefaApi', () => {
 
     const [url] = vi.mocked(apiClient.apiFetch).mock.calls[0]
     expect(url).toContain('projetoId=proj-1')
+  })
+
+  it('lista filhos com query parentId', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          number: 0,
+          size: 100,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    await listarTarefas({ parentId: 't-pai', page: 0, size: 100 })
+
+    const [url] = vi.mocked(apiClient.apiFetch).mock.calls[0]
+    expect(url).toContain('parentId=t-pai')
+    expect(url).toContain('size=100')
+  })
+
+  it('lista só raízes com query somenteRaizes', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [{ ...tarefa, parentId: null, parentTitulo: null, temFilhos: true }],
+          totalElements: 1,
+          totalPages: 1,
+          number: 0,
+          size: 20,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const page = await listarTarefas({ somenteRaizes: true })
+
+    const [url] = vi.mocked(apiClient.apiFetch).mock.calls[0]
+    expect(url).toContain('somenteRaizes=true')
+    expect(url).not.toContain('parentId=')
+    expect(page.content[0].temFilhos).toBe(true)
+    expect(page.content[0].parentId).toBeNull()
   })
 
   it('lista com filtros de deletadas', async () => {

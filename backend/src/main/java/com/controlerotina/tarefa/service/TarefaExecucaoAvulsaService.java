@@ -66,6 +66,7 @@ public class TarefaExecucaoAvulsaService {
             UUID blocoId
     ) {
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
+        garantirFolha(tarefaId);
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, tarefaId, dia, blocoId);
         if (noPlano.isPresent()) {
             return execucaoService.iniciar(usuarioId, noPlano.get().bloco().getId());
@@ -85,6 +86,7 @@ public class TarefaExecucaoAvulsaService {
             UUID blocoId
     ) {
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
+        garantirFolha(tarefaId);
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, tarefaId, dia, blocoId);
         if (noPlano.isPresent()) {
             Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(tarefaId, usuarioId)
@@ -103,6 +105,12 @@ public class TarefaExecucaoAvulsaService {
                 slot.bloco(),
                 slot.tarefa()
         );
+    }
+
+    private void garantirFolha(UUID tarefaId) {
+        if (tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefaId)) {
+            throw new TarefaNaoElegivelException(tarefaId);
+        }
     }
 
     private int exigirDuracaoValida(UUID usuarioId, UUID tarefaId, Integer duracaoMinutos) {

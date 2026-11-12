@@ -25,7 +25,10 @@ public record TarefaResponse(
         Instant createdAt,
         Instant updatedAt,
         Instant deletedAt,
-        boolean deletada
+        boolean deletada,
+        UUID parentId,
+        String parentTitulo,
+        boolean temFilhos
 ) {
     public static TarefaResponse from(Tarefa tarefa) {
         return from(tarefa, null, tarefa.getDuracaoMinutos(), List.of(), null);
@@ -46,6 +49,18 @@ public record TarefaResponse(
             List<TagResumoResponse> tags,
             Integer tagMatchScore
     ) {
+        return from(tarefa, projetoNome, restanteMinutos, tags, tagMatchScore, null, false);
+    }
+
+    public static TarefaResponse from(
+            Tarefa tarefa,
+            String projetoNome,
+            int restanteMinutos,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore,
+            String parentTitulo,
+            boolean temFilhos
+    ) {
         List<TagResumoResponse> tagsSafe = tags == null ? List.of() : List.copyOf(tags);
         return new TarefaResponse(
                 tarefa.getId(),
@@ -63,7 +78,10 @@ public record TarefaResponse(
                 tarefa.getCreatedAt(),
                 tarefa.getUpdatedAt(),
                 tarefa.getDeletedAt(),
-                tarefa.getDeletedAt() != null
+                tarefa.getDeletedAt() != null,
+                tarefa.getParentId(),
+                parentTitulo,
+                temFilhos
         );
     }
 }

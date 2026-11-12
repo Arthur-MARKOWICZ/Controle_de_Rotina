@@ -43,6 +43,9 @@ public class Tarefa {
     @Column(name = "projeto_id")
     private UUID projetoId;
 
+    @Column(name = "parent_id")
+    private UUID parentId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -115,6 +118,10 @@ public class Tarefa {
         return projetoId;
     }
 
+    public UUID getParentId() {
+        return parentId;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -160,6 +167,10 @@ public class Tarefa {
     public void definirProjetoId(UUID projetoId, Instant updatedAt) {
         this.projetoId = projetoId;
         this.updatedAt = updatedAt;
+    }
+
+    public void definirParentId(UUID parentId) {
+        this.parentId = parentId;
     }
 
     public void softDelete(Instant deletedAt) {

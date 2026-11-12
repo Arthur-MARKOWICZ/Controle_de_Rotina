@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
-import { Drawer } from '../feedback/Drawer'
 import { InlineAlert } from '../feedback/InlineAlert'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
@@ -18,7 +17,9 @@ import {
   type TarefaResponse,
 } from './api/tarefaApi'
 import { datetimeLocalParaInstant, instantParaDatetimeLocal } from './datetime'
+import { confirmacaoCascataPai } from './cascataConfirmacao'
 import { TarefaForm } from './TarefaForm'
+import { TarefaSubtarefasSection } from './TarefaSubtarefasSection'
 import {
   validarTarefaForm,
   type Prioridade,
@@ -30,14 +31,14 @@ type DrawerView = 'meta' | 'nota'
 
 export type TarefasOutletContext = {
   projetosAtivos: ProjetoResponse[]
-  /** Tarefa alterada pelo drawer (salvar, excluir, restaurar, desvincular). */
+  /** Tarefa alterada na ficha (salvar, excluir, restaurar, desvincular). */
   aoAtualizar: (tarefa: TarefaResponse) => void
   aoCriar: (tarefa: TarefaResponse) => void
 }
 
-/** `location.state` aceito pelas rotas do drawer. */
+/** `location.state` aceito pelas rotas da ficha. */
 export type TarefaDrawerState = {
-  /** Aberto a partir da lista: fechar volta no histórico em vez de empilhar `/tarefas`. */
+  /** Aberto a partir da lista: voltar usa o histórico em vez de empilhar `/tarefas`. */
   daLista?: boolean
   /** Título pré-preenchido (ex.: vindo do quick-add). */
   titulo?: string
@@ -98,7 +99,6 @@ export function TarefaDrawer() {
   const [excluindo, setExcluindo] = useState(false)
   const [restaurando, setRestaurando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [aberto, setAberto] = useState(true)
   const [view, setView] = useState<DrawerView>('meta')
   const confirmandoRef = useRef(false)
   const notaTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -194,8 +194,8 @@ export function TarefaDrawer() {
     descricaoEntradaRef.current?.focus()
   }, [view])
 
-  async function pedirFechar() {
-    if (!aberto || confirmandoRef.current) {
+  const pedirFechar = useCallback(async () => {
+    if (confirmandoRef.current) {
       return
     }
     if (naNota) {
@@ -215,8 +215,23 @@ export function TarefaDrawer() {
         return
       }
     }
-    setAberto(false)
-  }
+    voltarParaLista()
+  }, [alterado, confirm, naNota, voltarAoMeta, voltarParaLista])
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return
+      }
+      if (document.querySelector('dialog[open]')) {
+        return
+      }
+      event.preventDefault()
+      void pedirFechar()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [pedirFechar])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -233,12 +248,27 @@ export function TarefaDrawer() {
       return
     }
 
+    if (modo === 'editar' && tarefa?.temFilhos) {
+      const novoStatus = values.status as StatusTarefa
+      if (novoStatus === 'FINALIZADA' && tarefa.status !== 'FINALIZADA') {
+        const confirmado = await confirm(confirmacaoCascataPai('finalizar'))
+        if (!confirmado) {
+          return
+        }
+      } else if (novoStatus === 'CANCELADA' && tarefa.status !== 'CANCELADA') {
+        const confirmado = await confirm(confirmacaoCascataPai('cancelar'))
+        if (!confirmado) {
+          return
+        }
+      }
+    }
+
     const corpo = {
       titulo: values.titulo.trim(),
       descricao: values.descricao.trim(),
       prioridade: values.prioridade as Prioridade,
       prazo: datetimeLocalParaInstant(values.prazo),
-      duracaoMinutos: values.duracaoMinutos as number,
+      ...(tarefa?.temFilhos ? {} : { duracaoMinutos: values.duracaoMinutos as number }),
     }
 
     setEnviando(true)
@@ -263,7 +293,7 @@ export function TarefaDrawer() {
         toast.success('Tarefa salva')
         aoAtualizar(atualizada)
       }
-      setAberto(false)
+      voltarParaLista()
     } catch (error) {
       setErro(
         mensagemErro(
@@ -303,11 +333,15 @@ export function TarefaDrawer() {
     if (!tarefa || deletada) {
       return
     }
-    const confirmado = await confirm({
-      title: 'Excluir tarefa?',
-      message: 'A tarefa será excluída. Você poderá restaurá-la nesta tela.',
-      confirmLabel: 'Excluir',
-    })
+    const confirmado = await confirm(
+      tarefa.temFilhos
+        ? confirmacaoCascataPai('excluir')
+        : {
+            title: 'Excluir tarefa?',
+            message: 'A tarefa será excluída. Você poderá restaurá-la nesta tela.',
+            confirmLabel: 'Excluir',
+          },
+    )
     if (!confirmado) {
       return
     }
@@ -357,7 +391,7 @@ export function TarefaDrawer() {
         ) : (
           <button
             type="button"
-            className="btn btn--ghost btn--danger tarefa-drawer__excluir"
+            className="btn btn--ghost btn--danger tarefa-ficha__excluir"
             disabled={excluindo}
             onClick={() => void handleExcluir()}
           >
@@ -388,28 +422,36 @@ export function TarefaDrawer() {
     </button>
   )
 
+  const tituloPagina = naNota ? 'Descrição' : modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'
+  const mostrarSubtarefas = modo === 'editar' && tarefa != null && !tarefa.parentId && !deletada
+  const classeFicha = ['tarefa-ficha', naNota ? 'tarefa-ficha--nota' : '']
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <>
-      <Drawer
-        open={aberto}
-        title={naNota ? 'Descrição' : modo === 'criar' ? 'Nova tarefa' : 'Editar tarefa'}
-        headerStart={
-          naNota ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--icon"
-              aria-label="Voltar"
-              onClick={voltarAoMeta}
-            >
+      <section className={classeFicha} aria-labelledby="tarefa-ficha-titulo" aria-busy={carregando || undefined}>
+        <header className="tarefa-ficha__header">
+          <div className="tarefa-ficha__heading">
+            <button type="button" className="btn btn--ghost" onClick={() => void pedirFechar()}>
               <CaretLeftIcon aria-hidden />
+              Voltar
             </button>
-          ) : undefined
-        }
-        onClose={() => void pedirFechar()}
-        onExited={voltarParaLista}
-        busy={carregando}
-        footer={naNota ? rodapeNota : rodapeMeta}
-      >
+            <div>
+              <h1 id="tarefa-ficha-titulo" className="tarefa-ficha__titulo">
+                {tituloPagina}
+              </h1>
+              {naNota || carregando ? null : (
+                <p className="tarefa-ficha__subtitulo">
+                  {modo === 'criar'
+                    ? 'O status inicia como pendente automaticamente.'
+                    : 'Status e prazo seguem as regras do servidor.'}
+                </p>
+              )}
+            </div>
+          </div>
+        </header>
+
         {carregando ? (
           <p role="status">Carregando tarefa…</p>
         ) : naNota ? (
@@ -432,48 +474,66 @@ export function TarefaDrawer() {
           </div>
         ) : (
           <>
-            <p className="tarefa-drawer__subtitulo">
-              {modo === 'criar'
-                ? 'O status inicia como pendente automaticamente.'
-                : 'Status e prazo seguem as regras do servidor.'}
-            </p>
             {deletada ? (
               <p className="tarefa-deletada-aviso" role="status">
                 Esta tarefa está excluída. Restaure para editar novamente.
               </p>
             ) : null}
             {modo === 'editar' && !tarefa ? null : (
-              <TarefaForm
-                formId={FORM_ID}
-                modo={modo}
-                values={values}
-                onValuesChange={setValues}
-                projetoId={projetoId}
-                projetoNomeVinculado={projetoNomeVinculado}
-                onProjetoChange={(novoId, nome) => {
-                  setProjetoId(novoId)
-                  setProjetoNomeVinculado(nome)
-                }}
-                projetosAtivos={projetosAtivos}
-                disabled={deletada}
-                erro={erro}
-                onSubmit={(e) => void handleSubmit(e)}
-                onAbrirDescricao={abrirNota}
-                descricaoEntradaRef={descricaoEntradaRef}
-                onDesvincular={() => void handleDesvincular()}
-                desvinculando={desvinculando}
-                tagIds={tagIds}
-                tagsSelecionadas={tagsSelecionadas}
-                onTagsChange={(ids, tags) => {
-                  setTagIds(ids)
-                  setTagsSelecionadas(tags)
-                }}
-              />
+              <div className="tarefa-ficha__corpo">
+                <div className="tarefa-ficha__principal">
+                  <TarefaForm
+                    formId={FORM_ID}
+                    modo={modo}
+                    values={values}
+                    onValuesChange={setValues}
+                    projetoId={projetoId}
+                    projetoNomeVinculado={projetoNomeVinculado}
+                    onProjetoChange={(novoId, nome) => {
+                      setProjetoId(novoId)
+                      setProjetoNomeVinculado(nome)
+                    }}
+                    projetosAtivos={projetosAtivos}
+                    disabled={deletada}
+                    erro={erro}
+                    onSubmit={(e) => void handleSubmit(e)}
+                    onAbrirDescricao={abrirNota}
+                    descricaoEntradaRef={descricaoEntradaRef}
+                    onDesvincular={() => void handleDesvincular()}
+                    desvinculando={desvinculando}
+                    tagIds={tagIds}
+                    tagsSelecionadas={tagsSelecionadas}
+                    onTagsChange={(ids, tags) => {
+                      setTagIds(ids)
+                      setTagsSelecionadas(tags)
+                    }}
+                    duracaoSomenteLeitura={Boolean(tarefa?.temFilhos)}
+                  />
+                </div>
+                {mostrarSubtarefas && tarefa ? (
+                  <TarefaSubtarefasSection
+                    parent={tarefa}
+                    onPaiAtualizado={(atualizada) => {
+                      setTarefa(atualizada)
+                      setValues((atual) => ({ ...atual, duracaoMinutos: atualizada.duracaoMinutos }))
+                      setInicial((atual) => ({
+                        ...atual,
+                        values: { ...atual.values, duracaoMinutos: atualizada.duracaoMinutos },
+                      }))
+                      aoAtualizar(atualizada)
+                    }}
+                  />
+                ) : null}
+              </div>
             )}
             {modo === 'editar' && !tarefa && erro ? <InlineAlert>{erro}</InlineAlert> : null}
           </>
         )}
-      </Drawer>
+
+        {carregando ? null : (
+          <div className="tarefa-ficha__rodape">{naNota ? rodapeNota : rodapeMeta}</div>
+        )}
+      </section>
       {confirmDialog}
     </>
   )

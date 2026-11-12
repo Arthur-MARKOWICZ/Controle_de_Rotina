@@ -98,6 +98,9 @@ public class TarefaSlotAvulsoService {
         if (!STATUS_ELEGIVEIS.contains(tarefa.getStatus())) {
             throw new TarefaNaoElegivelException(tarefaId);
         }
+        if (tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefaId)) {
+            throw new TarefaNaoElegivelException(tarefaId);
+        }
         return tarefa;
     }
 
