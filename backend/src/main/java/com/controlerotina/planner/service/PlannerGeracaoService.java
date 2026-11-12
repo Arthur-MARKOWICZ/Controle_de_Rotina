@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -135,9 +136,13 @@ public class PlannerGeracaoService {
                 usuarioId,
                 STATUS_ELEGIVEIS
         );
+        Set<UUID> paisComFilhos = idsComFilhosNaoDeletados(candidatas);
         Map<UUID, Integer> saldoPorTarefa = new HashMap<>();
         List<Tarefa> elegiveis = new ArrayList<>();
         for (Tarefa tarefa : candidatas) {
+            if (paisComFilhos.contains(tarefa.getId())) {
+                continue;
+            }
             long minutosConcluidos = execucaoRepository.somarDuracaoMinutosPorTarefaEStatus(
                     tarefa.getId(),
                     usuarioId,
@@ -240,6 +245,15 @@ public class PlannerGeracaoService {
             throw new PlanoJaAprovadoException(inicio);
         }
         return planoInicio;
+    }
+
+    private Set<UUID> idsComFilhosNaoDeletados(List<Tarefa> candidatas) {
+        if (candidatas.isEmpty()) {
+            return Set.of();
+        }
+        return tarefaRepository.findParentIdsComFilhosNaoDeletados(
+                candidatas.stream().map(Tarefa::getId).toList()
+        );
     }
 
     private static boolean violaUniqueVersao(DataIntegrityViolationException ex) {

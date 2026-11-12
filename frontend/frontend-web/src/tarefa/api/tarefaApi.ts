@@ -22,6 +22,9 @@ export type TarefaResponse = {
   updatedAt: string
   deletedAt: string | null
   deletada: boolean
+  parentId?: string | null
+  parentTitulo?: string | null
+  temFilhos?: boolean
 }
 
 export type SessaoTarefaRequest = {
@@ -56,6 +59,8 @@ export type ListarTarefasParams = {
   tagIds?: string[]
   incluirDeletadas?: boolean
   somenteDeletadas?: boolean
+  parentId?: string
+  somenteRaizes?: boolean
   page?: number
   size?: number
   sort?: SortCampo
@@ -71,6 +76,7 @@ export type CriarTarefaRequest = {
   duracaoMinutos?: number | null
   projetoId?: string | null
   tagIds?: string[]
+  parentId?: string | null
 }
 
 export type AtualizarTarefaRequest = {
@@ -114,6 +120,10 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   }
   if (filtro.somenteDeletadas != null) {
     params.set('somenteDeletadas', String(filtro.somenteDeletadas))
+  }
+  if (filtro.parentId) params.set('parentId', filtro.parentId)
+  if (filtro.somenteRaizes != null) {
+    params.set('somenteRaizes', String(filtro.somenteRaizes))
   }
 
   params.set('page', String(filtro.page ?? 0))

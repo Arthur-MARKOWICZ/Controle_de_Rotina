@@ -215,6 +215,21 @@ class PlannerGeracaoIT {
     }
 
     @Test
+    void deveOmitirPaiComFilhosEAlocarSomenteFolhas() {
+        salvarOverride(4);
+        Tarefa pai = salvarTarefa("Pai", Prioridade.ALTA, StatusTarefa.PENDENTE, 120, AGORA);
+        Tarefa filhoA = salvarFilho(pai.getId(), "Filho A", Prioridade.ALTA, 60, AGORA.plusSeconds(1));
+        Tarefa filhoB = salvarFilho(pai.getId(), "Filho B", Prioridade.MEDIA, 60, AGORA.plusSeconds(2));
+
+        Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
+
+        List<BlocoPlano> blocos = blocoPlanoRepository.findByPlanoIdOrderByOrdemAsc(plano.getId());
+        assertThat(blocos).extracting(BlocoPlano::getTarefaId)
+                .containsExactlyInAnyOrder(filhoA.getId(), filhoB.getId())
+                .doesNotContain(pai.getId());
+    }
+
+    @Test
     void deveIncrementarVersaoSemMutarAnterior() {
         salvarOverride(2);
         salvarTarefa("Tarefa", Prioridade.MEDIA, StatusTarefa.PENDENTE, 60, AGORA);
@@ -299,11 +314,32 @@ class PlannerGeracaoIT {
             int duracaoMinutos,
             Instant createdAt
     ) {
+        return persistirTarefa(titulo, prioridade, status, duracaoMinutos, createdAt, null);
+    }
+
+    private Tarefa salvarFilho(
+            UUID parentId,
+            String titulo,
+            Prioridade prioridade,
+            int duracaoMinutos,
+            Instant createdAt
+    ) {
+        return persistirTarefa(titulo, prioridade, StatusTarefa.PENDENTE, duracaoMinutos, createdAt, parentId);
+    }
+
+    private Tarefa persistirTarefa(
+            String titulo,
+            Prioridade prioridade,
+            StatusTarefa status,
+            int duracaoMinutos,
+            Instant createdAt,
+            UUID parentId
+    ) {
         Instant criado = createdAt != null ? createdAt : AGORA;
         Instant prazo = DIA_D.plusDays(5).atTime(12, 0)
                 .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
-        return tarefaRepository.save(new Tarefa(
+        Tarefa tarefa = new Tarefa(
                 UUID.randomUUID(),
                 usuarioId,
                 titulo,
@@ -314,6 +350,10 @@ class PlannerGeracaoIT {
                 duracaoMinutos,
                 criado,
                 criado
-        ));
+        );
+        if (parentId != null) {
+            tarefa.definirParentId(parentId);
+        }
+        return tarefaRepository.save(tarefa);
     }
 }

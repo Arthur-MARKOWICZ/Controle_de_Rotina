@@ -192,6 +192,65 @@ class TarefaExecucaoAvulsaIT {
         assertThat(segundo.getStatusCode()).isEqualTo(CONFLICT);
     }
 
+    @Test
+    void deveRejeitarIniciarNoPaiComFilhos() {
+        UUID paiId = criarTarefa(120);
+        criarFilho(paiId, 60);
+
+        ResponseEntity<Map> resp = restTemplate.exchange(
+                "/tarefas/" + paiId + "/iniciar",
+                HttpMethod.POST,
+                authed(Map.of("duracaoMinutos", 30, "data", TERCA.toString())),
+                Map.class);
+
+        assertThat(resp.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from bloco_plano where tarefa_id = ?",
+                Integer.class,
+                paiId)).isZero();
+    }
+
+    @Test
+    void deveRejeitarConcluirDiretoNoPaiComFilhos() {
+        UUID paiId = criarTarefa(120);
+        UUID filhoId = criarFilho(paiId, 60);
+
+        ResponseEntity<Map> resp = restTemplate.exchange(
+                "/tarefas/" + paiId + "/concluir-direto",
+                HttpMethod.POST,
+                authed(Map.of("duracaoMinutos", 30, "data", TERCA.toString())),
+                Map.class);
+
+        assertThat(resp.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from tarefa where id = ?",
+                String.class,
+                filhoId)).isEqualTo("PENDENTE");
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from tarefa where id = ?",
+                String.class,
+                paiId)).isEqualTo("PENDENTE");
+    }
+
+    @Test
+    void deveIniciarSessaoNaSubtarefa() {
+        UUID paiId = criarTarefa(120);
+        UUID filhoId = criarFilho(paiId, 60);
+
+        ResponseEntity<Map> resp = restTemplate.exchange(
+                "/tarefas/" + filhoId + "/iniciar",
+                HttpMethod.POST,
+                authed(Map.of("duracaoMinutos", 30, "data", TERCA.toString())),
+                Map.class);
+
+        assertThat(resp.getStatusCode()).isIn(CREATED, OK);
+        assertThat(resp.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from bloco_plano where tarefa_id = ?",
+                Integer.class,
+                filhoId)).isEqualTo(1);
+    }
+
     private UUID criarTarefa(int duracaoMinutos) {
         return tarefaRepository.save(new Tarefa(
                 UUID.randomUUID(),
@@ -205,6 +264,23 @@ class TarefaExecucaoAvulsaIT {
                 AGORA,
                 AGORA
         )).getId();
+    }
+
+    private UUID criarFilho(UUID parentId, int duracaoMinutos) {
+        Tarefa filho = new Tarefa(
+                UUID.randomUUID(),
+                usuarioId,
+                "Passo",
+                "descricao",
+                Prioridade.MEDIA,
+                AGORA.plusSeconds(86_400),
+                StatusTarefa.PENDENTE,
+                duracaoMinutos,
+                AGORA,
+                AGORA
+        );
+        filho.definirParentId(parentId);
+        return tarefaRepository.save(filho).getId();
     }
 
     private HttpEntity<?> authed(Object body) {

@@ -30,9 +30,12 @@ import com.controlerotina.projeto.entity.StatusProjeto;
 import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.shared.exception.AtrasadaComPrazoFuturoException;
 import com.controlerotina.shared.exception.CampoTextoTarefaInvalidoException;
+import com.controlerotina.shared.exception.DuracaoPaiComFilhosException;
+import com.controlerotina.shared.exception.PaiComBlocoConcluidoException;
 import com.controlerotina.shared.exception.PrazoNoPassadoException;
 import com.controlerotina.shared.exception.ProjetoArquivadoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
+import com.controlerotina.shared.exception.SubtarefaNivelInvalidoException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.tag.dto.TagResumoResponse;
 import com.controlerotina.tag.service.TagVinculoService;
@@ -85,14 +88,22 @@ public class TarefaService {
             throw new PrazoNoPassadoException();
         }
 
+        Tarefa pai = request.parentId() == null
+                ? null
+                : carregarPaiParaSubtarefa(usuarioId, request.parentId());
+
         Prioridade prioridade = request.prioridade() != null ? request.prioridade() : PRIORIDADE_DEFAULT;
         int duracaoMinutos = request.duracaoMinutos() != null
                 ? request.duracaoMinutos()
                 : DURACAO_MINUTOS_DEFAULT;
 
+        UUID projetoId = request.projetoId();
         String projetoNome = null;
-        if (request.projetoId() != null) {
-            projetoNome = validarProjetoAtivoParaVinculo(usuarioId, request.projetoId()).getNome();
+        if (projetoId != null) {
+            projetoNome = validarProjetoAtivoParaVinculo(usuarioId, projetoId).getNome();
+        } else if (pai != null && pai.getProjetoId() != null) {
+            projetoId = pai.getProjetoId();
+            projetoNome = nomeDoProjeto(projetoId);
         }
 
         Tarefa tarefa = new Tarefa(
@@ -107,19 +118,36 @@ public class TarefaService {
                 agora,
                 agora
         );
-        if (request.projetoId() != null) {
-            tarefa.definirProjetoId(request.projetoId(), agora);
+        if (projetoId != null) {
+            tarefa.definirProjetoId(projetoId, agora);
+        }
+        if (pai != null) {
+            tarefa.definirParentId(pai.getId());
         }
 
         Tarefa salva = tarefaRepository.save(tarefa);
         tarefaRepository.flush();
+        if (pai != null && pai.getStatus() == StatusTarefa.FINALIZADA) {
+            pai.atualizar(null, null, null, null, StatusTarefa.PENDENTE, null, agora);
+        }
+        if (pai != null) {
+            recomputarDuracaoPai(pai);
+        }
         List<TagResumoResponse> tags = tagVinculoService.substituirTagsTarefa(
                 usuarioId,
                 salva.getId(),
                 request.tagIds()
         );
         propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
-        return TarefaResponse.from(salva, projetoNome, salva.getDuracaoMinutos(), tags, null);
+        return TarefaResponse.from(
+                salva,
+                projetoNome,
+                salva.getDuracaoMinutos(),
+                tags,
+                null,
+                pai == null ? null : pai.getTitulo(),
+                false
+        );
     }
 
     @Transactional(readOnly = true)
@@ -138,7 +166,9 @@ public class TarefaService {
                 TarefaSpecs.atualizadoEntre(filtro.atualizadoDe(), filtro.atualizadoAte()),
                 TarefaSpecs.filtroDelecao(filtro.incluirDeletadas(), filtro.somenteDeletadas()),
                 TarefaSpecs.comProjetoId(filtro.projetoId()),
-                TarefaSpecs.comAlgumaTag(tagIds)
+                TarefaSpecs.comAlgumaTag(tagIds),
+                TarefaSpecs.comParentId(filtro.parentId()),
+                TarefaSpecs.somenteRaizes(filtro.somenteRaizes())
         );
 
         Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
@@ -147,6 +177,8 @@ public class TarefaService {
         Map<UUID, List<TagResumoResponse>> tagsPorTarefa = tagVinculoService.mapearTagsPorTarefa(
                 page.getContent().stream().map(Tarefa::getId).toList()
         );
+        Map<UUID, String> titulosPais = carregarTitulosPais(page.getContent());
+        Set<UUID> idsComFilhos = carregarIdsComFilhos(page.getContent());
 
         List<TarefaResponse> conteudo = new ArrayList<>();
         for (Tarefa t : page.getContent()) {
@@ -162,7 +194,9 @@ public class TarefaService {
                     t.getProjetoId() == null ? null : nomes.get(t.getProjetoId()),
                     restantes.getOrDefault(t.getId(), t.getDuracaoMinutos()),
                     tags,
-                    score
+                    score,
+                    t.getParentId() == null ? null : titulosPais.get(t.getParentId()),
+                    idsComFilhos.contains(t.getId())
             ));
         }
 
@@ -178,12 +212,10 @@ public class TarefaService {
     @Transactional(readOnly = true)
     public TarefaResponse buscarPorId(UUID usuarioId, UUID id) {
         Tarefa tarefa = buscarDoUsuario(usuarioId, id);
-        return TarefaResponse.from(
+        return toResponse(
+                usuarioId,
                 tarefa,
-                nomeDoProjeto(tarefa.getProjetoId()),
-                restanteDe(usuarioId, tarefa),
-                tagVinculoService.listarTagsTarefa(tarefa.getId()),
-                null
+                tagVinculoService.listarTagsTarefa(tarefa.getId())
         );
     }
 
@@ -193,6 +225,10 @@ public class TarefaService {
         Instant agora = clock.instant();
 
         validarCamposTexto(request);
+        if (request.duracaoMinutos() != null
+                && tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefa.getId())) {
+            throw new DuracaoPaiComFilhosException();
+        }
 
         Instant prazoFinal = request.prazo() != null ? request.prazo() : tarefa.getPrazo();
         StatusTarefa statusFinal = request.status() != null ? request.status() : tarefa.getStatus();
@@ -226,6 +262,7 @@ public class TarefaService {
                 request.duracaoMinutos(),
                 agora
         );
+        aplicarCascataDeStatus(tarefa, request.status(), agora);
 
         if (request.projetoIdPresente()) {
             aplicarVinculoProjeto(usuarioId, tarefa, request.projetoId(), agora);
@@ -235,13 +272,12 @@ public class TarefaService {
                 ? tagVinculoService.substituirTagsTarefa(usuarioId, tarefa.getId(), request.tagIds())
                 : tagVinculoService.listarTagsTarefa(tarefa.getId());
 
-        return TarefaResponse.from(
-                tarefa,
-                nomeDoProjeto(tarefa.getProjetoId()),
-                restanteDe(usuarioId, tarefa),
-                tags,
-                null
-        );
+        if (request.duracaoMinutos() != null && tarefa.getParentId() != null) {
+            tarefaRepository.flush();
+            recomputarDuracaoPaiPorId(tarefa.getParentId());
+        }
+
+        return toResponse(usuarioId, tarefa, tags);
     }
 
     private void aplicarVinculoProjeto(UUID usuarioId, Tarefa tarefa, UUID novoProjetoId, Instant agora) {
@@ -265,6 +301,57 @@ public class TarefaService {
         return projeto;
     }
 
+    private TarefaResponse toResponse(UUID usuarioId, Tarefa tarefa, List<TagResumoResponse> tags) {
+        return TarefaResponse.from(
+                tarefa,
+                nomeDoProjeto(tarefa.getProjetoId()),
+                restanteDe(usuarioId, tarefa),
+                tags,
+                null,
+                tituloDoPai(tarefa.getParentId()),
+                tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefa.getId())
+        );
+    }
+
+    private void recomputarDuracaoPaiPorId(UUID parentId) {
+        tarefaRepository.findById(parentId).ifPresent(this::recomputarDuracaoPai);
+    }
+
+    private void recomputarDuracaoPai(Tarefa pai) {
+        long soma = tarefaRepository.somarDuracaoFilhosNaoDeletados(pai.getId());
+        if (soma == 0) {
+            return;
+        }
+        pai.atualizar(null, null, null, null, null, (int) soma, clock.instant());
+    }
+
+    private String tituloDoPai(UUID parentId) {
+        if (parentId == null) {
+            return null;
+        }
+        return tarefaRepository.findById(parentId).map(Tarefa::getTitulo).orElse(null);
+    }
+
+    private Map<UUID, String> carregarTitulosPais(List<Tarefa> tarefas) {
+        Set<UUID> ids = tarefas.stream()
+                .map(Tarefa::getParentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return tarefaRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Tarefa::getId, Tarefa::getTitulo));
+    }
+
+    private Set<UUID> carregarIdsComFilhos(List<Tarefa> tarefas) {
+        Set<UUID> ids = tarefas.stream().map(Tarefa::getId).collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+        return tarefaRepository.findParentIdsComFilhosNaoDeletados(ids);
+    }
+
     private Map<UUID, String> carregarNomesProjetos(java.util.List<Tarefa> tarefas) {
         Set<UUID> ids = tarefas.stream()
                 .map(Tarefa::getProjetoId)
@@ -284,6 +371,78 @@ public class TarefaService {
         return projetoRepository.findById(projetoId).map(Projeto::getNome).orElse(null);
     }
 
+    private void aplicarCascataDeStatus(Tarefa tarefa, StatusTarefa statusSolicitado, Instant agora) {
+        if (statusSolicitado == null) {
+            return;
+        }
+        if (tarefa.getParentId() == null) {
+            if (statusSolicitado == StatusTarefa.FINALIZADA || statusSolicitado == StatusTarefa.CANCELADA) {
+                for (Tarefa filho : tarefaRepository.findByParentIdAndDeletedAtIsNull(tarefa.getId())) {
+                    filho.atualizar(null, null, null, null, statusSolicitado, null, agora);
+                }
+            }
+            return;
+        }
+        if (statusAberto(statusSolicitado)) {
+            reabrirPaiSeFinalizada(tarefa.getParentId(), agora);
+            return;
+        }
+        if (statusSolicitado == StatusTarefa.FINALIZADA) {
+            tarefaRepository.flush();
+            finalizarPaiSeTodosFilhosFinalizados(tarefa.getParentId(), agora);
+        }
+    }
+
+    private void reabrirPaiSeFinalizada(UUID parentId, Instant agora) {
+        Tarefa pai = tarefaRepository.findById(parentId).orElse(null);
+        if (pai == null || pai.getDeletedAt() != null || pai.getStatus() != StatusTarefa.FINALIZADA) {
+            return;
+        }
+        pai.atualizar(null, null, null, null, StatusTarefa.PENDENTE, null, agora);
+    }
+
+    private void finalizarPaiSeTodosFilhosFinalizados(UUID parentId, Instant agora) {
+        if (tarefaRepository.existsByParentIdAndDeletedAtIsNullAndStatusNot(parentId, StatusTarefa.FINALIZADA)) {
+            return;
+        }
+        Tarefa pai = tarefaRepository.findById(parentId).orElse(null);
+        if (pai == null || pai.getDeletedAt() != null || pai.getStatus() == StatusTarefa.FINALIZADA) {
+            return;
+        }
+        pai.atualizar(null, null, null, null, StatusTarefa.FINALIZADA, null, agora);
+    }
+
+    private void excluirFilhosAtivos(UUID usuarioId, UUID parentId, Instant agora) {
+        List<Tarefa> filhos = tarefaRepository.findByParentIdAndDeletedAtIsNull(parentId);
+        for (Tarefa filho : filhos) {
+            filho.softDelete(agora);
+        }
+        tarefaRepository.flush();
+        for (Tarefa filho : filhos) {
+            itemDecidirRepository.reabrirPorTarefa(usuarioId, filho.getId(), agora);
+        }
+    }
+
+    private void restaurarFilhosDeletados(UUID parentId, Instant agora) {
+        for (Tarefa filho : tarefaRepository.findByParentIdAndDeletedAtIsNotNull(parentId)) {
+            filho.restore(agora);
+        }
+    }
+
+    private void restaurarPaiSeDeletado(UUID parentId, Instant agora) {
+        Tarefa pai = tarefaRepository.findById(parentId).orElse(null);
+        if (pai == null || pai.getDeletedAt() == null) {
+            return;
+        }
+        pai.restore(agora);
+    }
+
+    private static boolean statusAberto(StatusTarefa status) {
+        return status == StatusTarefa.PENDENTE
+                || status == StatusTarefa.EM_PROGRESSO
+                || status == StatusTarefa.ATRASADA;
+    }
+
     private static boolean statusMudou(
             StatusTarefa atual,
             StatusTarefa statusFinal,
@@ -299,8 +458,15 @@ public class TarefaService {
             throw new TarefaNaoEncontradaException();
         }
         Instant agora = clock.instant();
+        UUID parentId = tarefa.getParentId();
         tarefa.softDelete(agora);
         itemDecidirRepository.reabrirPorTarefa(usuarioId, tarefa.getId(), agora);
+        if (parentId == null) {
+            excluirFilhosAtivos(usuarioId, tarefa.getId(), agora);
+        } else {
+            tarefaRepository.flush();
+            recomputarDuracaoPaiPorId(parentId);
+        }
     }
 
     @Transactional
@@ -309,13 +475,20 @@ public class TarefaService {
         if (tarefa.getDeletedAt() == null) {
             throw new TarefaNaoEncontradaException();
         }
-        tarefa.restore(clock.instant());
-        return TarefaResponse.from(
+        Instant agora = clock.instant();
+        tarefa.restore(agora);
+        if (tarefa.getParentId() == null) {
+            restaurarFilhosDeletados(tarefa.getId(), agora);
+            recomputarDuracaoPai(tarefa);
+        } else {
+            restaurarPaiSeDeletado(tarefa.getParentId(), agora);
+            tarefaRepository.flush();
+            recomputarDuracaoPaiPorId(tarefa.getParentId());
+        }
+        return toResponse(
+                usuarioId,
                 tarefa,
-                nomeDoProjeto(tarefa.getProjetoId()),
-                restanteDe(usuarioId, tarefa),
-                tagVinculoService.listarTagsTarefa(tarefa.getId()),
-                null
+                tagVinculoService.listarTagsTarefa(tarefa.getId())
         );
     }
 
@@ -365,6 +538,21 @@ public class TarefaService {
     private Tarefa buscarDoUsuario(UUID usuarioId, UUID id) {
         return tarefaRepository.findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(TarefaNaoEncontradaException::new);
+    }
+
+    private Tarefa carregarPaiParaSubtarefa(UUID usuarioId, UUID parentId) {
+        Tarefa pai = tarefaRepository.findByIdAndUsuarioId(parentId, usuarioId)
+                .orElseThrow(TarefaNaoEncontradaException::new);
+        if (pai.getDeletedAt() != null) {
+            throw new TarefaNaoEncontradaException();
+        }
+        if (pai.getParentId() != null) {
+            throw new SubtarefaNivelInvalidoException();
+        }
+        if (execucaoRepository.existsPorTarefaEStatus(pai.getId(), StatusExecucao.CONCLUIDO)) {
+            throw new PaiComBlocoConcluidoException();
+        }
+        return pai;
     }
 
     private static void validarCamposTexto(AtualizarTarefaRequest request) {

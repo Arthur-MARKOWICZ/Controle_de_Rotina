@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -136,6 +137,30 @@ class TarefaExecucaoAvulsaServiceTest {
     }
 
     @Test
+    void iniciarRejeitaPaiComFilhos() {
+        Tarefa tarefa = tarefa(120);
+        BlocoPlano bloco = new BlocoPlano(
+                UUID.randomUUID(), UUID.randomUUID(), TAREFA_ID, 30, 1, AGORA, AGORA);
+        Plano avulso = plano(StatusPlano.TAREFA_AVULSA);
+        ResultadoInicio esperado = new ResultadoInicio(
+                Execucao.iniciarNova(UUID.randomUUID(), USUARIO, bloco.getId(), AGORA), true);
+
+        lenient().when(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+                USUARIO, TERCA, StatusPlano.APROVADO)).thenReturn(Optional.empty());
+        lenient().when(tarefaRepository.findByIdAndUsuarioId(TAREFA_ID, USUARIO)).thenReturn(Optional.of(tarefa));
+        when(tarefaRepository.existsByParentIdAndDeletedAtIsNull(TAREFA_ID)).thenReturn(true);
+        lenient().when(slotAvulsoService.restanteMinutos(USUARIO, tarefa)).thenReturn(90);
+        lenient().when(slotAvulsoService.materializar(USUARIO, TAREFA_ID, TERCA, 30))
+                .thenReturn(new TarefaSlotAvulsoService.SlotAvulso(tarefa, avulso, bloco, null));
+        lenient().when(execucaoService.iniciar(USUARIO, bloco.getId())).thenReturn(esperado);
+
+        assertThatThrownBy(() -> service.iniciar(USUARIO, TAREFA_ID, 30, TERCA, null))
+                .isInstanceOf(TarefaNaoElegivelException.class);
+        verify(slotAvulsoService, never()).materializar(any(), any(), any(), anyInt());
+        verify(execucaoService, never()).iniciar(any(), any());
+    }
+
+    @Test
     void iniciarAvulsoRejeitaSemRestante() {
         Tarefa tarefa = tarefa(60);
         when(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
@@ -170,6 +195,33 @@ class TarefaExecucaoAvulsaServiceTest {
 
         assertThat(resultado).isSameAs(esperado);
         verify(slotAvulsoService, never()).materializar(any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void concluirDiretoRejeitaPaiComFilhos() {
+        Tarefa tarefa = tarefa(120);
+        Plano avulso = plano(StatusPlano.TAREFA_AVULSA);
+        BlocoPlano bloco = new BlocoPlano(
+                UUID.randomUUID(), avulso.getId(), TAREFA_ID, 30, 1, AGORA, AGORA);
+        ResultadoConclusao esperado = new ResultadoConclusao(
+                Execucao.concluirDiretoNova(UUID.randomUUID(), USUARIO, bloco.getId(), AGORA),
+                new XpConcessaoService.ResultadoConcessao(5, List.of(), 5, null)
+        );
+
+        lenient().when(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
+                USUARIO, TERCA, StatusPlano.APROVADO)).thenReturn(Optional.empty());
+        lenient().when(tarefaRepository.findByIdAndUsuarioId(TAREFA_ID, USUARIO)).thenReturn(Optional.of(tarefa));
+        when(tarefaRepository.existsByParentIdAndDeletedAtIsNull(TAREFA_ID)).thenReturn(true);
+        lenient().when(slotAvulsoService.restanteMinutos(USUARIO, tarefa)).thenReturn(90);
+        lenient().when(slotAvulsoService.materializar(USUARIO, TAREFA_ID, TERCA, 30))
+                .thenReturn(new TarefaSlotAvulsoService.SlotAvulso(tarefa, avulso, bloco, null));
+        lenient().when(execucaoService.concluirTarefaDiretoNoBloco(eq(USUARIO), eq(bloco), eq(tarefa)))
+                .thenReturn(esperado);
+
+        assertThatThrownBy(() -> service.concluirDireto(USUARIO, TAREFA_ID, 30, TERCA, null))
+                .isInstanceOf(TarefaNaoElegivelException.class);
+        verify(slotAvulsoService, never()).materializar(any(), any(), any(), anyInt());
+        verify(execucaoService, never()).concluirTarefaDiretoNoBloco(any(), any(), any());
     }
 
     @Test

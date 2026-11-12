@@ -28,6 +28,13 @@ import {
   paramsApiDaVisao,
   type FiltrosListaUrl,
 } from '../listaUrl'
+import { confirmacaoCascataPai } from '../cascataConfirmacao'
+import {
+  ehVisaoArvore,
+  ehVisaoPlana,
+  filhosNaPagina,
+  tarefasNoNivelDaLista,
+} from '../listaArvore'
 import { TarefaCard } from '../TarefaCard'
 import type { TarefasOutletContext } from '../TarefaDrawer'
 
@@ -64,6 +71,7 @@ function paramsApi(filtros: FiltrosListaUrl) {
     size: filtros.size,
     sort: filtros.sort,
     direction: filtros.direction,
+    ...(ehVisaoArvore(filtros) ? { somenteRaizes: true } : {}),
   }
 }
 
@@ -99,6 +107,20 @@ function inserirNaPagina(pagina: PageTarefa, tarefa: TarefaResponse, indice: num
   return { ...pagina, content, totalElements: pagina.totalElements + 1 }
 }
 
+function inserirNosFilhos(
+  filhosPorPai: Record<string, TarefaResponse[]>,
+  paiId: string,
+  tarefa: TarefaResponse,
+  indice: number,
+): Record<string, TarefaResponse[]> {
+  const lista = [...(filhosPorPai[paiId] ?? [])]
+  if (lista.some((item) => item.id === tarefa.id)) {
+    return filhosPorPai
+  }
+  lista.splice(Math.min(indice, lista.length), 0, tarefa)
+  return { ...filhosPorPai, [paiId]: lista }
+}
+
 function substituirNaPagina(pagina: PageTarefa, tarefa: TarefaResponse): PageTarefa {
   return { ...pagina, content: pagina.content.map((t) => (t.id === tarefa.id ? tarefa : t)) }
 }
@@ -127,6 +149,8 @@ export function TarefasPage() {
   const filtrosRef = useRef(filtrosUrl)
   const listaRef = useRef<HTMLDivElement>(null)
   const inlineAddRef = useRef<InlineAddTarefaHandle>(null)
+  const [expandidoIds, setExpandidoIds] = useState<Set<string>>(() => new Set())
+  const [filhosPorPai, setFilhosPorPai] = useState<Record<string, TarefaResponse[]>>({})
 
   useEffect(() => {
     filtrosRef.current = filtrosUrl
@@ -197,17 +221,23 @@ export function TarefasPage() {
     void carregar(filtrosUrl, false)
   }, [filtrosUrl, carregar])
 
+  useEffect(() => {
+    setExpandidoIds(new Set())
+    setFilhosPorPai({})
+  }, [chaveAtual])
+
   useEffect(() => () => controllerRef.current?.abort(), [])
 
   useEffect(() => assinarCriada(lerSilenciosamente), [assinarCriada, lerSilenciosamente])
 
-  useEffect(
-    () =>
-      registrarFocoInline(() => {
-        inlineAddRef.current?.focus()
-      }),
-    [registrarFocoInline],
-  )
+  useEffect(() => {
+    if (location.pathname !== '/tarefas') {
+      return
+    }
+    return registrarFocoInline(() => {
+      inlineAddRef.current?.focus()
+    })
+  }, [location.pathname, registrarFocoInline])
 
   function atualizarUrl(proximo: FiltrosListaUrl) {
     setSearchParams(escreverFiltrosNaUrl(proximo), { replace: true })
@@ -228,25 +258,90 @@ export function TarefasPage() {
   }
 
   async function handleExcluir(tarefa: TarefaResponse) {
-    const confirmado = await confirm({
-      title: 'Excluir tarefa?',
-      message: 'A tarefa será excluída. Você poderá restaurá-la depois.',
-      confirmLabel: 'Excluir',
-    })
+    const confirmado = await confirm(
+      tarefa.temFilhos
+        ? confirmacaoCascataPai('excluir')
+        : {
+            title: 'Excluir tarefa?',
+            message: 'A tarefa será excluída. Você poderá restaurá-la depois.',
+            confirmLabel: 'Excluir',
+          },
+    )
     if (!confirmado || !resultado) {
       return
     }
 
     const indice = resultado.content.findIndex((t) => t.id === tarefa.id)
-    setResultado((r) => (r ? removerDaPagina(r, tarefa.id) : r))
+    const paiId = tarefa.parentId ?? null
+    const indiceFilho = paiId
+      ? (filhosPorPai[paiId]?.findIndex((item) => item.id === tarefa.id) ?? -1)
+      : -1
+    const aninhado = indiceFilho >= 0 && paiId != null
+
+    if (aninhado && paiId) {
+      setFilhosPorPai((atual) => ({
+        ...atual,
+        [paiId]: (atual[paiId] ?? []).filter((item) => item.id !== tarefa.id),
+      }))
+    } else {
+      setResultado((r) => (r ? removerDaPagina(r, tarefa.id) : r))
+    }
     try {
       await excluirTarefa(tarefa.id)
       toast.success('Tarefa excluída', {
-        action: { label: 'Desfazer', onClick: () => restaurarOtimista(tarefa, indice) },
+        action: {
+          label: 'Desfazer',
+          onClick: () => {
+            if (aninhado && paiId) {
+              setFilhosPorPai((atual) => inserirNosFilhos(atual, paiId, tarefa, indiceFilho))
+              restaurarTarefa(tarefa.id).catch((error) => {
+                setFilhosPorPai((atual) => ({
+                  ...atual,
+                  [paiId]: (atual[paiId] ?? []).filter((item) => item.id !== tarefa.id),
+                }))
+                toast.error(mensagemErro(error, 'Não foi possível restaurar a tarefa.'))
+              })
+              return
+            }
+            restaurarOtimista(tarefa, indice)
+          },
+        },
       })
     } catch (error) {
-      setResultado((r) => (r ? inserirNaPagina(r, tarefa, indice) : r))
+      if (aninhado && paiId) {
+        setFilhosPorPai((atual) => inserirNosFilhos(atual, paiId, tarefa, indiceFilho))
+      } else {
+        setResultado((r) => (r ? inserirNaPagina(r, tarefa, indice) : r))
+      }
       toast.error(mensagemErro(error, 'Não foi possível excluir a tarefa.'))
+    }
+  }
+
+  async function handleToggleExpand(pai: TarefaResponse) {
+    const id = pai.id
+    const jaExpandido = expandidoIds.has(id)
+    setExpandidoIds((atual) => {
+      const proximo = new Set(atual)
+      if (jaExpandido) {
+        proximo.delete(id)
+      } else {
+        proximo.add(id)
+      }
+      return proximo
+    })
+    if (jaExpandido || !ehVisaoArvore(filtrosUrl) || filhosPorPai[id]) {
+      return
+    }
+    try {
+      const page = await listarTarefas({ parentId: id, size: 100 })
+      setFilhosPorPai((atual) => ({ ...atual, [id]: page.content }))
+    } catch (error) {
+      setExpandidoIds((atual) => {
+        const proximo = new Set(atual)
+        proximo.delete(id)
+        return proximo
+      })
+      toast.error(mensagemErro(error, 'Não foi possível carregar as subtarefas.'))
     }
   }
 
@@ -277,18 +372,32 @@ export function TarefasPage() {
     aoCriar: (tarefa) => handleTarefaCriada(tarefa),
   }
 
+  const naFicha = location.pathname !== '/tarefas'
+
   const carregandoPrimeira = chaveCarregada === null
   const recarregando = resultado != null && chaveCarregada !== chaveAtual
   const totalPages = resultado?.totalPages ?? 0
-  const grupos = resultado ? agruparPorPrazo(resultado.content, new Date(), false, filtrosUrl.tagIds) : []
+  const visaoArvore = ehVisaoArvore(filtrosUrl)
+  const visaoPlana = ehVisaoPlana(filtrosUrl)
+  const tarefasTopo =
+    resultado == null
+      ? []
+      : visaoArvore || visaoPlana
+        ? resultado.content
+        : tarefasNoNivelDaLista(resultado.content)
+  const grupos = agruparPorPrazo(tarefasTopo, new Date(), false, filtrosUrl.tagIds)
   const listaVazia = resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
   const temChips = chipsAtivos(filtrosUrl, projetosAtivos, catalogoTags).length > 0
   const total = resultado?.totalElements ?? 0
 
   return (
-    <main className="tarefas-page">
+    <main className={naFicha ? 'tarefas-page tarefas-page--ficha' : 'tarefas-page'}>
       {confirmDialog}
+      {naFicha ? (
+        <Outlet key={location.pathname} context={contextoDrawer} />
+      ) : (
+        <>
       <PageHeader
         title="Tarefas"
         description="Liste, filtre e ordene o que precisa ser planejado."
@@ -370,17 +479,55 @@ export function TarefasPage() {
                     <span className="tarefa-grupo__contador">({grupo.tarefas.length})</span>
                   </h2>
                   <ul className="tarefa-cards">
-                    {grupo.tarefas.map((tarefa) => (
-                      <TarefaCard
-                        key={tarefa.id}
-                        tarefa={tarefa}
-                        visao={filtrosUrl.visao}
-                        search={location.search}
-                        onExcluir={(t) => void handleExcluir(t)}
-                        onRestaurar={(t) => void handleRestaurar(t)}
-                        onSessaoAlterada={lerSilenciosamente}
-                      />
-                    ))}
+                    {grupo.tarefas.map((tarefa) => {
+                      const filhos = visaoArvore
+                        ? (filhosPorPai[tarefa.id] ?? [])
+                        : visaoPlana || resultado == null
+                          ? []
+                          : filhosNaPagina(resultado.content, tarefa.id)
+                      const podeExpandir =
+                        !visaoPlana &&
+                        (visaoArvore ? Boolean(tarefa.temFilhos) : filhos.length > 0)
+                      const expandido = expandidoIds.has(tarefa.id)
+                      const indicadorPai =
+                        Boolean(tarefa.parentId) && !visaoPlana && !visaoArvore
+                      return (
+                        <li key={tarefa.id} className="tarefa-arvore-item">
+                          <TarefaCard
+                            tarefa={tarefa}
+                            visao={filtrosUrl.visao}
+                            search={location.search}
+                            onExcluir={(t) => void handleExcluir(t)}
+                            onRestaurar={(t) => void handleRestaurar(t)}
+                            onSessaoAlterada={lerSilenciosamente}
+                            expandido={expandido}
+                            onToggleExpand={
+                              podeExpandir ? () => void handleToggleExpand(tarefa) : undefined
+                            }
+                            indicadorPai={indicadorPai}
+                          />
+                          {expandido && filhos.length > 0 ? (
+                            <ul
+                              className="tarefa-cards tarefa-cards--aninhados"
+                              aria-label={`Subtarefas de ${tarefa.titulo}`}
+                            >
+                              {filhos.map((filho) => (
+                                <li key={filho.id} className="tarefa-arvore-item">
+                                  <TarefaCard
+                                    tarefa={filho}
+                                    visao={filtrosUrl.visao}
+                                    search={location.search}
+                                    onExcluir={(t) => void handleExcluir(t)}
+                                    onRestaurar={(t) => void handleRestaurar(t)}
+                                    onSessaoAlterada={lerSilenciosamente}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </li>
+                      )
+                    })}
                   </ul>
                 </section>
               ))}
@@ -417,6 +564,8 @@ export function TarefasPage() {
       ) : null}
 
       <Outlet key={location.pathname} context={contextoDrawer} />
+        </>
+      )}
     </main>
   )
 }

@@ -199,7 +199,8 @@ public class DecidirService {
                         body.prazo(),
                         body.duracaoMinutos(),
                         item.getProjetoId(),
-                        tagIds
+                        tagIds,
+                        null
                 )
         );
 

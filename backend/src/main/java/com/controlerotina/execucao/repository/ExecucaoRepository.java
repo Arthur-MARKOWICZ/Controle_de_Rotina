@@ -25,6 +25,18 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
     List<Execucao> findByUsuarioIdAndBlocoPlanoIdIn(UUID usuarioId, Collection<UUID> blocoPlanoIds);
 
     @Query("""
+            SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END
+              FROM Execucao e, BlocoPlano b
+             WHERE e.blocoPlanoId = b.id
+               AND b.tarefaId = :tarefaId
+               AND e.status = :status
+            """)
+    boolean existsPorTarefaEStatus(
+            @Param("tarefaId") UUID tarefaId,
+            @Param("status") StatusExecucao status
+    );
+
+    @Query("""
             SELECT COALESCE(SUM(b.duracaoMinutos), 0)
               FROM Execucao e, BlocoPlano b
              WHERE e.blocoPlanoId = b.id

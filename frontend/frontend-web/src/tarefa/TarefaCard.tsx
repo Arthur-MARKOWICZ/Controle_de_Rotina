@@ -1,5 +1,7 @@
 import {
   ArrowCounterClockwiseIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   CheckIcon,
   ClockIcon,
   DotsThreeIcon,
@@ -51,6 +53,9 @@ type Props = {
   onExcluir: (tarefa: TarefaResponse) => void
   onRestaurar: (tarefa: TarefaResponse) => void
   onSessaoAlterada?: () => void
+  expandido?: boolean
+  onToggleExpand?: () => void
+  indicadorPai?: boolean
 }
 
 type PickerState = { acao: 'iniciar' | 'concluir' } | null
@@ -72,16 +77,25 @@ export function TarefaCard({
   onExcluir,
   onRestaurar,
   onSessaoAlterada,
+  expandido = false,
+  onToggleExpand,
+  indicadorPai = false,
 }: Props) {
   const toast = useToast()
   const { progresso, aplicarProgresso } = useXpProgress()
   const { registrarInicio, refrescarDoDia } = useSessaoAtiva()
   const destino = { pathname: `/tarefas/${tarefa.id}`, search }
+  const destinoPai = tarefa.parentId
+    ? { pathname: `/tarefas/${tarefa.parentId}`, search }
+    : null
   const mostrarStatus = tarefa.status !== STATUS_PADRAO_DA_VISAO[visao]
   const prioridade = tarefa.prioridade.toLowerCase()
   const restante = tarefa.restanteMinutos ?? tarefa.duracaoMinutos
   const podeSessao =
-    !tarefa.deletada && restante > 0 && STATUS_SESSAO.includes(tarefa.status)
+    !tarefa.deletada &&
+    restante > 0 &&
+    STATUS_SESSAO.includes(tarefa.status) &&
+    !tarefa.temFilhos
 
   const [picker, setPicker] = useState<PickerState>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -150,7 +164,22 @@ export function TarefaCard({
   }
 
   return (
-    <li className={tarefa.deletada ? 'tarefa-card tarefa-card--deletada' : 'tarefa-card'}>
+    <article className={tarefa.deletada ? 'tarefa-card tarefa-card--deletada' : 'tarefa-card'}>
+      {onToggleExpand ? (
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm btn--icon tarefa-card__expandir"
+          aria-expanded={expandido}
+          aria-label={
+            expandido
+              ? `Recolher subtarefas de ${tarefa.titulo}`
+              : `Expandir subtarefas de ${tarefa.titulo}`
+          }
+          onClick={onToggleExpand}
+        >
+          {expandido ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+        </button>
+      ) : null}
       <div className="tarefa-card__principal">
         <Link to={destino} state={DRAWER_STATE} className="tarefa-card__titulo">
           <span
@@ -180,6 +209,11 @@ export function TarefaCard({
             </span>
           ) : null}
           {tarefa.deletada ? <span className="badge status-deletada">Excluída</span> : null}
+          {indicadorPai && destinoPai && tarefa.parentTitulo ? (
+            <Link to={destinoPai} state={DRAWER_STATE} className="tarefa-card__pai">
+              Subtarefa de {tarefa.parentTitulo}
+            </Link>
+          ) : null}
         </p>
       </div>
 
@@ -275,6 +309,6 @@ export function TarefaCard({
           void executarSessao(picker.acao, duracao)
         }}
       />
-    </li>
+    </article>
   )
 }

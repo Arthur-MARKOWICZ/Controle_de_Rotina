@@ -21,6 +21,8 @@ public record TarefaFiltro(
         boolean incluirDeletadas,
         boolean somenteDeletadas,
         UUID projetoId,
-        List<UUID> tagIds
+        List<UUID> tagIds,
+        UUID parentId,
+        boolean somenteRaizes
 ) {
 }

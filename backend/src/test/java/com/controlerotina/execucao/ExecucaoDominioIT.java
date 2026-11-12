@@ -324,6 +324,38 @@ class ExecucaoDominioIT {
     }
 
     @Test
+    void deveFinalizarPaiQuandoUltimoFilhoEConcluidoPorSessao() {
+        UUID paiId = UUID.randomUUID();
+        tarefaRepository.save(new Tarefa(
+                paiId, usuarioId, "Pai", "descricao", Prioridade.MEDIA, AGORA,
+                StatusTarefa.PENDENTE, 120, AGORA, AGORA
+        ));
+
+        UUID filhoA = salvarFilho(paiId, "Filho A", 60);
+        UUID filhoB = salvarFilho(paiId, "Filho B", 60);
+        UUID blocoA = UUID.randomUUID();
+        UUID blocoB = UUID.randomUUID();
+        blocoPlanoRepository.save(new BlocoPlano(blocoA, planoId, filhoA, 60, 2, AGORA, AGORA));
+        blocoPlanoRepository.save(new BlocoPlano(blocoB, planoId, filhoB, 60, 3, AGORA, AGORA));
+
+        ResultadoInicio inicioA = execucaoService.iniciar(usuarioId, blocoA);
+        execucaoService.concluir(usuarioId, inicioA.execucao().getId());
+
+        assertThat(tarefaRepository.findById(filhoA).orElseThrow().getStatus())
+                .isEqualTo(StatusTarefa.FINALIZADA);
+        assertThat(tarefaRepository.findById(paiId).orElseThrow().getStatus())
+                .isEqualTo(StatusTarefa.PENDENTE);
+
+        ResultadoInicio inicioB = execucaoService.iniciar(usuarioId, blocoB);
+        execucaoService.concluir(usuarioId, inicioB.execucao().getId());
+
+        assertThat(tarefaRepository.findById(filhoB).orElseThrow().getStatus())
+                .isEqualTo(StatusTarefa.FINALIZADA);
+        assertThat(tarefaRepository.findById(paiId).orElseThrow().getStatus())
+                .isEqualTo(StatusTarefa.FINALIZADA);
+    }
+
+    @Test
     void t7_concluirTarefaDiretoCreditaDuracaoDoBlocoEAtualizaProgresso() {
         Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
         BlocoPlano bloco = blocoPlanoRepository.findById(blocoId).orElseThrow();
@@ -353,6 +385,25 @@ class ExecucaoDominioIT {
                 AGORA,
                 AGORA
         ));
+        return id;
+    }
+
+    private UUID salvarFilho(UUID parentId, String titulo, int duracaoMinutos) {
+        UUID id = UUID.randomUUID();
+        Tarefa filho = new Tarefa(
+                id,
+                usuarioId,
+                titulo,
+                "descricao",
+                Prioridade.MEDIA,
+                AGORA,
+                StatusTarefa.PENDENTE,
+                duracaoMinutos,
+                AGORA,
+                AGORA
+        );
+        filho.definirParentId(parentId);
+        tarefaRepository.save(filho);
         return id;
     }
 }

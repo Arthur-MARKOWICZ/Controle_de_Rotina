@@ -1,0 +1,26 @@
+---
+description: Mocks Vitest no front usam vi.mocked() — o tsc -b (Docker npm run build) typechecka testes
+globs: frontend/frontend-web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Vitest: `vi.mocked` (senão o Docker quebra)
+
+`npm run build` do frontend é `tsc -b && vite build`. O `tsc -b` typechecka `src/**/*.test.ts(x)`. O Vitest passa; a imagem Docker falha.
+
+`vi.mock(...)` não altera o tipo do export. **Nunca** acesse `.mock` no módulo importado.
+
+```ts
+// Errado — TS2339 Property 'mock' does not exist
+tarefaApi.listarTarefas.mock.calls
+tarefaApi.listarTarefas.mockResolvedValue(pagina)
+
+// Certo — padrão da suíte
+vi.mocked(tarefaApi.listarTarefas).mock.calls
+vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina)
+vi.mocked(tarefaApi.listarTarefas).mockImplementation(async (filtro = {}) => { ... })
+```
+
+Depois de mexer em teste, rode `npm run build` em `frontend/frontend-web` antes do rebuild Docker.
+
+Detalhes: `frontend/frontend-web/README.md`.

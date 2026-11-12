@@ -138,21 +138,49 @@ async function abrirNota(user: ReturnType<typeof userEvent.setup>, rotulo: RegEx
   await user.click(within(drawer()).getByRole('button', { name: rotulo }))
 }
 
+async function definirPrazo(user: ReturnType<typeof userEvent.setup>, valor: string) {
+  await user.click(screen.getByRole('button', { name: /definir prazo|editar prazo/i }))
+  const dialogo = screen.getByRole('dialog', { name: /^prazo$/i })
+  const campo = within(dialogo).getByLabelText(/prazo \(opcional\)/i)
+  await user.clear(campo)
+  await user.type(campo, valor)
+  await user.click(within(dialogo).getByRole('button', { name: /^aplicar$/i }))
+}
+
+async function noDialogoAvancadas(
+  user: ReturnType<typeof userEvent.setup>,
+  acao: (dialogo: HTMLElement) => Promise<void> | void,
+) {
+  await user.click(screen.getByRole('button', { name: /edições avançadas/i }))
+  const dialogo = screen.getByRole('dialog', { name: /edições avançadas/i })
+  await acao(dialogo)
+  await user.click(within(dialogo).getByRole('button', { name: /^pronto$/i }))
+}
+
 function textareaDescricao() {
   return screen.getByRole('textbox', { name: /^descrição$/i })
 }
 
-function drawer(nome: RegExp = /tarefa/i) {
-  return screen.getByRole('dialog', { name: nome })
+function drawer(nome: RegExp = /(editar|nova) tarefa/i) {
+  return screen.getByRole('region', { name: nome })
 }
 
 async function esperarDrawerFechar() {
   await waitFor(() => {
-    expect(screen.queryByRole('dialog', { name: /(editar|nova) tarefa/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /(editar|nova) tarefa/i })).not.toBeInTheDocument()
   })
 }
 
 describe('TarefaDrawer', () => {
+  function mockLista(content: TarefaResponse[], filhos: TarefaResponse[] = []) {
+    vi.mocked(tarefaApi.listarTarefas).mockImplementation(async (filtro = {}) => {
+      if (filtro.parentId) {
+        return pagina(filhos)
+      }
+      return pagina(content)
+    })
+  }
+
   beforeEach(() => {
     vi.mocked(tarefaApi.listarTarefas).mockReset()
     vi.mocked(tarefaApi.criarTarefa).mockReset()
@@ -160,28 +188,29 @@ describe('TarefaDrawer', () => {
     vi.mocked(tarefaApi.atualizarTarefa).mockReset()
     vi.mocked(tarefaApi.excluirTarefa).mockReset()
     vi.mocked(tarefaApi.restaurarTarefa).mockReset()
-    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina([tarefa]))
+    mockLista([tarefa])
     vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(tarefa)
     vi.mocked(projetoApi.listarProjetos).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue(projetosAtivos)
   })
 
   describe('rotas', () => {
-    it('T2: deep link /tarefas/:id renderiza a lista e o drawer com os dados da tarefa', async () => {
+    it('T2: deep link /tarefas/:id renderiza a tela de edição sem a lista', async () => {
       renderApp('/tarefas/t-1')
 
       expect(await screen.findByDisplayValue('Estudar')).toBeInTheDocument()
       expect(drawer(/editar tarefa/i)).toBeInTheDocument()
-      expect(await screen.findByText('Estudar', { selector: '.tarefa-card span' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: /(editar|nova) tarefa/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /lista de tarefas/i })).not.toBeInTheDocument()
       expect(tarefaApi.buscarTarefa).toHaveBeenCalledWith('t-1')
     })
 
-    it('T3: fechar o drawer volta a /tarefas com os mesmos filtros', async () => {
+    it('T3: voltar da tela volta a /tarefas com os mesmos filtros', async () => {
       const user = userEvent.setup()
       renderApp('/tarefas/t-1?visao=pendentes&prioridade=ALTA')
 
       await screen.findByDisplayValue('Estudar')
-      await user.click(within(drawer()).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer()).getByRole('button', { name: 'Voltar' }))
 
       await esperarDrawerFechar()
       expect(screen.getByTestId('local')).toHaveTextContent('/tarefas?visao=pendentes&prioridade=ALTA')
@@ -199,16 +228,16 @@ describe('TarefaDrawer', () => {
 
       await esperarDrawerFechar()
       expect(screen.getByTestId('local')).toHaveTextContent(/^\/tarefas\?prioridade=ALTA$/)
-      expect(tarefaApi.listarTarefas).toHaveBeenCalledTimes(1)
+      expect(tarefaApi.listarTarefas).toHaveBeenCalledTimes(2)
     })
 
-    it('T4: fechar com alterações pede confirmação; continuar editando mantém o drawer', async () => {
+    it('T4: voltar com alterações pede confirmação; continuar editando mantém a tela', async () => {
       const user = userEvent.setup()
       renderApp('/tarefas/t-1')
 
       await screen.findByDisplayValue('Estudar')
       await user.type(screen.getByLabelText(/^título$/i), ' mais')
-      await user.click(within(drawer()).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer()).getByRole('button', { name: 'Voltar' }))
 
       const confirmacao = screen.getByRole('dialog', { name: /descartar alterações/i })
       await user.click(within(confirmacao).getByRole('button', { name: /continuar editando/i }))
@@ -216,7 +245,7 @@ describe('TarefaDrawer', () => {
       expect(drawer(/editar tarefa/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/^título$/i)).toHaveValue('Estudar mais')
 
-      await user.click(within(drawer()).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer()).getByRole('button', { name: 'Voltar' }))
       await user.click(
         within(screen.getByRole('dialog', { name: /descartar alterações/i })).getByRole('button', {
           name: /^descartar$/i,
@@ -231,7 +260,7 @@ describe('TarefaDrawer', () => {
       renderApp('/tarefas/t-1')
 
       await screen.findByDisplayValue('Estudar')
-      await user.click(within(drawer()).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer()).getByRole('button', { name: 'Voltar' }))
 
       expect(screen.queryByRole('dialog', { name: /descartar/i })).not.toBeInTheDocument()
       await esperarDrawerFechar()
@@ -240,9 +269,17 @@ describe('TarefaDrawer', () => {
 
   describe('salvar e criar', () => {
     it('T5: salvar edição atualiza o item na lista antes da leitura silenciosa, sem skeleton', async () => {
-      vi.mocked(tarefaApi.listarTarefas)
-        .mockResolvedValueOnce(pagina([tarefa]))
-        .mockReturnValueOnce(new Promise(() => {}))
+      let leiturasDaLista = 0
+      vi.mocked(tarefaApi.listarTarefas).mockImplementation(async (filtro = {}) => {
+        if (filtro.parentId) {
+          return pagina([])
+        }
+        leiturasDaLista += 1
+        if (leiturasDaLista === 1) {
+          return pagina([tarefa])
+        }
+        return new Promise(() => {})
+      })
       vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({
         ...tarefa,
         titulo: 'Estudar mais',
@@ -252,10 +289,12 @@ describe('TarefaDrawer', () => {
       renderApp('/tarefas/t-1')
 
       await screen.findByDisplayValue('Estudar')
-      expect(screen.getByLabelText(/^status$/i)).toBeInTheDocument()
+      expect(screen.queryByLabelText(/^status$/i)).not.toBeInTheDocument()
       await user.clear(screen.getByLabelText(/^título$/i))
       await user.type(screen.getByLabelText(/^título$/i), 'Estudar mais')
-      await user.selectOptions(screen.getByLabelText(/^status$/i), 'EM_PROGRESSO')
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.selectOptions(within(dialogo).getByLabelText(/^status$/i), 'EM_PROGRESSO')
+      })
       await user.click(screen.getByRole('button', { name: /^salvar$/i }))
 
       await waitFor(() => {
@@ -267,7 +306,7 @@ describe('TarefaDrawer', () => {
       await esperarDrawerFechar()
       expect(await screen.findByText('Estudar mais', { selector: '.tarefa-card span' })).toBeInTheDocument()
       expect(screen.getByText('Tarefa salva')).toBeInTheDocument()
-      expect(tarefaApi.listarTarefas).toHaveBeenCalledTimes(2)
+      expect(leiturasDaLista).toBe(2)
       expect(document.querySelector('.skeleton')).not.toBeInTheDocument()
       expect(screen.getByTestId('local')).toHaveTextContent(/^\/tarefas$/)
     })
@@ -277,7 +316,7 @@ describe('TarefaDrawer', () => {
       const user = userEvent.setup()
       renderApp('/tarefas/nova')
 
-      await screen.findByText('Estudar', { selector: '.tarefa-card span' })
+      expect(await screen.findByRole('region', { name: /nova tarefa/i })).toBeInTheDocument()
       expect(drawer(/nova tarefa/i)).toBeInTheDocument()
       expect(screen.queryByLabelText(/^status$/i)).not.toBeInTheDocument()
 
@@ -286,7 +325,7 @@ describe('TarefaDrawer', () => {
       await user.type(textareaDescricao(), 'Spring Boot')
       await user.click(screen.getByRole('button', { name: /^pronto$/i }))
       await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
-      await user.type(screen.getByLabelText(/prazo \(opcional\)/i), prazoFuturoLocal())
+      await definirPrazo(user, prazoFuturoLocal())
       await user.type(screen.getByLabelText(/duração/i), '120')
       await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
 
@@ -336,7 +375,7 @@ describe('TarefaDrawer', () => {
       await user.type(await screen.findByRole('textbox', { name: /^descrição$/i }), 'Algo')
       await user.click(screen.getByRole('button', { name: /^pronto$/i }))
       await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'BAIXA')
-      await user.type(screen.getByLabelText(/prazo \(opcional\)/i), prazoFuturoLocal())
+      await definirPrazo(user, prazoFuturoLocal())
       await user.type(screen.getByLabelText(/duração/i), '60')
       await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
 
@@ -350,14 +389,16 @@ describe('TarefaDrawer', () => {
       renderApp('/tarefas/t-1')
 
       await screen.findByDisplayValue('Estudar')
-      await user.selectOptions(screen.getByLabelText(/^status$/i), 'ATRASADA')
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.selectOptions(within(dialogo).getByLabelText(/^status$/i), 'ATRASADA')
+      })
       await user.click(screen.getByRole('button', { name: /^salvar$/i }))
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/ATRASADA/i)
       expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
     })
 
-    it('mostra detalhe de erro da API no save e mantém o drawer aberto', async () => {
+    it('mostra detalhe de erro da API no save e mantém a tela aberta', async () => {
       vi.mocked(tarefaApi.atualizarTarefa).mockRejectedValue(
         new ApiError(400, 'O prazo não pode estar no passado.'),
       )
@@ -422,7 +463,7 @@ describe('TarefaDrawer', () => {
       expect(screen.getByRole('button', { name: /spring boot atualizado/i })).toHaveFocus()
     })
 
-    it('Esc e Fechar na nota voltam ao meta sem fechar o drawer', async () => {
+    it('Esc e Voltar na nota voltam ao meta sem sair da tela', async () => {
       const user = userEvent.setup()
       renderApp('/tarefas/t-1')
 
@@ -436,7 +477,7 @@ describe('TarefaDrawer', () => {
       expect(screen.getByTestId('local')).toHaveTextContent('/tarefas/t-1')
 
       await abrirNota(user, /spring extra/i)
-      await user.click(within(drawer(/descrição/i)).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer(/descrição/i)).getByRole('button', { name: 'Voltar' }))
 
       expect(drawer(/editar tarefa/i)).toBeInTheDocument()
       expect(screen.queryByRole('dialog', { name: /descartar/i })).not.toBeInTheDocument()
@@ -473,7 +514,7 @@ describe('TarefaDrawer', () => {
       await abrirNota(user, /spring/i)
       await user.type(textareaDescricao(), '!')
       await user.click(screen.getByRole('button', { name: /^pronto$/i }))
-      await user.click(within(drawer(/editar tarefa/i)).getByRole('button', { name: 'Fechar' }))
+      await user.click(within(drawer(/editar tarefa/i)).getByRole('button', { name: 'Voltar' }))
 
       expect(screen.getByRole('dialog', { name: /descartar alterações/i })).toBeInTheDocument()
     })
@@ -562,10 +603,240 @@ describe('TarefaDrawer', () => {
       renderApp('/tarefas/t-1')
 
       await screen.findByDisplayValue('Estudar')
-      await user.click(screen.getByRole('button', { name: /^desvincular$/i }))
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.click(within(dialogo).getByRole('button', { name: /^desvincular$/i }))
+      })
 
       await waitFor(() => {
         expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith('t-1', { projetoId: null })
+      })
+    })
+  })
+
+  describe('subtarefas', () => {
+    const filho: TarefaResponse = {
+      ...tarefa,
+      id: 't-filho',
+      titulo: 'Capítulo 1',
+      duracaoMinutos: 60,
+      parentId: 't-1',
+      parentTitulo: 'Estudar',
+      temFilhos: false,
+    }
+
+    it('tela do pai cria subtarefa só com título e parentId, no padrão do add da lista', async () => {
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(filho)
+      vi.mocked(tarefaApi.buscarTarefa)
+        .mockResolvedValueOnce(tarefa)
+        .mockResolvedValueOnce({ ...tarefa, temFilhos: true, duracaoMinutos: 60 })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      expect(within(drawer()).getByRole('heading', { name: /^subtarefas$/i })).toBeInTheDocument()
+
+      await user.type(screen.getByPlaceholderText(/adicionar subtarefa/i), 'Capítulo 1')
+      await user.click(within(drawer()).getByRole('button', { name: /^adicionar$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith(
+          expect.objectContaining({ titulo: 'Capítulo 1', parentId: 't-1' }),
+        )
+      })
+      const body = vi.mocked(tarefaApi.criarTarefa).mock.calls[0][0]
+      expect(body).not.toHaveProperty('duracaoMinutos')
+      expect(body).not.toHaveProperty('prioridade')
+      expect(await screen.findByRole('link', { name: /capítulo 1/i })).toHaveAttribute(
+        'href',
+        '/tarefas/t-filho',
+      )
+    })
+
+    it('lista de tarefas não oferece criar subtarefa', async () => {
+      renderApp('/tarefas')
+
+      const lista = await screen.findByRole('region', { name: /lista de tarefas/i })
+      expect(within(lista).queryByPlaceholderText(/adicionar subtarefa/i)).not.toBeInTheDocument()
+      expect(within(lista).queryByRole('heading', { name: /^subtarefas$/i })).not.toBeInTheDocument()
+    })
+
+    it('duração do pai com filhos não é editável', async () => {
+      const pai = { ...tarefa, temFilhos: true, duracaoMinutos: 120 }
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(pai)
+      mockLista([pai], [filho])
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      const duracao = within(drawer()).getByLabelText(/^duração \(minutos\)$/i)
+      expect(duracao).toBeDisabled()
+      expect(duracao).toHaveValue(120)
+      expect(within(drawer()).getByText(/soma das subtarefas/i)).toBeInTheDocument()
+    })
+
+    it('salvar pai com filhos omite duração no PATCH', async () => {
+      const pai = { ...tarefa, temFilhos: true, duracaoMinutos: 120 }
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(pai)
+      mockLista([pai], [filho])
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue(pai)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await user.clear(screen.getByLabelText(/^título$/i))
+      await user.type(screen.getByLabelText(/^título$/i), 'Estudar Security')
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ titulo: 'Estudar Security' }),
+        )
+      })
+      const body = vi.mocked(tarefaApi.atualizarTarefa).mock.calls[0][1]
+      expect(body).not.toHaveProperty('duracaoMinutos')
+    })
+
+    it('tela de subtarefa não mostra criação de neto', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(filho)
+      mockLista([filho])
+      renderApp('/tarefas/t-filho')
+
+      await screen.findByDisplayValue('Capítulo 1')
+      expect(within(drawer()).queryByRole('heading', { name: /^subtarefas$/i })).not.toBeInTheDocument()
+      expect(within(drawer()).queryByPlaceholderText(/adicionar subtarefa/i)).not.toBeInTheDocument()
+    })
+
+    it('nova tarefa não mostra seção de subtarefas', async () => {
+      renderApp('/tarefas/nova')
+
+      expect(await screen.findByRole('region', { name: /nova tarefa/i })).toBeInTheDocument()
+      expect(within(drawer(/nova tarefa/i)).queryByRole('heading', { name: /^subtarefas$/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('cascata no pai', () => {
+    const paiComFilhos: TarefaResponse = {
+      ...tarefa,
+      temFilhos: true,
+      duracaoMinutos: 120,
+    }
+
+    it('finalizar pai com filhos: voltar não chama API; confirmar dispara PATCH', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(paiComFilhos)
+      mockLista([paiComFilhos])
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({
+        ...paiComFilhos,
+        status: 'FINALIZADA',
+      })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.selectOptions(within(dialogo).getByLabelText(/^status$/i), 'FINALIZADA')
+      })
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      const dialogo = screen.getByRole('dialog', { name: /finalizar tarefa e subtarefas/i })
+      await user.click(within(dialogo).getByRole('button', { name: /^voltar$/i }))
+      expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+      await user.click(
+        within(screen.getByRole('dialog', { name: /finalizar tarefa e subtarefas/i })).getByRole(
+          'button',
+          { name: /^finalizar$/i },
+        ),
+      )
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ status: 'FINALIZADA' }),
+        )
+      })
+    })
+
+    it('cancelar pai com filhos: voltar não chama API; confirmar dispara PATCH', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(paiComFilhos)
+      mockLista([paiComFilhos])
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({
+        ...paiComFilhos,
+        status: 'CANCELADA',
+      })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.selectOptions(within(dialogo).getByLabelText(/^status$/i), 'CANCELADA')
+      })
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      const dialogo = screen.getByRole('dialog', { name: /cancelar tarefa e subtarefas/i })
+      await user.click(within(dialogo).getByRole('button', { name: /^voltar$/i }))
+      expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+      await user.click(
+        within(screen.getByRole('dialog', { name: /cancelar tarefa e subtarefas/i })).getByRole(
+          'button',
+          { name: /^cancelar tarefas$/i },
+        ),
+      )
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ status: 'CANCELADA' }),
+        )
+      })
+    })
+
+    it('excluir pai com filhos: voltar não chama API; confirmar dispara DELETE', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(paiComFilhos)
+      mockLista([paiComFilhos])
+      vi.mocked(tarefaApi.excluirTarefa).mockResolvedValue(undefined)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await user.click(screen.getByRole('button', { name: /excluir tarefa/i }))
+
+      const dialogo = screen.getByRole('dialog', { name: /excluir tarefa e subtarefas/i })
+      await user.click(within(dialogo).getByRole('button', { name: /^voltar$/i }))
+      expect(tarefaApi.excluirTarefa).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /excluir tarefa/i }))
+      await user.click(
+        within(screen.getByRole('dialog', { name: /excluir tarefa e subtarefas/i })).getByRole(
+          'button',
+          { name: /^excluir$/i },
+        ),
+      )
+
+      await waitFor(() => {
+        expect(tarefaApi.excluirTarefa).toHaveBeenCalledWith('t-1')
+      })
+    })
+
+    it('pai sem filhos não exige o diálogo de subtarefas ao finalizar, cancelar ou excluir', async () => {
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue({ ...tarefa, status: 'FINALIZADA' })
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+
+      await screen.findByDisplayValue('Estudar')
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.selectOptions(within(dialogo).getByLabelText(/^status$/i), 'FINALIZADA')
+      })
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      expect(screen.queryByRole('dialog', { name: /subtarefas/i })).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ status: 'FINALIZADA' }),
+        )
       })
     })
   })

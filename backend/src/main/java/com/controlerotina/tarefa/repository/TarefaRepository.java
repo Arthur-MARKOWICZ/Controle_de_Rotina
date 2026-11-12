@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +19,30 @@ import com.controlerotina.tarefa.entity.Tarefa;
 public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecificationExecutor<Tarefa> {
 
     Optional<Tarefa> findByIdAndUsuarioId(UUID id, UUID usuarioId);
+
+    boolean existsByParentIdAndDeletedAtIsNull(UUID parentId);
+
+    List<Tarefa> findByParentIdAndDeletedAtIsNull(UUID parentId);
+
+    List<Tarefa> findByParentIdAndDeletedAtIsNotNull(UUID parentId);
+
+    boolean existsByParentIdAndDeletedAtIsNullAndStatusNot(UUID parentId, StatusTarefa status);
+
+    @Query("""
+            SELECT COALESCE(SUM(t.duracaoMinutos), 0)
+              FROM Tarefa t
+             WHERE t.parentId = :parentId
+               AND t.deletedAt IS NULL
+            """)
+    long somarDuracaoFilhosNaoDeletados(@Param("parentId") UUID parentId);
+
+    @Query("""
+            SELECT DISTINCT t.parentId
+              FROM Tarefa t
+             WHERE t.parentId IN :ids
+               AND t.deletedAt IS NULL
+            """)
+    Set<UUID> findParentIdsComFilhosNaoDeletados(@Param("ids") Collection<UUID> ids);
 
     List<Tarefa> findByUsuarioIdAndDeletedAtIsNullAndStatusIn(
             UUID usuarioId,
@@ -48,6 +73,11 @@ public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecif
              WHERE t.status = :statusAtual
                AND t.prazo < :inicioDoDia
                AND t.deletedAt IS NULL
+               AND NOT EXISTS (
+                     SELECT 1 FROM Tarefa f
+                      WHERE f.parentId = t.id
+                        AND f.deletedAt IS NULL
+                   )
             """)
     int atualizarStatusQuandoPrazoPassou(
             @Param("statusAtual") StatusTarefa statusAtual,
