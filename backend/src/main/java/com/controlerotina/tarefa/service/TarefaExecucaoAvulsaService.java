@@ -16,6 +16,7 @@ import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.execucao.service.ExecucaoService;
 import com.controlerotina.historico.PeriodoBRT;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
@@ -37,6 +38,7 @@ public class TarefaExecucaoAvulsaService {
     private final BlocoPlanoRepository blocoPlanoRepository;
     private final TarefaRepository tarefaRepository;
     private final ExecucaoRepository execucaoRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public TarefaExecucaoAvulsaService(
@@ -46,6 +48,7 @@ public class TarefaExecucaoAvulsaService {
             BlocoPlanoRepository blocoPlanoRepository,
             TarefaRepository tarefaRepository,
             ExecucaoRepository execucaoRepository,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.slotAvulsoService = slotAvulsoService;
@@ -54,6 +57,7 @@ public class TarefaExecucaoAvulsaService {
         this.blocoPlanoRepository = blocoPlanoRepository;
         this.tarefaRepository = tarefaRepository;
         this.execucaoRepository = execucaoRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -66,7 +70,7 @@ public class TarefaExecucaoAvulsaService {
             UUID blocoId
     ) {
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
-        garantirFolha(tarefaId);
+        garantirElegivelParaSessao(usuarioId, tarefaId);
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, tarefaId, dia, blocoId);
         if (noPlano.isPresent()) {
             return execucaoService.iniciar(usuarioId, noPlano.get().bloco().getId());
@@ -86,7 +90,7 @@ public class TarefaExecucaoAvulsaService {
             UUID blocoId
     ) {
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
-        garantirFolha(tarefaId);
+        garantirElegivelParaSessao(usuarioId, tarefaId);
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, tarefaId, dia, blocoId);
         if (noPlano.isPresent()) {
             Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(tarefaId, usuarioId)
@@ -107,10 +111,17 @@ public class TarefaExecucaoAvulsaService {
         );
     }
 
-    private void garantirFolha(UUID tarefaId) {
+    /**
+     * Folha e não bloqueada. Vale também quando a tarefa já tem bloco no plano aprovado,
+     * caminho em que o slot avulso não é materializado.
+     */
+    private void garantirElegivelParaSessao(UUID usuarioId, UUID tarefaId) {
         if (tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefaId)) {
             throw new TarefaNaoElegivelException(tarefaId);
         }
+        Tarefa tarefa = tarefaRepository.findByIdAndUsuarioId(tarefaId, usuarioId)
+                .orElseThrow(TarefaNaoEncontradaException::new);
+        esperaService.garantirTarefaNaoBloqueada(usuarioId, tarefa);
     }
 
     private int exigirDuracaoValida(UUID usuarioId, UUID tarefaId, Integer duracaoMinutos) {

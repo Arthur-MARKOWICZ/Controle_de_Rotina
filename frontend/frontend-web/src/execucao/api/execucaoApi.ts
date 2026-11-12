@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { EsperaResumo } from '../../pendencia/api/espera'
 import type { HabitoResumoResponse } from '../../planner/api/planoApi'
 import type { Prioridade, StatusTarefa } from '../../tarefa/validation/tarefaForm'
 import type { XpConclusao } from '../../xp/types'
@@ -14,6 +15,10 @@ export type TarefaResumoExecucao = {
   duracaoMinutos: number
   projetoId?: string | null
   projetoNome?: string | null
+  /** Esperas da própria tarefa. Ausente em payloads antigos. */
+  esperas?: EsperaResumo[]
+  /** Bloqueada por espera própria, de pai ou do projeto de origem. */
+  bloqueada?: boolean
 }
 
 export type BlocoExecucaoResponse = {

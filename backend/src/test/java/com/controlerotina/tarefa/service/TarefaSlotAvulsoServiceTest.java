@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
@@ -55,6 +56,9 @@ class TarefaSlotAvulsoServiceTest {
     @Mock
     ExecucaoRepository execucaoRepository;
 
+    @Mock
+    EsperaService esperaService;
+
     TarefaSlotAvulsoService service;
 
     @BeforeEach
@@ -64,6 +68,7 @@ class TarefaSlotAvulsoServiceTest {
                 planoRepository,
                 blocoPlanoRepository,
                 execucaoRepository,
+                esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }

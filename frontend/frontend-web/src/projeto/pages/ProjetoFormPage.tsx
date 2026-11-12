@@ -6,10 +6,14 @@ import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
+import { EsperaSection } from '../../pendencia/EsperaSection'
+import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
 import {
   arquivarProjeto,
   atualizarProjeto,
   buscarProjeto,
+  criarEsperaProjeto,
+  excluirEsperaProjeto,
   reativarProjeto,
   type ProjetoResponse,
   type StatusProjeto,
@@ -37,6 +41,7 @@ export function ProjetoFormPage() {
   const [tagIds, setTagIds] = useState<string[]>([])
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [projeto, setProjeto] = useState<ProjetoResponse | null>(null)
+  const [esperas, setEsperas] = useState<EsperaResumo[]>([])
   const [carregando, setCarregando] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [acaoCiclo, setAcaoCiclo] = useState(false)
@@ -65,6 +70,7 @@ export function ProjetoFormPage() {
         })
         setTagIds(carregado.tags?.map((tag) => tag.id) ?? [])
         setTagsSelecionadas(carregado.tags ?? [])
+        setEsperas(carregado.esperas ?? [])
       } catch {
         if (ativo) {
           setErro('Não foi possível carregar o projeto.')
@@ -122,6 +128,34 @@ export function ProjetoFormPage() {
     } finally {
       setEnviando(false)
     }
+  }
+
+  async function recarregarProjeto(projetoId: string) {
+    try {
+      const atualizado = await buscarProjeto(projetoId)
+      setProjeto(atualizado)
+      setEsperas(atualizado.esperas ?? [])
+    } catch {
+      /* a lista local já reflete a operação; o bloqueio atualiza no próximo load */
+    }
+  }
+
+  async function handleCriarEspera(body: CriarEsperaRequest) {
+    if (!id) {
+      return
+    }
+    const criada = await criarEsperaProjeto(id, body)
+    setEsperas((atual) => [...atual, criada])
+    await recarregarProjeto(id)
+  }
+
+  async function handleRemoverEspera(esperaId: string) {
+    if (!id) {
+      return
+    }
+    await excluirEsperaProjeto(id, esperaId)
+    setEsperas((atual) => atual.filter((espera) => espera.id !== esperaId))
+    await recarregarProjeto(id)
   }
 
   async function handleArquivar() {
@@ -239,6 +273,17 @@ export function ProjetoFormPage() {
       </header>
 
       {erro ? <InlineAlert>{erro}</InlineAlert> : null}
+
+      {projeto && id ? (
+        <EsperaSection
+          origemTipo="PROJETO"
+          origemId={id}
+          esperas={esperas}
+          somenteLeitura={projeto.status === 'ARQUIVADO'}
+          onCriar={handleCriarEspera}
+          onRemover={handleRemoverEspera}
+        />
+      ) : null}
 
       <section className="projeto-form-panel">
         <h2 className="projeto-hub__form-titulo">Editar</h2>

@@ -5,7 +5,10 @@ import {
   arquivarProjeto,
   atualizarProjeto,
   buscarProjeto,
+  criarEsperaProjeto,
   criarProjeto,
+  excluirEsperaProjeto,
+  listarEsperasProjeto,
   listarProjetos,
   reativarProjeto,
   type ProjetoResponse,
@@ -102,6 +105,52 @@ describe('projetoApi', () => {
     await reativarProjeto('p-1')
     expect(apiClient.apiFetch).toHaveBeenLastCalledWith('/projetos/p-1/reativar', {
       method: 'POST',
+    })
+  })
+
+  it('lista esperas do projeto via GET /projetos/{id}/esperas', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          { id: 'e-1', alvoTipo: 'TAREFA', alvoId: 't-1', alvoTitulo: 'Revisar API', resolvida: false },
+        ]),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const esperas = await listarEsperasProjeto('p-1')
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/projetos/p-1/esperas')
+    expect(esperas[0].alvoTitulo).toBe('Revisar API')
+  })
+
+  it('cria e remove espera do projeto', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'e-1',
+          alvoTipo: 'TAREFA',
+          alvoId: 't-1',
+          alvoTitulo: 'Revisar API',
+          resolvida: false,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const espera = await criarEsperaProjeto('p-1', { alvoTipo: 'TAREFA', alvoId: 't-1' })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/projetos/p-1/esperas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alvoTipo: 'TAREFA', alvoId: 't-1' }),
+    })
+    expect(espera.id).toBe('e-1')
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+    await excluirEsperaProjeto('p-1', 'e-1')
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/projetos/p-1/esperas/e-1', {
+      method: 'DELETE',
     })
   })
 })

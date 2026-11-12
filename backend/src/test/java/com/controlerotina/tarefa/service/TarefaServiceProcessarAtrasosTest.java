@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.controlerotina.decidir.repository.ItemDecidirRepository;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.projeto.repository.ProjetoRepository;
@@ -50,6 +51,9 @@ class TarefaServiceProcessarAtrasosTest {
     @Mock
     ItemDecidirRepository itemDecidirRepository;
 
+    @Mock
+    EsperaService esperaService;
+
     private TarefaService tarefaService;
 
     @BeforeEach
@@ -61,6 +65,7 @@ class TarefaServiceProcessarAtrasosTest {
                 execucaoRepository,
                 tagVinculoService,
                 itemDecidirRepository,
+                esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }

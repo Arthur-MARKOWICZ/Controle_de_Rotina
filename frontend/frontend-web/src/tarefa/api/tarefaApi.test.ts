@@ -6,8 +6,11 @@ import {
   atualizarTarefa,
   buscarTarefa,
   concluirTarefaDireto,
+  criarEsperaTarefa,
   criarTarefa,
+  excluirEsperaTarefa,
   excluirTarefa,
+  listarEsperasTarefa,
   iniciarTarefaSessao,
   listarTarefas,
   restaurarTarefa,
@@ -392,6 +395,79 @@ describe('tarefaApi', () => {
         status: 400,
         message: 'Não é possível marcar como ATRASADA quando o prazo ainda está no futuro.',
       })
+    }
+  })
+
+  it('lista esperas da tarefa via GET /tarefas/{id}/esperas', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            id: 'e-1',
+            alvoTipo: 'TAREFA',
+            alvoId: 't-2',
+            alvoTitulo: 'Revisar API',
+            resolvida: false,
+          },
+        ]),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const esperas = await listarEsperasTarefa('t-1')
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/esperas')
+    expect(esperas).toHaveLength(1)
+    expect(esperas[0].alvoTitulo).toBe('Revisar API')
+    expect(esperas[0].resolvida).toBe(false)
+  })
+
+  it('cria espera da tarefa via POST /tarefas/{id}/esperas', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'e-1',
+          alvoTipo: 'PROJETO',
+          alvoId: 'p-1',
+          alvoTitulo: 'TCC',
+          resolvida: false,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+
+    const espera = await criarEsperaTarefa('t-1', { alvoTipo: 'PROJETO', alvoId: 'p-1' })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/esperas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alvoTipo: 'PROJETO', alvoId: 'p-1' }),
+    })
+    expect(espera.id).toBe('e-1')
+  })
+
+  it('remove espera da tarefa via DELETE e propaga erro de ciclo', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+    await excluirEsperaTarefa('t-1', 'e-1')
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith('/tarefas/t-1/esperas/e-1', {
+      method: 'DELETE',
+    })
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Espera inválida', detail: 'Isso criaria um ciclo.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    try {
+      await criarEsperaTarefa('t-1', { alvoTipo: 'TAREFA', alvoId: 't-2' })
+      expect.fail('deveria ter lançado ApiError')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ status: 400, message: 'Isso criaria um ciclo.' })
     }
   })
 })

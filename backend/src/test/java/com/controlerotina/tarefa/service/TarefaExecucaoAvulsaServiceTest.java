@@ -29,6 +29,7 @@ import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.entity.Execucao;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.execucao.service.ExecucaoService;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
@@ -64,6 +65,9 @@ class TarefaExecucaoAvulsaServiceTest {
     @Mock
     ExecucaoRepository execucaoRepository;
 
+    @Mock
+    EsperaService esperaService;
+
     TarefaExecucaoAvulsaService service;
 
     @BeforeEach
@@ -75,6 +79,7 @@ class TarefaExecucaoAvulsaServiceTest {
                 blocoPlanoRepository,
                 tarefaRepository,
                 execucaoRepository,
+                esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }
@@ -87,6 +92,8 @@ class TarefaExecucaoAvulsaServiceTest {
         ResultadoInicio esperado = new ResultadoInicio(
                 Execucao.iniciarNova(UUID.randomUUID(), USUARIO, bloco.getId(), AGORA), true);
 
+        when(tarefaRepository.findByIdAndUsuarioId(TAREFA_ID, USUARIO))
+                .thenReturn(Optional.of(tarefa(120)));
         when(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
                 USUARIO, TERCA, StatusPlano.APROVADO)).thenReturn(Optional.of(aprovado));
         when(blocoPlanoRepository.findByPlanoIdAndTarefaIdOrderByOrdemAsc(aprovado.getId(), TAREFA_ID))

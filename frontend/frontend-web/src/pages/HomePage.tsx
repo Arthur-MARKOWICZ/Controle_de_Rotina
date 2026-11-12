@@ -25,6 +25,7 @@ import { labelStatusPlano } from '../home/labels'
 import { OnboardingChecklist } from '../home/OnboardingChecklist'
 import { usePlanoDoDia } from '../home/usePlanoDoDia'
 import { PageHeader } from '../layout/PageHeader'
+import { rotuloEspera } from '../pendencia/api/espera'
 import {
   chaveOrigemBloco,
   ehBlocoHabito,
@@ -369,10 +370,15 @@ export function HomePage() {
                     {itensExecucao.map((item) => {
                       const status = item.execucao.status
                       const pendente = pendentes.has(item.bloco.id)
-                      const podeIniciar = status === 'NAO_INICIADO' || status === 'ABORTADO'
                       const titulo = tituloDoItemExecucao(item)
                       const origem = item.habitoResumo ? 'HABITO' : 'TAREFA'
                       const habitoId = item.habitoResumo?.id
+                      const bloqueada = origem === 'TAREFA' && (item.tarefaResumo?.bloqueada ?? false)
+                      const espera = bloqueada
+                        ? (rotuloEspera(item.tarefaResumo?.esperas) ?? 'Bloqueada por espera')
+                        : null
+                      const podeIniciar =
+                        (status === 'NAO_INICIADO' || status === 'ABORTADO') && !bloqueada
                       return (
                         <BlocoCard
                           key={item.bloco.id}
@@ -387,6 +393,7 @@ export function HomePage() {
                           horarioPreferencial={item.habitoResumo?.horarioPreferencial}
                           statusExecucao={status}
                           pendente={pendente}
+                          espera={espera}
                           acoes={
                             podeIniciar ? (
                               <>

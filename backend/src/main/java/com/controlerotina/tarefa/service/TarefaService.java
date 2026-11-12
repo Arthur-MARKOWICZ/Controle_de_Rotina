@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.controlerotina.decidir.repository.ItemDecidirRepository;
 import com.controlerotina.execucao.entity.StatusExecucao;
+import com.controlerotina.pendencia.dto.EsperasDeOrigem;
+import com.controlerotina.pendencia.entity.TipoRecursoEspera;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
@@ -61,6 +64,7 @@ public class TarefaService {
     private final ExecucaoRepository execucaoRepository;
     private final TagVinculoService tagVinculoService;
     private final ItemDecidirRepository itemDecidirRepository;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public TarefaService(
@@ -70,6 +74,7 @@ public class TarefaService {
             ExecucaoRepository execucaoRepository,
             TagVinculoService tagVinculoService,
             ItemDecidirRepository itemDecidirRepository,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.tarefaRepository = tarefaRepository;
@@ -78,6 +83,7 @@ public class TarefaService {
         this.execucaoRepository = execucaoRepository;
         this.tagVinculoService = tagVinculoService;
         this.itemDecidirRepository = itemDecidirRepository;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -139,6 +145,7 @@ public class TarefaService {
                 request.tagIds()
         );
         propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
+        EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, List.of(salva));
         return TarefaResponse.from(
                 salva,
                 projetoNome,
@@ -146,7 +153,9 @@ public class TarefaService {
                 tags,
                 null,
                 pai == null ? null : pai.getTitulo(),
-                false
+                false,
+                esperas.de(salva.getId()),
+                esperas.bloqueada(salva.getId())
         );
     }
 
@@ -179,6 +188,7 @@ public class TarefaService {
         );
         Map<UUID, String> titulosPais = carregarTitulosPais(page.getContent());
         Set<UUID> idsComFilhos = carregarIdsComFilhos(page.getContent());
+        EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, page.getContent());
 
         List<TarefaResponse> conteudo = new ArrayList<>();
         for (Tarefa t : page.getContent()) {
@@ -196,7 +206,9 @@ public class TarefaService {
                     tags,
                     score,
                     t.getParentId() == null ? null : titulosPais.get(t.getParentId()),
-                    idsComFilhos.contains(t.getId())
+                    idsComFilhos.contains(t.getId()),
+                    esperas.de(t.getId()),
+                    esperas.bloqueada(t.getId())
             ));
         }
 
@@ -253,6 +265,10 @@ public class TarefaService {
                 ? statusFinal
                 : null;
 
+        if (statusParaGravar == StatusTarefa.FINALIZADA) {
+            esperaService.garantirTarefaNaoBloqueada(usuarioId, tarefa);
+        }
+
         tarefa.atualizar(
                 request.titulo(),
                 request.descricao(),
@@ -302,6 +318,7 @@ public class TarefaService {
     }
 
     private TarefaResponse toResponse(UUID usuarioId, Tarefa tarefa, List<TagResumoResponse> tags) {
+        EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, List.of(tarefa));
         return TarefaResponse.from(
                 tarefa,
                 nomeDoProjeto(tarefa.getProjetoId()),
@@ -309,7 +326,9 @@ public class TarefaService {
                 tags,
                 null,
                 tituloDoPai(tarefa.getParentId()),
-                tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefa.getId())
+                tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefa.getId()),
+                esperas.de(tarefa.getId()),
+                esperas.bloqueada(tarefa.getId())
         );
     }
 
@@ -416,6 +435,7 @@ public class TarefaService {
         List<Tarefa> filhos = tarefaRepository.findByParentIdAndDeletedAtIsNull(parentId);
         for (Tarefa filho : filhos) {
             filho.softDelete(agora);
+            esperaService.apagarPorRecurso(usuarioId, TipoRecursoEspera.TAREFA, filho.getId());
         }
         tarefaRepository.flush();
         for (Tarefa filho : filhos) {
@@ -460,6 +480,7 @@ public class TarefaService {
         Instant agora = clock.instant();
         UUID parentId = tarefa.getParentId();
         tarefa.softDelete(agora);
+        esperaService.apagarPorRecurso(usuarioId, TipoRecursoEspera.TAREFA, tarefa.getId());
         itemDecidirRepository.reabrirPorTarefa(usuarioId, tarefa.getId(), agora);
         if (parentId == null) {
             excluirFilhosAtivos(usuarioId, tarefa.getId(), agora);

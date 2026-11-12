@@ -136,6 +136,9 @@ public class ApiExceptionHandler {
         if (contem(mensagem, "uq_reserva_projeto_semanal_usuario_projeto_dia")) {
             return new ReservaProjetoDuplicadaException();
         }
+        if (contem(mensagem, "uq_espera_usuario_origem_alvo")) {
+            return new EsperaDuplicadaException();
+        }
         return null;
     }
 

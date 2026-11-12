@@ -1300,4 +1300,56 @@ describe('HomePage — plano do dia', () => {
       expect(screen.queryByRole('link', { name: 'Meditar' })).not.toBeInTheDocument()
     })
   })
+
+  describe('espera no bloco do plano aprovado', () => {
+    it('bloco de tarefa bloqueada não oferece Iniciar nem Concluir e indica a espera', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({ ...planoBase, status: 'APROVADO' })
+      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: [
+          {
+            ...itemExecucaoBase,
+            tarefaResumo: {
+              ...itemExecucaoBase.tarefaResumo!,
+              bloqueada: true,
+              esperas: [
+                {
+                  id: 'e-1',
+                  alvoTipo: 'TAREFA',
+                  alvoId: 't-2',
+                  alvoTitulo: 'Revisar API',
+                  resolvida: false,
+                },
+              ],
+            },
+          },
+        ],
+      })
+
+      renderHome()
+
+      expect(await screen.findByText('Espera Revisar API')).toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /iniciar estudar spring/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /concluir direto estudar spring/i }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('bloco de tarefa livre mantém Iniciar', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({ ...planoBase, status: 'APROVADO' })
+      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: [itemExecucaoBase],
+      })
+
+      renderHome()
+
+      expect(
+        await screen.findByRole('button', { name: /iniciar estudar spring/i }),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/^espera/i)).not.toBeInTheDocument()
+    })
+  })
 })

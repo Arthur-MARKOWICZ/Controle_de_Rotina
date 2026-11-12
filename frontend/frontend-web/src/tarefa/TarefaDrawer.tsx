@@ -6,12 +6,16 @@ import { ApiError } from '../auth/api/authApi'
 import { InlineAlert } from '../feedback/InlineAlert'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
+import { EsperaSection } from '../pendencia/EsperaSection'
+import type { CriarEsperaRequest, EsperaResumo } from '../pendencia/api/espera'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import {
   atualizarTarefa,
   buscarTarefa,
+  criarEsperaTarefa,
   criarTarefa,
+  excluirEsperaTarefa,
   excluirTarefa,
   restaurarTarefa,
   type TarefaResponse,
@@ -93,6 +97,7 @@ export function TarefaDrawer() {
   const [tagIds, setTagIds] = useState<string[]>([])
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [tarefa, setTarefa] = useState<TarefaResponse | null>(null)
+  const [esperas, setEsperas] = useState<EsperaResumo[]>([])
   const [carregando, setCarregando] = useState(modo === 'editar')
   const [enviando, setEnviando] = useState(false)
   const [desvinculando, setDesvinculando] = useState(false)
@@ -133,6 +138,7 @@ export function TarefaDrawer() {
     const ids = carregada.tags?.map((tag) => tag.id) ?? []
     setTagIds(ids)
     setTagsSelecionadas(carregada.tags ?? [])
+    setEsperas(carregada.esperas ?? [])
     setInicial({ values: valores, projetoId: carregada.projetoId ?? '', tagIds: ids })
   }
 
@@ -329,6 +335,35 @@ export function TarefaDrawer() {
     }
   }
 
+  async function recarregarEsperas(tarefaId: string) {
+    try {
+      const atualizada = await buscarTarefa(tarefaId)
+      setTarefa(atualizada)
+      setEsperas(atualizada.esperas ?? [])
+      aoAtualizar(atualizada)
+    } catch {
+      /* a lista local já reflete a operação; o bloqueio atualiza no próximo load */
+    }
+  }
+
+  async function handleCriarEspera(body: CriarEsperaRequest) {
+    if (!id) {
+      return
+    }
+    const criada = await criarEsperaTarefa(id, body)
+    setEsperas((atual) => [...atual, criada])
+    await recarregarEsperas(id)
+  }
+
+  async function handleRemoverEspera(esperaId: string) {
+    if (!id) {
+      return
+    }
+    await excluirEsperaTarefa(id, esperaId)
+    setEsperas((atual) => atual.filter((espera) => espera.id !== esperaId))
+    await recarregarEsperas(id)
+  }
+
   async function handleExcluir() {
     if (!tarefa || deletada) {
       return
@@ -522,6 +557,16 @@ export function TarefaDrawer() {
                       }))
                       aoAtualizar(atualizada)
                     }}
+                  />
+                ) : null}
+                {modo === 'editar' && tarefa ? (
+                  <EsperaSection
+                    origemTipo="TAREFA"
+                    origemId={tarefa.id}
+                    esperas={esperas}
+                    somenteLeitura={deletada}
+                    onCriar={handleCriarEspera}
+                    onRemover={handleRemoverEspera}
                   />
                 ) : null}
               </div>

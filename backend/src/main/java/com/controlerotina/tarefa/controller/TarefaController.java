@@ -26,6 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.controlerotina.execucao.dto.ExecucaoResponse;
 import com.controlerotina.execucao.dto.ResultadoConclusao;
 import com.controlerotina.execucao.dto.ResultadoInicio;
+import com.controlerotina.pendencia.dto.CriarEsperaRequest;
+import com.controlerotina.pendencia.dto.EsperaResumo;
+import com.controlerotina.pendencia.entity.TipoRecursoEspera;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.shared.exception.OrdenacaoInvalidaException;
 import com.controlerotina.tarefa.dto.AtualizarTarefaRequest;
 import com.controlerotina.tarefa.dto.CriarTarefaRequest;
@@ -50,13 +54,16 @@ public class TarefaController {
 
     private final TarefaService tarefaService;
     private final TarefaExecucaoAvulsaService tarefaExecucaoAvulsaService;
+    private final EsperaService esperaService;
 
     public TarefaController(
             TarefaService tarefaService,
-            TarefaExecucaoAvulsaService tarefaExecucaoAvulsaService
+            TarefaExecucaoAvulsaService tarefaExecucaoAvulsaService,
+            EsperaService esperaService
     ) {
         this.tarefaService = tarefaService;
         this.tarefaExecucaoAvulsaService = tarefaExecucaoAvulsaService;
+        this.esperaService = esperaService;
     }
 
     @PostMapping
@@ -143,6 +150,34 @@ public class TarefaController {
                 body.blocoId()
         );
         return ExecucaoResponse.from(resultado.execucao(), XpConclusaoResponse.from(resultado.xp()));
+    }
+
+    @PostMapping("/{id}/esperas")
+    @ResponseStatus(HttpStatus.CREATED)
+    public EsperaResumo criarEspera(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @Valid @RequestBody CriarEsperaRequest request
+    ) {
+        return esperaService.criar(usuarioId, TipoRecursoEspera.TAREFA, id, request);
+    }
+
+    @GetMapping("/{id}/esperas")
+    public List<EsperaResumo> listarEsperas(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id
+    ) {
+        return esperaService.listar(usuarioId, TipoRecursoEspera.TAREFA, id);
+    }
+
+    @DeleteMapping("/{id}/esperas/{esperaId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluirEspera(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @PathVariable UUID esperaId
+    ) {
+        esperaService.excluir(usuarioId, TipoRecursoEspera.TAREFA, id, esperaId);
     }
 
     @GetMapping("/{id}")

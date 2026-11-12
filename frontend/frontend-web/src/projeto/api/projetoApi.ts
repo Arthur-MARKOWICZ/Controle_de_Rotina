@@ -1,5 +1,6 @@
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch } from '../../auth/session/apiClient'
+import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
 import type { TagResumo } from '../../tag/api/tagApi'
 
 export type StatusProjeto = 'ATIVO' | 'ARQUIVADO'
@@ -13,6 +14,10 @@ export type ProjetoResponse = {
   tagMatchScore?: number | null
   createdAt: string
   updatedAt: string
+  /** Esperas do próprio projeto. Ausente em payloads antigos. */
+  esperas?: EsperaResumo[]
+  /** Projeto bloqueado por espera irresolvida. */
+  bloqueada?: boolean
 }
 
 export type PageProjeto = {
@@ -121,4 +126,34 @@ export async function reativarProjeto(id: string): Promise<ProjetoResponse> {
     throw await lerErroApi(response, 'Não foi possível reativar o projeto.')
   }
   return (await response.json()) as ProjetoResponse
+}
+
+export async function listarEsperasProjeto(id: string): Promise<EsperaResumo[]> {
+  const response = await apiFetch(`/projetos/${id}/esperas`)
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar as esperas do projeto.')
+  }
+  return (await response.json()) as EsperaResumo[]
+}
+
+export async function criarEsperaProjeto(
+  id: string,
+  body: CriarEsperaRequest,
+): Promise<EsperaResumo> {
+  const response = await apiFetch(`/projetos/${id}/esperas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível criar a espera.')
+  }
+  return (await response.json()) as EsperaResumo
+}
+
+export async function excluirEsperaProjeto(id: string, esperaId: string): Promise<void> {
+  const response = await apiFetch(`/projetos/${id}/esperas/${esperaId}`, { method: 'DELETE' })
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível remover a espera.')
+  }
 }

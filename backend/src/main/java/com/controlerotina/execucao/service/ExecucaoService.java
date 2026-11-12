@@ -30,6 +30,8 @@ import com.controlerotina.habito.repository.HabitoRepository;
 import com.controlerotina.habito.service.HabitoStreakService;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.dto.HabitoResumoResponse;
+import com.controlerotina.pendencia.dto.EsperasDeOrigem;
+import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.dto.TarefaResumoResponse;
 import com.controlerotina.planner.entity.BlocoPlano;
 import com.controlerotina.planner.entity.Plano;
@@ -74,6 +76,7 @@ public class ExecucaoService {
     private final ProjetoRepository projetoRepository;
     private final XpConcessaoService xpConcessaoService;
     private final HabitoStreakService habitoStreakService;
+    private final EsperaService esperaService;
     private final Clock clock;
 
     public ExecucaoService(
@@ -85,6 +88,7 @@ public class ExecucaoService {
             ProjetoRepository projetoRepository,
             XpConcessaoService xpConcessaoService,
             HabitoStreakService habitoStreakService,
+            EsperaService esperaService,
             Clock clock
     ) {
         this.execucaoRepository = execucaoRepository;
@@ -95,6 +99,7 @@ public class ExecucaoService {
         this.projetoRepository = projetoRepository;
         this.xpConcessaoService = xpConcessaoService;
         this.habitoStreakService = habitoStreakService;
+        this.esperaService = esperaService;
         this.clock = clock;
     }
 
@@ -467,8 +472,10 @@ public class ExecucaoService {
                 : projetoRepository.findAllById(projetoIds).stream()
                         .collect(Collectors.toMap(Projeto::getId, Projeto::getNome));
 
+        EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, tarefas.values());
+
         List<ItemExecucaoResponse> itens = blocos.stream()
-                .map(bloco -> mapearItem(bloco, tarefas, habitos, nomesProjeto, execucoes))
+                .map(bloco -> mapearItem(bloco, tarefas, habitos, nomesProjeto, execucoes, esperas))
                 .toList();
 
         return new ExecucoesDoDiaResponse(
@@ -482,7 +489,8 @@ public class ExecucaoService {
             Map<UUID, Tarefa> tarefas,
             Map<UUID, Habito> habitos,
             Map<UUID, String> nomesProjeto,
-            Map<UUID, Execucao> execucoes
+            Map<UUID, Execucao> execucoes,
+            EsperasDeOrigem esperas
     ) {
         Execucao execucao = execucoes.get(bloco.getId());
         if (bloco.getHabitoId() != null) {
@@ -506,7 +514,12 @@ public class ExecucaoService {
                 : nomesProjeto.get(tarefa.getProjetoId());
         return new ItemExecucaoResponse(
                 BlocoExecucaoResponse.from(bloco),
-                TarefaResumoResponse.from(tarefa, projetoNome),
+                TarefaResumoResponse.from(
+                        tarefa,
+                        projetoNome,
+                        esperas.de(tarefa.getId()),
+                        esperas.bloqueada(tarefa.getId())
+                ),
                 ExecucaoResponse.efetiva(execucao)
         );
     }

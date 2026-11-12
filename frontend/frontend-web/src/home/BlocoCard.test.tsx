@@ -100,4 +100,42 @@ describe('BlocoCard (T2)', () => {
 
     expect(document.querySelector('.badge--projeto')).not.toBeInTheDocument()
   })
+
+  it('bloco de tarefa bloqueada indica a espera e não recebe ações de sessão', () => {
+    render(
+      <MemoryRouter>
+        <BlocoCard
+          ordem={1}
+          titulo="Estudar Spring"
+          tarefaId="t-1"
+          duracaoMinutos={60}
+          prioridade="ALTA"
+          statusExecucao="NAO_INICIADO"
+          espera="Espera Revisar API"
+          acoes={null}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Espera Revisar API')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /iniciar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /concluir/i })).not.toBeInTheDocument()
+  })
+
+  it('bloco sem espera não mostra indicação de bloqueio', () => {
+    render(
+      <MemoryRouter>
+        <BlocoCard
+          ordem={1}
+          titulo="Estudar Spring"
+          tarefaId="t-1"
+          duracaoMinutos={60}
+          prioridade="ALTA"
+          statusExecucao="NAO_INICIADO"
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByText(/espera/i)).not.toBeInTheDocument()
+  })
 })

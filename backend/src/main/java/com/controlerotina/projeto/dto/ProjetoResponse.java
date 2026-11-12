@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.controlerotina.pendencia.dto.EsperaResumo;
 import com.controlerotina.projeto.entity.Projeto;
 import com.controlerotina.projeto.entity.StatusProjeto;
 import com.controlerotina.tag.dto.TagResumoResponse;
@@ -16,7 +17,9 @@ public record ProjetoResponse(
         List<TagResumoResponse> tags,
         Integer tagMatchScore,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        List<EsperaResumo> esperas,
+        boolean bloqueada
 ) {
     public static ProjetoResponse from(Projeto projeto) {
         return from(projeto, List.of(), null);
@@ -27,7 +30,18 @@ public record ProjetoResponse(
             List<TagResumoResponse> tags,
             Integer tagMatchScore
     ) {
+        return from(projeto, tags, tagMatchScore, List.of(), false);
+    }
+
+    public static ProjetoResponse from(
+            Projeto projeto,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore,
+            List<EsperaResumo> esperas,
+            boolean bloqueada
+    ) {
         List<TagResumoResponse> tagsSafe = tags == null ? List.of() : List.copyOf(tags);
+        List<EsperaResumo> esperasSafe = esperas == null ? List.of() : List.copyOf(esperas);
         return new ProjetoResponse(
                 projeto.getId(),
                 projeto.getNome(),
@@ -36,7 +50,9 @@ public record ProjetoResponse(
                 tagsSafe,
                 tagMatchScore,
                 projeto.getCreatedAt(),
-                projeto.getUpdatedAt()
+                projeto.getUpdatedAt(),
+                esperasSafe,
+                bloqueada
         );
     }
 }
