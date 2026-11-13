@@ -1,6 +1,8 @@
 package com.controlerotina.mobile.estado
 
 import com.controlerotina.mobile.api.HabitoDoDia
+import com.controlerotina.mobile.api.SlotExecucaoHabito
+import com.controlerotina.mobile.api.StatusExecucao
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -8,6 +10,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HabitosViewModelTest {
@@ -75,5 +78,44 @@ class HabitosViewModelTest {
         vm.carregar()
         vm.limpar()
         assertTrue(vm.estado.value.habitos.isEmpty())
+    }
+
+    @Test
+    fun habitoEmAndamentoNaoAge() = runTest {
+        val emAndamento = ler.copy(
+            execucaoAvulsa = SlotExecucaoHabito(
+                blocoId = "b1",
+                execucaoId = "eh1",
+                status = StatusExecucao.EM_ANDAMENTO,
+            ),
+        )
+        val vm = vm(backgroundScope)
+        vm.iniciar(emAndamento)
+        vm.concluir(emAndamento)
+        assertTrue(api.chamadas.none { it.startsWith("iniciarHabito") || it.startsWith("concluirHabito") })
+    }
+
+    @Test
+    fun erroAoCarregarExpoeMensagemENaoAlteraLista() = runTest {
+        api.falhaEm = mapOf("habitos" to erroHttp(500, "Falha interna"))
+        val vm = vm(backgroundScope)
+        vm.carregar()
+        assertEquals("Falha interna", vm.estado.value.erro)
+        assertTrue(vm.estado.value.habitos.isEmpty())
+        assertFalse(vm.estado.value.carregando)
+    }
+
+    @Test
+    fun recusaDaApiAoIniciarAvisaERecarrega() = runTest {
+        api.habitos = listOf(ler)
+        api.falhaEm = mapOf("iniciarHabito" to erroHttp(409, "Já existe sessão em andamento"))
+        val vm = vm(backgroundScope)
+        vm.carregar()
+        val aviso = async(start = CoroutineStart.UNDISPATCHED) { sessao.avisos.first() }
+        vm.iniciar(ler)
+        assertEquals("Já existe sessão em andamento", aviso.await())
+        assertNull(sessao.sessao.value)
+        assertNull(vm.estado.value.ocupado)
+        assertTrue("habitos:$HOJE" in api.chamadas.drop(1), "recarrega o card depois da recusa")
     }
 }

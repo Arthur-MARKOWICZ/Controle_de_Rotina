@@ -251,12 +251,16 @@ class FakeAutenticador : Autenticador {
     var guardada = false
     var restaura: () -> Boolean = { true }
     var loginFalha: Throwable? = null
+    var logoutFalha: Throwable? = null
     var logouts = 0
 
     override suspend fun temSessaoGuardada() = guardada
     override suspend fun login(email: String, senha: String) { loginFalha?.let { throw it } }
     override suspend fun restaurar() = restaura()
-    override suspend fun logout() { logouts++ }
+    override suspend fun logout() {
+        logouts++
+        logoutFalha?.let { throw it }
+    }
 }
 
 fun sessaoStore(api: RotinaApi, prefs: PreferenciasEmMemoria = PreferenciasEmMemoria()) =
