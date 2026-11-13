@@ -103,6 +103,19 @@ class SessaoViewModelTest {
     }
 
     @Test
+    fun sairSemRedeAindaVoltaAoLoginEApagaDados() = runTest {
+        auth.guardada = true
+        auth.logoutFalha = ApiErro.Rede(RuntimeException())
+        var limpezas = 0
+        val vm = SessaoViewModel(auth, backgroundScope) { limpezas++ }
+        vm.iniciar()
+        vm.sair()
+        assertEquals(1, auth.logouts)
+        assertEquals(1, limpezas)
+        assertEquals(EstadoApp.Login(), vm.estado.value)
+    }
+
+    @Test
     fun sessaoGuardadaInvalidaNoBootApagaDados() = runTest {
         auth.guardada = true
         auth.restaura = { false }

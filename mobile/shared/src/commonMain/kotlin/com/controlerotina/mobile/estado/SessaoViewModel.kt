@@ -102,7 +102,13 @@ class SessaoViewModel(
     }
 
     suspend fun sair() {
-        auth.logout()
+        try {
+            auth.logout()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: ApiErro) {
+            // Sem rede ou API indisponível: a sessão local some do mesmo jeito (spec mobile-sessao).
+        }
         aoEncerrar()
         _form.value = FormLogin()
         _estado.value = EstadoApp.Login()
