@@ -17,6 +17,7 @@ describe('tituloPorRota (T4)', () => {
     expect(tituloPorRota('/calendario')).toBe('Calendário · Controle de Rotina')
     expect(tituloPorRota('/capacidade')).toBe('Capacidade · Controle de Rotina')
     expect(tituloPorRota('/historico')).toBe('Histórico · Controle de Rotina')
+    expect(tituloPorRota('/revisao')).toBe('Revisão da semana · Controle de Rotina')
     expect(tituloPorRota('/tags')).toBe('Tags · Controle de Rotina')
     expect(tituloPorRota('/decidir')).toBe('Decidir · Controle de Rotina')
     expect(tituloPorRota('/decidir/nova')).toBe('Novo item · Controle de Rotina')

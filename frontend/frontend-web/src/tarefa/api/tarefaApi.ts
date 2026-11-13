@@ -71,6 +71,8 @@ export type ListarTarefasParams = {
   semPrazo?: boolean
   semProjeto?: boolean
   semTag?: boolean
+  /** `true` só bloqueadas por espera; `false` só livres; ausente não filtra. */
+  bloqueada?: boolean
   page?: number
   size?: number
   sort?: SortCampo
@@ -138,6 +140,7 @@ export function buildTarefasQuery(filtro: ListarTarefasParams = {}): string {
   if (filtro.semPrazo) params.set('semPrazo', 'true')
   if (filtro.semProjeto) params.set('semProjeto', 'true')
   if (filtro.semTag) params.set('semTag', 'true')
+  if (filtro.bloqueada != null) params.set('bloqueada', String(filtro.bloqueada))
 
   params.set('page', String(filtro.page ?? 0))
   params.set('size', String(filtro.size ?? 20))

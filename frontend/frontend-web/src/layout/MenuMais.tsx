@@ -1,6 +1,7 @@
 import {
   CalendarBlankIcon,
   ChartLineUpIcon,
+  ClipboardTextIcon,
   DotsThreeIcon,
   GaugeIcon,
   SignOutIcon,
@@ -17,6 +18,7 @@ const ITENS = [
   { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon },
   { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon },
   { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon },
+  { to: '/revisao', label: 'Revisão da semana', Icon: ClipboardTextIcon },
   { to: '/tags', label: 'Tags', Icon: TagIcon },
   { to: '/perfil', label: 'Perfil', Icon: UserCircleIcon },
 ]

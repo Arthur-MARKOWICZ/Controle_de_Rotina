@@ -175,6 +175,7 @@ function renderHome(initialPath = '/') {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/tarefas/:id" element={<p>Detalhe da tarefa</p>} />
                   <Route path="/capacidade" element={<p>Página capacidade</p>} />
+                  <Route path="/revisao" element={<p>Página revisão</p>} />
                 </Routes>
               </QuickAddProvider>
             </MemoryRouter>
@@ -241,6 +242,28 @@ describe('HomePage — plano do dia', () => {
       itens: [itemExecucaoBase],
     })
     vi.mocked(habitoApi.listarHabitosDoDia).mockReset().mockResolvedValue([])
+  })
+
+  describe('atalho da revisão semanal', () => {
+    it('mostra o link e navega para /revisao', async () => {
+      const user = userEvent.setup()
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+
+      renderHome()
+
+      const link = await screen.findByRole('link', { name: /revisão da semana/i })
+      expect(link).toHaveAttribute('href', '/revisao')
+      await user.click(link)
+      expect(await screen.findByText('Página revisão')).toBeInTheDocument()
+    })
+
+    it('mostra o atalho mesmo sem plano no dia', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
+
+      renderHome()
+
+      expect(await screen.findByRole('link', { name: /revisão da semana/i })).toBeInTheDocument()
+    })
   })
 
   describe('F1 — leitura', () => {

@@ -99,6 +99,7 @@ public class TarefaController {
             @RequestParam(defaultValue = "false") boolean semPrazo,
             @RequestParam(defaultValue = "false") boolean semProjeto,
             @RequestParam(defaultValue = "false") boolean semTag,
+            @RequestParam(required = false) Boolean bloqueada,
             Pageable pageable
     ) {
         TarefaFiltro filtro = new TarefaFiltro(
@@ -120,7 +121,8 @@ public class TarefaController {
                 somenteRaizes,
                 semPrazo,
                 semProjeto,
-                semTag
+                semTag,
+                bloqueada
         );
         return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
     }

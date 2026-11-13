@@ -1,9 +1,8 @@
 import { CheckIcon, PlusIcon, ScalesIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
-import { Drawer } from '../../feedback/Drawer'
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
 import { useConfirmDialog } from '../../feedback/useConfirmDialog'
@@ -14,17 +13,15 @@ import { TagChipList } from '../../tag/TagChip'
 import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
 import { lerTagIdsDaUrl, escreverTagIdsNaUrl } from '../../tag/listaTagUrl'
 import { ordenarPorTagMatch } from '../../tag/tagMatch'
-import type { Prioridade } from '../../tarefa/validation/tarefaForm'
 import {
   excluirDecidir,
   listarDecidir,
-  promoverDecidir,
   type DecidirResponse,
   type PageDecidir,
-  type PromoverDecidirRequest,
 } from '../api/decidirApi'
 import type { DecidirOutletContext } from '../DecidirDrawer'
 import { InlineAddDecidir, type InlineAddDecidirHandle } from '../InlineAddDecidir'
+import { PromoverDecidirForm } from '../PromoverDecidirForm'
 
 type Visao = 'abertos' | 'promovidos'
 
@@ -91,10 +88,6 @@ export function DecidirPage() {
   const [projetosAtivos, setProjetosAtivos] = useState<ProjetoResponse[]>([])
 
   const [promovendo, setPromovendo] = useState<DecidirResponse | null>(null)
-  const [promoverDuracao, setPromoverDuracao] = useState('')
-  const [promoverPrioridade, setPromoverPrioridade] = useState<Prioridade | ''>('')
-  const [promoverPrazo, setPromoverPrazo] = useState('')
-  const [enviandoPromover, setEnviandoPromover] = useState(false)
 
   function escreverUrl(proximo: { visao: Visao; tagIds: string[] }) {
     let params = new URLSearchParams()
@@ -187,40 +180,10 @@ export function DecidirPage() {
     }
   }
 
-  function abrirPromover(item: DecidirResponse) {
-    setPromovendo(item)
-    setPromoverDuracao('')
-    setPromoverPrioridade('')
-    setPromoverPrazo('')
-  }
-
-  async function confirmarPromover(event: FormEvent) {
-    event.preventDefault()
-    if (!promovendo) {
-      return
-    }
-    setEnviandoPromover(true)
-    setErro(null)
-    try {
-      const body: PromoverDecidirRequest = {}
-      if (promoverDuracao.trim()) {
-        body.duracaoMinutos = Number(promoverDuracao)
-      }
-      if (promoverPrioridade) {
-        body.prioridade = promoverPrioridade
-      }
-      if (promoverPrazo) {
-        body.prazo = new Date(promoverPrazo).toISOString()
-      }
-      await promoverDecidir(promovendo.id, body)
-      setPromovendo(null)
-      setRecarregarEm((n) => n + 1)
-      toast.success('Promovido a tarefa')
-    } catch (error) {
-      setErro(mensagemErro(error, 'Não foi possível promover o item.'))
-    } finally {
-      setEnviandoPromover(false)
-    }
+  function handlePromovido() {
+    setPromovendo(null)
+    setRecarregarEm((n) => n + 1)
+    toast.success('Promovido a tarefa')
   }
 
   const contextoDrawer: DecidirOutletContext = {
@@ -360,7 +323,7 @@ export function DecidirPage() {
                         <button
                           type="button"
                           className="btn btn--primary"
-                          onClick={() => abrirPromover(item)}
+                          onClick={() => setPromovendo(item)}
                         >
                           Promover
                         </button>
@@ -382,68 +345,11 @@ export function DecidirPage() {
       ) : null}
 
       {promovendo ? (
-        <Drawer
-          open
-          onClose={() => {
-            if (!enviandoPromover) {
-              setPromovendo(null)
-            }
-          }}
-          title={`Promover “${promovendo.titulo}”`}
-        >
-          <form className="decidir-promover" onSubmit={(e) => void confirmarPromover(e)}>
-            <p>Cria uma tarefa com o título do item. Campos abaixo são opcionais.</p>
-            <div className="field">
-              <label htmlFor="promover-duracao">Duração (minutos)</label>
-              <input
-                id="promover-duracao"
-                type="number"
-                min={15}
-                step={15}
-                value={promoverDuracao}
-                onChange={(e) => setPromoverDuracao(e.target.value)}
-                disabled={enviandoPromover}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="promover-prioridade">Prioridade</label>
-              <select
-                id="promover-prioridade"
-                value={promoverPrioridade}
-                onChange={(e) => setPromoverPrioridade(e.target.value as Prioridade | '')}
-                disabled={enviandoPromover}
-              >
-                <option value="">Padrão (média)</option>
-                <option value="ALTA">Alta</option>
-                <option value="MEDIA">Média</option>
-                <option value="BAIXA">Baixa</option>
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="promover-prazo">Prazo</label>
-              <input
-                id="promover-prazo"
-                type="datetime-local"
-                value={promoverPrazo}
-                onChange={(e) => setPromoverPrazo(e.target.value)}
-                disabled={enviandoPromover}
-              />
-            </div>
-            <div className="decidir-promover__acoes">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={enviandoPromover}
-                onClick={() => setPromovendo(null)}
-              >
-                Cancelar
-              </button>
-              <button type="submit" className="btn btn--primary" disabled={enviandoPromover}>
-                Promover
-              </button>
-            </div>
-          </form>
-        </Drawer>
+        <PromoverDecidirForm
+          item={promovendo}
+          onPromovido={handlePromovido}
+          onCancelar={() => setPromovendo(null)}
+        />
       ) : null}
 
       <Outlet key={location.pathname} context={contextoDrawer} />

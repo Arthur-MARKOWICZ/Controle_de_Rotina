@@ -31,6 +31,7 @@ describe('MenuMais', () => {
 
     expect(screen.getByRole('link', { name: /capacidade/i })).toHaveAttribute('href', '/capacidade')
     expect(screen.getByRole('link', { name: /histórico/i })).toHaveAttribute('href', '/historico')
+    expect(screen.getByRole('link', { name: /revisão da semana/i })).toHaveAttribute('href', '/revisao')
   })
 
   it('fecha ao clicar no backdrop', async () => {

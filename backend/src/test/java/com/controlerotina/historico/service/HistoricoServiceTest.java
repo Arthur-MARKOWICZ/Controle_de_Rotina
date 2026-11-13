@@ -192,4 +192,46 @@ class HistoricoServiceTest {
         verify(xpEventoRepository).somarQuantidadeNoPeriodo(
                 eq(USUARIO), eq(outubro31.inicioInclusivo()), eq(outubro31.fimExclusivo()));
     }
+    @Test
+    void semanaNulaNoDomingoAs2330BrtDeveUsarASemanaQueComecouNaSegundaAnterior() {
+        HistoricoService domingoNoite = comRelogio(Instant.parse("2026-11-16T02:30:00Z"));
+        PeriodoBRT.Intervalo semana = PeriodoBRT.intervaloSemana(LocalDate.of(2026, 11, 9));
+        zerarMetricas();
+
+        var resumo = domingoNoite.resumirSemana(USUARIO, null);
+
+        assertThat(resumo.periodo().inicio()).isEqualTo(LocalDate.of(2026, 11, 9));
+        assertThat(resumo.periodo().fim()).isEqualTo(LocalDate.of(2026, 11, 15));
+        verify(xpEventoRepository).somarQuantidadeNoPeriodo(
+                eq(USUARIO), eq(semana.inicioInclusivo()), eq(semana.fimExclusivo()));
+    }
+
+    @Test
+    void semanaNulaNaSegundaAs0005BrtDeveVirarParaANovaSemana() {
+        HistoricoService segundaCedo = comRelogio(Instant.parse("2026-11-16T03:05:00Z"));
+        zerarMetricas();
+
+        var resumo = segundaCedo.resumirSemana(USUARIO, null);
+
+        assertThat(resumo.periodo().inicio()).isEqualTo(LocalDate.of(2026, 11, 16));
+        assertThat(resumo.periodo().fim()).isEqualTo(LocalDate.of(2026, 11, 22));
+    }
+
+    private HistoricoService comRelogio(Instant agora) {
+        return new HistoricoService(
+                xpEventoRepository,
+                execucaoRepository,
+                tarefaTagRepository,
+                tagRepository,
+                projetoRepository,
+                Clock.fixed(agora, ZoneOffset.UTC)
+        );
+    }
+
+    private void zerarMetricas() {
+        when(xpEventoRepository.contarPorTipoNoPeriodo(any(), any(), any(), any())).thenReturn(0L);
+        when(xpEventoRepository.somarQuantidadeNoPeriodo(any(), any(), any())).thenReturn(0L);
+        when(execucaoRepository.contarConcluidasNoPeriodo(any(), any(), any(), any())).thenReturn(0L);
+        when(execucaoRepository.somarDuracaoMinutosConcluidasNoPeriodo(any(), any(), any(), any())).thenReturn(0L);
+    }
 }

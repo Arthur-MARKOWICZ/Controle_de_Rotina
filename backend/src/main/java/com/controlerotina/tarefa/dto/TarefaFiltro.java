@@ -26,6 +26,7 @@ public record TarefaFiltro(
         boolean somenteRaizes,
         boolean semPrazo,
         boolean semProjeto,
-        boolean semTag
+        boolean semTag,
+        Boolean bloqueada
 ) {
 }
