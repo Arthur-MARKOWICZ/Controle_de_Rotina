@@ -1,5 +1,6 @@
 import { CheckIcon, PlayIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { tituloDoItemExecucao } from '../execucao/api/execucaoApi'
 import { useSessaoAtiva } from '../execucao/SessaoAtivaContext'
@@ -160,11 +161,16 @@ export function HomePage() {
         title={formatarDataIsoPorExtenso(dataSelecionada)}
         description={descricaoCabecalho(visao, dataSelecionada, dataHoje)}
         actions={
-          plano && visao === 'plano' ? (
-            <span className={`badge status-plano-${plano.status.toLowerCase()}`}>
-              {labelStatusPlano(plano.status)}
-            </span>
-          ) : null
+          <>
+            {plano && visao === 'plano' ? (
+              <span className={`badge status-plano-${plano.status.toLowerCase()}`}>
+                {labelStatusPlano(plano.status)}
+              </span>
+            ) : null}
+            <Link to="/revisao" className="btn btn--ghost">
+              Revisão da semana
+            </Link>
+          </>
         }
       />
       <OnboardingChecklist

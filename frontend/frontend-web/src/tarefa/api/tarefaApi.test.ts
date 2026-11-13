@@ -12,6 +12,7 @@ import {
   excluirTarefa,
   listarEsperasTarefa,
   iniciarTarefaSessao,
+  buildTarefasQuery,
   listarTarefas,
   restaurarTarefa,
   reordenarTarefas,
@@ -559,5 +560,18 @@ describe('tarefaApi', () => {
       new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
     )
     await expect(listarTarefas()).rejects.toThrow()
+  })
+  describe('filtro bloqueada', () => {
+    it('envia bloqueada=true', () => {
+      expect(buildTarefasQuery({ bloqueada: true })).toContain('bloqueada=true')
+    })
+
+    it('envia bloqueada=false explicitamente', () => {
+      expect(buildTarefasQuery({ bloqueada: false })).toContain('bloqueada=false')
+    })
+
+    it('não envia bloqueada quando ausente', () => {
+      expect(buildTarefasQuery({ status: ['ATRASADA'] })).not.toContain('bloqueada')
+    })
   })
 })

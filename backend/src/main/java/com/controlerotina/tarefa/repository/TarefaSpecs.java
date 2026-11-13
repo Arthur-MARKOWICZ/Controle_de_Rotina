@@ -163,6 +163,14 @@ public final class TarefaSpecs {
         };
     }
 
+    public static Specification<Tarefa> comIds(Collection<UUID> ids) {
+        return (root, query, cb) -> ids.isEmpty() ? cb.disjunction() : root.get("id").in(ids);
+    }
+
+    public static Specification<Tarefa> semIds(Collection<UUID> ids) {
+        return (root, query, cb) -> ids.isEmpty() ? cb.conjunction() : cb.not(root.get("id").in(ids));
+    }
+
     private static Specification<Tarefa> intervaloInstant(String campo, Instant de, Instant ate) {
         return (root, query, cb) -> {
             if (de == null && ate == null) {

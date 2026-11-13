@@ -191,6 +191,9 @@ public class TarefaService {
                 TarefaSpecs.semProjeto(filtro.semProjeto()),
                 TarefaSpecs.semTag(filtro.semTag())
         );
+        if (filtro.bloqueada() != null) {
+            spec = spec.and(filtroBloqueio(usuarioId, spec, filtro.bloqueada()));
+        }
 
         Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
         Map<UUID, String> nomes = carregarNomesProjetos(page.getContent());
@@ -231,6 +234,22 @@ public class TarefaService {
         }
 
         return new PageImpl<>(conteudo, pageable, page.getTotalElements());
+    }
+
+    /**
+     * O bloqueio é calculado em memória pelo {@link EsperaService}; para paginar certo,
+     * resolve os ids bloqueados sobre todas as tarefas do filtro base e filtra por id.
+     */
+    private Specification<Tarefa> filtroBloqueio(
+            UUID usuarioId,
+            Specification<Tarefa> base,
+            boolean bloqueada
+    ) {
+        List<Tarefa> candidatas = tarefaRepository.findAll(base);
+        Set<UUID> ids = candidatas.isEmpty()
+                ? Set.of()
+                : esperaService.idsTarefasBloqueadas(usuarioId, candidatas);
+        return bloqueada ? TarefaSpecs.comIds(ids) : TarefaSpecs.semIds(ids);
     }
 
     @Transactional(readOnly = true)
