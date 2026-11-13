@@ -273,6 +273,37 @@ class PlanoPersistenciaIT {
         ))).isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void naoDeveEncontrarPlanoDeOutroUsuario() {
+        LocalDate data = LocalDate.of(2026, 10, 20);
+        Instant agora = Instant.parse("2026-10-20T09:00:00Z");
+        UUID planoId = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoId, usuarioId, data, 1, StatusPlano.RASCUNHO,
+                false, null, null, agora, agora, agora));
+
+        UUID outro = UUID.randomUUID();
+        usuarioRepository.save(new Usuario(
+                outro, "outro-plano-" + outro + "@email.com", "$2a$10$hash", "Outro", agora, agora));
+
+        assertThat(planoRepository.findByIdAndUsuarioId(planoId, outro)).isEmpty();
+        assertThat(planoRepository.findByIdAndUsuarioId(planoId, usuarioId)).isPresent();
+    }
+
+    @Test
+    void devePermitirVersoesDiferentesNoMesmoDia() {
+        LocalDate data = LocalDate.of(2026, 10, 20);
+        Instant agora = Instant.parse("2026-10-20T09:00:00Z");
+        planoRepository.saveAndFlush(new Plano(
+                UUID.randomUUID(), usuarioId, data, 1, StatusPlano.RASCUNHO,
+                false, null, null, agora, agora, agora));
+        planoRepository.saveAndFlush(new Plano(
+                UUID.randomUUID(), usuarioId, data, 2, StatusPlano.APROVADO,
+                false, null, null, agora, agora, agora));
+
+        assertThat(planoRepository.findMaxVersaoByUsuarioIdAndData(usuarioId, data)).isEqualTo(2);
+    }
+
     private UUID inserirTarefa(String titulo) {
         UUID id = UUID.randomUUID();
         Instant agora = Instant.parse("2026-10-20T12:00:00Z");

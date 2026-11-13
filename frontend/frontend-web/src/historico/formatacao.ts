@@ -58,3 +58,34 @@ export function tituloSemanaHistorico(semanaInicioIso: string, semanaAtualIso: s
   }
   return 'Semana selecionada'
 }
+
+const FORMATO_RAZAO = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+
+/** Faixa (inclusiva) em que a estimativa é considerada precisa. */
+export const FAIXA_EM_DIA = { min: 0.95, max: 1.05 } as const
+
+/** 1.4 → "1,4×". `null` (sem dados) → `null`, para nunca exibir número inventado. */
+export function formatarRazao(razao: number | null): string | null {
+  if (razao === null || !Number.isFinite(razao)) {
+    return null
+  }
+  return `${FORMATO_RAZAO.format(razao)}×`
+}
+
+/** Frase geral do cartão de calibração conforme a faixa da razão. */
+export function fraseCalibracao(razao: number | null): string | null {
+  const formatada = formatarRazao(razao)
+  if (formatada === null || razao === null) {
+    return null
+  }
+  if (razao >= FAIXA_EM_DIA.min && razao <= FAIXA_EM_DIA.max) {
+    return 'Suas estimativas estão em dia'
+  }
+  if (razao > FAIXA_EM_DIA.max) {
+    return `Você costuma levar ${formatada} o estimado`
+  }
+  return `Você costuma terminar em ${formatada} do estimado`
+}

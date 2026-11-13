@@ -100,4 +100,39 @@ describe('QuickAddTarefaDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/título/i)
     expect(tarefaApi.criarTarefa).not.toHaveBeenCalled()
   })
+
+  it('título só com espaços não chama API', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.type(screen.getByLabelText(/^título$/i), '   ')
+    await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/título/i)
+    expect(tarefaApi.criarTarefa).not.toHaveBeenCalled()
+  })
+
+  it('mostra ApiError e preserva o título', async () => {
+    const { ApiError } = await import('../auth/api/authApi')
+    vi.mocked(tarefaApi.criarTarefa).mockRejectedValue(new ApiError(409, 'Título duplicado.'))
+    const user = userEvent.setup()
+    renderDialog()
+    await user.type(screen.getByLabelText(/^título$/i), 'Ler docs')
+    await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+    expect(await screen.findByText('Título duplicado.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^título$/i)).toHaveValue('Ler docs')
+  })
+
+  it('erro de rede usa fallback e não navega', async () => {
+    vi.mocked(tarefaApi.criarTarefa).mockRejectedValue(new Error('offline'))
+    const user = userEvent.setup()
+    renderDialog()
+    await user.type(screen.getByLabelText(/^título$/i), 'Ler docs')
+    await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+    expect(await screen.findByText(/não foi possível criar a tarefa/i)).toBeInTheDocument()
+    expect(screen.getByTestId('local')).toHaveTextContent('/')
+  })
+
+  it('não renderiza o formulário quando fechado', () => {
+    renderDialog(false)
+    expect(screen.queryByLabelText(/^título$/i)).not.toBeInTheDocument()
+  })
 })

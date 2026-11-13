@@ -9,7 +9,16 @@ import { HistoricoPage } from './HistoricoPage'
 vi.mock('../api/historicoApi', () => ({
   consultarHistoricoDia: vi.fn(),
   consultarHistoricoSemana: vi.fn(),
+  consultarCalibracao: vi.fn(),
 }))
+
+const calibracao = {
+  janela: { inicio: '2026-07-30', fim: '2026-10-27' },
+  minimoAmostras: 5,
+  geral: { amostras: 9, suficiente: true, razao: 1.4, desvioMedioMinutos: 12 },
+  porTag: [],
+  porProjeto: [],
+}
 
 const resumoDia = {
   periodo: { escopo: 'DIA' as const, inicio: '2026-10-27', fim: '2026-10-27' },
@@ -60,6 +69,8 @@ describe('HistoricoPage (T4)', () => {
     vi.setSystemTime(new Date(2026, 9, 27, 12, 0, 0))
     vi.mocked(historicoApi.consultarHistoricoDia).mockReset()
     vi.mocked(historicoApi.consultarHistoricoSemana).mockReset()
+    vi.mocked(historicoApi.consultarCalibracao).mockReset()
+    vi.mocked(historicoApi.consultarCalibracao).mockResolvedValue(calibracao)
     vi.mocked(historicoApi.consultarHistoricoDia).mockImplementation(async (data) => {
       if (data === '2026-10-27') {
         return resumoDia
@@ -160,5 +171,47 @@ describe('HistoricoPage (T4)', () => {
       name: /ver o plano/i,
     })
     expect(link).toHaveAttribute('href', '/plano')
+  })
+
+  it('mostra o cartão de calibração nas visões Semana e Dia', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Seu ritmo real' })).toBeInTheDocument()
+    expect(await screen.findByText('Você costuma levar 1,4× o estimado')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: 'Dia' }))
+    await screen.findByRole('heading', { name: 'Hoje' })
+    expect(screen.getByText('Você costuma levar 1,4× o estimado')).toBeInTheDocument()
+  })
+
+  it('não consulta a calibração de novo ao navegar de período', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderPage()
+
+    await screen.findByText('Você costuma levar 1,4× o estimado')
+    await user.click(screen.getByRole('button', { name: /semana anterior/i }))
+    await screen.findByRole('heading', { name: 'Semana passada' })
+    await user.click(screen.getByRole('radio', { name: 'Dia' }))
+    await screen.findByRole('heading', { name: 'Hoje' })
+
+    expect(historicoApi.consultarCalibracao).toHaveBeenCalledTimes(1)
+  })
+
+  it('erro da calibração não esconde os indicadores do período', async () => {
+    vi.mocked(historicoApi.consultarCalibracao).mockRejectedValue(new Error('Falha 500.'))
+    renderPage()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha 500.')
+    expect(await screen.findByRole('heading', { name: 'Esta semana' })).toBeInTheDocument()
+    expect(screen.getByText('+1120 XP')).toBeInTheDocument()
+  })
+
+  it('erro do período não esconde o cartão de calibração', async () => {
+    vi.mocked(historicoApi.consultarHistoricoSemana).mockRejectedValue(new Error('Histórico fora.'))
+    renderPage()
+
+    expect(await screen.findByText('Histórico fora.')).toBeInTheDocument()
+    expect(await screen.findByText('Você costuma levar 1,4× o estimado')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { chipsAtivos } from './filtrosAtivos'
+import { chipsAtivos, filtrosLimpos } from './filtrosAtivos'
 import { FILTROS_LISTA_INICIAIS } from './listaUrl'
 
 describe('chipsAtivos', () => {
@@ -38,5 +38,47 @@ describe('chipsAtivos', () => {
     )
 
     expect(chips.map((chip) => chip.texto)).toEqual(['Sem prazo', 'Sem projeto', 'Sem tag'])
+  })
+
+  it('não gera chips quando os filtros estão no default', () => {
+    expect(chipsAtivos(FILTROS_LISTA_INICIAIS, [], [])).toEqual([])
+  })
+
+  it('mostra prioridade e intervalo de prazo', () => {
+    const chips = chipsAtivos(
+      { ...FILTROS_LISTA_INICIAIS, prioridade: ['ALTA'], prazoDe: '2026-11-01T10:00', prazoAte: '2026-11-02T10:00' },
+      [],
+    )
+    expect(chips.map((chip) => chip.texto)).toEqual([
+      expect.stringMatching(/^Prioridade: Alta$/),
+      expect.stringMatching(/^Prazo:/),
+    ])
+  })
+
+  it('usa fallback de projeto e tag desconhecidos sem alterar os ids originais', () => {
+    const filtros = { ...FILTROS_LISTA_INICIAIS, projetoId: 'p-x', tagIds: ['abcdef12zzzz'] }
+    const chips = chipsAtivos(filtros, [], [])
+    expect(chips.find((c) => c.id === 'projeto')?.texto).toBe('Projeto: Projeto')
+    expect(chips.find((c) => c.id === 'tags')?.texto).toBe('Tags: abcdef12')
+    expect(filtros.tagIds).toEqual(['abcdef12zzzz'])
+  })
+
+  it('mostra só duração a partir de quando ate está vazio', () => {
+    const chips = chipsAtivos({ ...FILTROS_LISTA_INICIAIS, duracaoDe: '30' }, [], [])
+    expect(chips[0].texto).toBe('Duração: a partir de 30 min')
+  })
+
+  it('filtrosLimpos preserva visão e size e zera o resto', () => {
+    const limpos = filtrosLimpos({
+      ...FILTROS_LISTA_INICIAIS,
+      visao: 'pendentes',
+      size: 50,
+      prioridade: ['ALTA'],
+      tagIds: ['t1'],
+    })
+    expect(limpos.visao).toBe('pendentes')
+    expect(limpos.size).toBe(50)
+    expect(limpos.prioridade).toEqual([])
+    expect(limpos.tagIds).toEqual([])
   })
 })

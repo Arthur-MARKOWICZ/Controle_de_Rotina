@@ -147,6 +147,10 @@
   min-height: 6rem;
 }
 
+.skeleton--historico-calibracao .skeleton__item {
+  min-height: 2.5rem;
+}
+
 .skeleton--perfil-secoes .skeleton__item {
   min-height: 8rem;
 }

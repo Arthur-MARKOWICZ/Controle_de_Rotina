@@ -70,4 +70,82 @@ class TarefaResponseTest {
         assertThat(response.parentTitulo()).isEqualTo("Estudar Security");
         assertThat(response.temFilhos()).isFalse();
     }
+
+    @Test
+    void restanteNegativoDeveVirarZero() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(tarefa, null, -15);
+
+        assertThat(response.restanteMinutos()).isZero();
+        assertThat(tarefa.getDuracaoMinutos()).isEqualTo(60);
+    }
+
+    @Test
+    void tagsNulasDevemVirarListaVazia() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(tarefa, "Projeto", 10, null, null);
+
+        assertThat(response.tags()).isEmpty();
+        assertThat(response.projetoNome()).isEqualTo("Projeto");
+        assertThat(response.tagMatchScore()).isNull();
+    }
+
+    @Test
+    void esperasNulasDevemVirarListaVaziaEMarcarBloqueada() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(
+                tarefa, null, 60, List.of(), null, null, true, null, true);
+
+        assertThat(response.esperas()).isEmpty();
+        assertThat(response.bloqueada()).isTrue();
+        assertThat(response.temFilhos()).isTrue();
+    }
+
+    @Test
+    void deletedAtPreenchidoDeveMarcarDeletada() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+        tarefa.softDelete(agora);
+
+        TarefaResponse response = TarefaResponse.from(tarefa);
+
+        assertThat(response.deletada()).isTrue();
+        assertThat(response.deletedAt()).isEqualTo(agora);
+    }
+
+    @Test
+    void fromSimplesCopiaCamposDaEntidade() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(tarefa);
+
+        assertThat(response.id()).isEqualTo(tarefa.getId());
+        assertThat(response.titulo()).isEqualTo("Estudar Security");
+        assertThat(response.duracaoMinutos()).isEqualTo(60);
+        assertThat(response.restanteMinutos()).isEqualTo(60);
+        assertThat(response.deletada()).isFalse();
+        assertThat(response.bloqueada()).isFalse();
+    }
+
+    private static Tarefa raiz(Instant agora) {
+        return new Tarefa(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Estudar Security",
+                "desc",
+                Prioridade.MEDIA,
+                agora,
+                StatusTarefa.PENDENTE,
+                60,
+                agora,
+                agora
+        );
+    }
 }

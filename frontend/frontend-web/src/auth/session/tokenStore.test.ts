@@ -36,4 +36,31 @@ describe('tokenStore', () => {
     expect(listener).toHaveBeenNthCalledWith(1, 'jwt-abc')
     expect(listener).toHaveBeenNthCalledWith(2, null)
   })
+
+  it('começa vazio', () => {
+    expect(getAccessToken()).toBeNull()
+  })
+
+  it('não notifica depois de unsubscribe', () => {
+    const listener = vi.fn()
+    const unsubscribe = subscribeAccessToken(listener)
+    unsubscribe()
+    setAccessToken('jwt')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('notifica todos os assinantes', () => {
+    const a = vi.fn()
+    const b = vi.fn()
+    subscribeAccessToken(a)
+    subscribeAccessToken(b)
+    setAccessToken('jwt')
+    expect(a).toHaveBeenCalledWith('jwt')
+    expect(b).toHaveBeenCalledWith('jwt')
+  })
+
+  it('setAccessToken vazio ainda persiste a string', () => {
+    setAccessToken('')
+    expect(getAccessToken()).toBe('')
+  })
 })

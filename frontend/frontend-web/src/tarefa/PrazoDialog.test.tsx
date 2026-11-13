@@ -40,4 +40,31 @@ describe('PrazoDialog', () => {
     expect(onApply).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('não renderiza quando fechado', () => {
+    render(<PrazoDialog open={false} value="" onApply={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('Escape fecha sem aplicar', async () => {
+    const onApply = vi.fn()
+    const onClose = vi.fn()
+    render(<PrazoDialog open value="" onApply={onApply} onClose={onClose} />)
+    screen.getByRole('dialog').dispatchEvent(new Event('cancel', { bubbles: true }))
+    expect(onApply).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('Aplicar com campo vazio envia string vazia', async () => {
+    const user = userEvent.setup()
+    const onApply = vi.fn()
+    render(<PrazoDialog open value="" onApply={onApply} onClose={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /^aplicar$/i }))
+    expect(onApply).toHaveBeenCalledWith('')
+  })
+
+  it('disabled impede aplicar o atalho no submit visível', async () => {
+    render(<PrazoDialog open value="" disabled onApply={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /^aplicar$/i })).toBeDisabled()
+  })
 })

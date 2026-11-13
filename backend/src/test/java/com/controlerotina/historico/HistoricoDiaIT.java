@@ -175,6 +175,45 @@ class HistoricoDiaIT {
         assertThat(response.getBody().get("tarefasFinalizadas")).isEqualTo(1);
     }
 
+    @Test
+    void dataInvalidaDeveRetornar400ComTitle() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/dia?data=27-10-2026",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode().is4xxClientError()).isTrue();
+        assertThat(response.getBody().get("title")).isIn(
+                "Requisição inválida", "Parâmetro inválido", "Parâmetro obrigatório ausente");
+    }
+
+    @Test
+    void tokenMalformadoDeveRetornar401ComTitle() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth("nao-e-um-jwt");
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/dia?data=" + DIA,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(response.getBody().get("title")).isEqualTo("Não autorizado");
+    }
+
+    @Test
+    void diaSemAtividadeDeveDevolverZeros() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/dia?data=2026-01-01",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("tarefasFinalizadas")).isEqualTo(0);
+        assertThat(response.getBody().get("blocosConcluidos")).isEqualTo(0);
+        assertThat(response.getBody().get("minutosTrabalhados")).isEqualTo(0);
+        assertThat(response.getBody().get("xpGanho")).isEqualTo(0);
+    }
+
     private void seedAtividade(
             UUID dono,
             LocalDate data,

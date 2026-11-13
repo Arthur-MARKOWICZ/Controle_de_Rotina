@@ -2,6 +2,7 @@ package com.controlerotina.tag;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 
 import java.util.HashMap;
@@ -198,6 +199,49 @@ class TagVinculoIT {
         assertThat(lista.getStatusCode()).isEqualTo(OK);
         List<?> content = (List<?>) lista.getBody().get("content");
         assertThat(content).isEmpty();
+    }
+
+    @Test
+    void deveRetornar404AoVincularTagDeOutroUsuario() {
+        String emailOutro = "tag-vinc-outro-" + UUID.randomUUID() + "@email.com";
+        restTemplate.postForEntity("/usuarios", json(Map.of("nome", "Outro", "email", emailOutro, "senha", SENHA)), Map.class);
+        String tokenOutro = restTemplate.postForEntity(
+                "/auth/login", json(Map.of("email", emailOutro, "senha", SENHA)), Map.class)
+                .getBody().get("accessToken").toString();
+        HttpHeaders headersOutro = new HttpHeaders();
+        headersOutro.setContentType(MediaType.APPLICATION_JSON);
+        headersOutro.setBearerAuth(tokenOutro);
+        UUID tagAlheia = UUID.fromString(restTemplate.exchange(
+                "/tags",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of("nome", "alheia"), headersOutro),
+                Map.class).getBody().get("id").toString());
+
+        ResponseEntity<Map> habito = restTemplate.exchange(
+                "/habitos",
+                HttpMethod.POST,
+                autenticadoJson(habitoBody("Com tag alheia", tagAlheia)),
+                Map.class);
+
+        assertThat(habito.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(habito.getBody().get("title")).isEqualTo("Tag não encontrada");
+    }
+
+    @Test
+    void deveCriarHabitoComListaVaziaDeTags() {
+        ResponseEntity<Map> habito = restTemplate.exchange(
+                "/habitos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of(
+                        "titulo", "Sem tags",
+                        "duracaoMinutos", 30,
+                        "diasSemana", List.of("SEGUNDA"),
+                        "tagIds", List.of()
+                )),
+                Map.class);
+
+        assertThat(habito.getStatusCode()).isEqualTo(CREATED);
+        assertThat((List<?>) habito.getBody().get("tags")).isEmpty();
     }
 
     private UUID criarTag(String nome) {

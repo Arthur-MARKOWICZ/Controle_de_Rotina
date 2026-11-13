@@ -233,6 +233,68 @@ class ApiHttpTest {
         val erro = assertFailsWith<ApiErro.Http> { KtorRotinaApi(http).criarTarefa(CriarTarefaRequest(" ")) }
         assertEquals("titulo", erro.problema?.errors?.single()?.property)
     }
+
+    @Test
+    fun conflito409PropagaStatusETitleSemAlterarSessao() = runTest {
+        val store = SecureTokenStoreEmMemoria()
+        val http = cliente(store) { req ->
+            when (req.caminho()) {
+                "/auth/login" -> json("""{"accessToken":"a1"}""", setCookie = "refresh_token=r1; Path=/auth")
+                else -> json(
+                    """{"status":409,"title":"Plano já aprovado","detail":"O plano já foi aprovado"}""",
+                    HttpStatusCode.Conflict,
+                )
+            }
+        }
+        http.login("x@y.z", "segredo")
+        val cookieAntes = store.ler()
+        val erro = assertFailsWith<ApiErro.Http> { KtorRotinaApi(http).aprovarPlano("p1") }
+        assertEquals(409, erro.status)
+        assertEquals("Plano já aprovado", erro.problema?.title)
+        assertEquals("O plano já foi aprovado", erro.problema?.detail)
+        assertEquals(cookieAntes, store.ler())
+    }
+
+    @Test
+    fun jsonInvalidoEm2xxNaoAlteraSessao() = runTest {
+        val store = SecureTokenStoreEmMemoria()
+        val http = cliente(store) { req ->
+            when (req.caminho()) {
+                "/auth/login" -> json("""{"accessToken":"a1"}""", setCookie = "refresh_token=r1; Path=/auth")
+                else -> respond(
+                    "{nao-e-json",
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, listOf(JSON)),
+                )
+            }
+        }
+        http.login("x@y.z", "segredo")
+        assertFailsWith<kotlinx.serialization.SerializationException> { KtorRotinaApi(http).me() }
+        assertEquals("refresh_token=r1", store.ler())
+    }
+
+    @Test
+    fun corpoVazioEm2xxNaoAlteraSessaoNemViraPlanoNulo() = runTest {
+        val store = SecureTokenStoreEmMemoria()
+        val http = cliente(store) { req ->
+            when (req.caminho()) {
+                "/auth/login" -> json("""{"accessToken":"a1"}""", setCookie = "refresh_token=r1; Path=/auth")
+                else -> respond("", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, listOf(JSON)))
+            }
+        }
+        http.login("x@y.z", "segredo")
+        assertFailsWith<kotlinx.serialization.SerializationException> { KtorRotinaApi(http).plano("2026-11-12") }
+        assertEquals("refresh_token=r1", store.ler())
+    }
+
+    @Test
+    fun timeoutDeRedeViraApiErroRedeSemLimparSessao() = runTest {
+        val store = SecureTokenStoreEmMemoria("refresh_token=r1")
+        val http = cliente(store) { throw IOException("timeout") }
+        val erro = assertFailsWith<ApiErro.Rede> { KtorRotinaApi(http).me() }
+        assertEquals("Falha de conexão", erro.message)
+        assertEquals("refresh_token=r1", store.ler())
+    }
 }
 
 private val PLANO_REAL = """

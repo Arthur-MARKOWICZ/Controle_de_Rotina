@@ -83,4 +83,18 @@ describe('listaArvore', () => {
       'a',
     ])
   })
+
+  it('lista vazia não inventa nós', () => {
+    expect(tarefasNoNivelDaLista([])).toEqual([])
+    expect(filhosNaPagina([], 'pai')).toEqual([])
+  })
+
+  it('naoDeveIsolarPorPrazoAteVazioNemInventarFilhosDePaiAusente', () => {
+    expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, prazoAte: '2026-10-28T00:00' })).toBe(true)
+    expect(temFiltroIsolador({ ...FILTROS_LISTA_INICIAIS, prazoAte: '' })).toBe(false)
+    expect(ehVisaoArvore({ ...FILTROS_LISTA_INICIAIS, prazoAte: '' })).toBe(true)
+    const orfao = tarefa({ id: 'filho', parentId: 'pai-sumiu' })
+    expect(tarefasNoNivelDaLista([orfao]).map((item) => item.id)).toEqual(['filho'])
+    expect(filhosNaPagina([orfao], 'outro-pai')).toEqual([])
+  })
 })

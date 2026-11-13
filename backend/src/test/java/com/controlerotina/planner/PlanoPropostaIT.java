@@ -1,6 +1,7 @@
 package com.controlerotina.planner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
@@ -318,6 +319,53 @@ class PlanoPropostaIT {
 
         Plano descartado = planoRepository.findById(rascunho.getId()).orElseThrow();
         assertThat(descartado.getStatus()).isEqualTo(StatusPlano.DESCARTADO);
+    }
+
+    @Test
+    void deveRetornar409AoAceitarPropostaInexistente() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/propostas/" + UUID.randomUUID() + "/aceitar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Proposta inválida");
+    }
+
+    @Test
+    void deveRetornar409AoAceitarPropostaJaResolvidaSemMutarAprovado() {
+        capacidadeOverrideRepository.save(new CapacidadeOverride(
+                UUID.randomUUID(), usuarioId, DIA_D, 4, true, AGORA, AGORA));
+        salvarTarefa("Tarefa", Prioridade.MEDIA, 60, AGORA);
+        Plano aprovado = plannerGeracaoService.gerar(usuarioId, DIA_D);
+        restTemplate.exchange("/planos/" + aprovado.getId() + "/aprovar", HttpMethod.POST, autenticado(), Map.class);
+        Plano proposta = plannerGeracaoService.gerarProposta(usuarioId, DIA_D);
+        UUID propostaId = proposta.getPropostaId();
+        restTemplate.exchange("/planos/propostas/" + propostaId + "/aceitar", HttpMethod.POST, autenticado(), Map.class);
+        int versaoAposAceite = planoRepository.findMaxVersaoByUsuarioIdAndData(usuarioId, DIA_D);
+
+        ResponseEntity<Map> segundo = restTemplate.exchange(
+                "/planos/propostas/" + propostaId + "/aceitar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(segundo.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(segundo.getBody().get("title")).isEqualTo("Proposta inválida");
+        assertThat(planoRepository.findMaxVersaoByUsuarioIdAndData(usuarioId, DIA_D)).isEqualTo(versaoAposAceite);
+    }
+
+    @Test
+    void deveRetornar409AoDescartarPropostaInexistente() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/propostas/" + UUID.randomUUID() + "/descartar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Proposta inválida");
     }
 
     private Tarefa salvarTarefa(String titulo, Prioridade prioridade, int duracaoMinutos, Instant createdAt) {

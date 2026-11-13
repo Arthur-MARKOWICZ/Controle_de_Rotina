@@ -348,6 +348,81 @@ class DecidirIT {
         assertThat(tags).extracting(m -> m.get("id").toString()).containsExactly(tagB.toString());
     }
 
+    @Test
+    void deveRetornar409AoPromoverJaPromovidoSemCriarNovaTarefa() {
+        UUID id = criarItem("Ja promovido");
+        restTemplate.exchange("/decidir/" + id + "/promover", HttpMethod.POST, autenticadoJson(Map.of()), Map.class);
+        Integer tarefasAntes = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId);
+
+        ResponseEntity<Map> segundo = restTemplate.exchange(
+                "/decidir/" + id + "/promover",
+                HttpMethod.POST,
+                autenticadoJson(Map.of()),
+                Map.class);
+
+        assertThat(segundo.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(segundo.getBody().get("title")).isEqualTo("Item Decidir já promovido");
+        Integer tarefasDepois = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId);
+        assertThat(tarefasDepois).isEqualTo(tarefasAntes);
+    }
+
+    @Test
+    void deveRetornar404AoPromoverItemDeOutroUsuarioSemCriarTarefa() {
+        UUID id = criarItem("Privado promover");
+        Integer tarefasAntes = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa", Integer.class);
+        String tokenOutro = cadastrarOutroUsuario();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(tokenOutro);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/decidir/" + id + "/promover",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of(), headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Item Decidir não encontrado");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from tarefa", Integer.class)).isEqualTo(tarefasAntes);
+        assertThat(jdbcTemplate.queryForObject(
+                "select tarefa_id from item_decidir where id = ?", UUID.class, id)).isNull();
+    }
+
+    @Test
+    void deveRetornar404AoPromoverItemInexistente() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/decidir/" + UUID.randomUUID() + "/promover",
+                HttpMethod.POST,
+                autenticadoJson(Map.of()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Item Decidir não encontrado");
+    }
+
+    @Test
+    void deveRetornar400AoPromoverComDuracaoInvalidaSemCriarTarefa() {
+        UUID id = criarItem("Duracao invalida");
+        Integer tarefasAntes = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/decidir/" + id + "/promover",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("duracaoMinutos", 10)),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Requisição inválida", "Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId)).isEqualTo(tarefasAntes);
+        assertThat(jdbcTemplate.queryForObject(
+                "select tarefa_id from item_decidir where id = ?", UUID.class, id)).isNull();
+    }
+
     private UUID criarItem(String titulo) {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/decidir",

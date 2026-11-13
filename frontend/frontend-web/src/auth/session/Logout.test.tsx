@@ -81,4 +81,177 @@ describe('Logout', () => {
     expect(authApi.logout).toHaveBeenCalledWith('jwt-ok')
     expect(getAccessToken()).toBeNull()
   })
+
+  it('abre o menu sem chamar logout', async () => {
+    setAccessToken('jwt-ok')
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    expect(screen.getByRole('button', { name: /sair/i })).toBeInTheDocument()
+    expect(authApi.logout).not.toHaveBeenCalled()
+    expect(getAccessToken()).toBe('jwt-ok')
+  })
+
+  it('abre Perfil no menu da conta sem chamar logout', async () => {
+    setAccessToken('jwt-ok')
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+                <Route path="/perfil" element={<p>Perfil</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    expect(screen.getByRole('link', { name: /perfil/i })).toHaveAttribute('href', '/perfil')
+    expect(authApi.logout).not.toHaveBeenCalled()
+    expect(getAccessToken()).toBe('jwt-ok')
+  })
+
+  it('não chama logout só por montar a shell autenticada', async () => {
+    setAccessToken('jwt-ok')
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    expect(await screen.findByText('Conteúdo protegido')).toBeInTheDocument()
+    expect(authApi.logout).not.toHaveBeenCalled()
+  })
+
+  it('Escape fecha o menu sem sair', async () => {
+    setAccessToken('jwt-ok')
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    await user.keyboard('{Escape}')
+    expect(authApi.logout).not.toHaveBeenCalled()
+    expect(getAccessToken()).toBe('jwt-ok')
+    expect(screen.getByText('Conteúdo protegido')).toBeInTheDocument()
+  })
+
+  it('envia o token atual para a API de logout', async () => {
+    setAccessToken('jwt-atual')
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    await user.click(screen.getByRole('button', { name: /sair/i }))
+    await waitFor(() => expect(authApi.logout).toHaveBeenCalledWith('jwt-atual'))
+  })
+
+  it('depois de sair o conteúdo protegido some', async () => {
+    setAccessToken('jwt-ok')
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<p>Conteúdo protegido</p>} />
+              </Route>
+              <Route path="/login" element={<p>Tela de login</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /menu da conta/i }))
+    await user.click(screen.getByRole('button', { name: /sair/i }))
+    await waitFor(() => {
+      expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument()
+    })
+  })
 })

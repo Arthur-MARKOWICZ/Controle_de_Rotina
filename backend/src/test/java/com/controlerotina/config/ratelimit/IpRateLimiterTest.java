@@ -61,6 +61,32 @@ class IpRateLimiterTest {
         assertThat(limiter.tryAcquire("10.0.0.2")).isTrue();
     }
 
+    @Test
+    void deveRejeitarMaxRequestsMenorQueUm() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> new IpRateLimiter(0, Duration.ofMinutes(1), clock)
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxRequests");
+    }
+
+    @Test
+    void naoDeveLiberarUmMillisAntesDaJanela() {
+        for (int i = 0; i < 5; i++) {
+            limiter.tryAcquire("10.0.0.1");
+        }
+        clock.advance(Duration.ofMinutes(1).minusMillis(1));
+        assertThat(limiter.tryAcquire("10.0.0.1")).isFalse();
+    }
+
+    @Test
+    void chaveVaziaDeveTerContadorProprio() {
+        for (int i = 0; i < 5; i++) {
+            assertThat(limiter.tryAcquire("")).isTrue();
+        }
+        assertThat(limiter.tryAcquire("")).isFalse();
+        assertThat(limiter.tryAcquire("10.0.0.1")).isTrue();
+    }
+
     private static final class MutableClock extends Clock {
         private Instant instant;
 

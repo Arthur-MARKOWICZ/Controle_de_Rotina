@@ -36,4 +36,27 @@ describe('GraficoXpSemana (T3)', () => {
     expect(destacadas).toHaveLength(1)
     expect(destacadas[0].closest('.historico-grafico__coluna')).toHaveAttribute('title', '280 XP')
   })
+
+  it('lista vazia não quebra e não destaca hoje', () => {
+    const { container } = render(<GraficoXpSemana pontos={[]} hojeIso="2026-10-27" />)
+    expect(container.querySelectorAll('.historico-grafico__barra')).toHaveLength(0)
+    const tabela = screen.getByRole('table', { name: /xp por dia da semana/i })
+    expect(within(tabela).getAllByRole('row')).toHaveLength(1)
+  })
+
+  it('não destaca quando hojeIso não está nos pontos', () => {
+    const { container } = render(<GraficoXpSemana pontos={pontos} hojeIso="2026-01-01" />)
+    expect(container.querySelectorAll('.historico-grafico__barra--hoje')).toHaveLength(0)
+  })
+
+  it('barra de XP zero usa a classe vazia', () => {
+    const { container } = render(<GraficoXpSemana pontos={pontos} />)
+    expect(container.querySelectorAll('.historico-grafico__barra--vazia').length).toBeGreaterThan(0)
+  })
+
+  it('tabela acessível lista todos os pontos', () => {
+    render(<GraficoXpSemana pontos={pontos} />)
+    const tabela = screen.getByRole('table', { name: /xp por dia da semana/i })
+    expect(within(tabela).getAllByRole('row')).toHaveLength(8)
+  })
 })

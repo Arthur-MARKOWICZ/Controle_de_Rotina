@@ -114,4 +114,43 @@ describe('Drawer', () => {
     await user.click(screen.getByRole('dialog', { name: 'Editar' }))
     expect(onClose).toHaveBeenCalledTimes(3)
   })
+
+  it('renderiza o footer', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeInTheDocument()
+  })
+
+  it('clique no conteúdo não fecha', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<Harness onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    await user.click(screen.getByLabelText('Nome'))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('marca busy no dialog', async () => {
+    function BusyHarness() {
+      const [aberto, setAberto] = useState(false)
+      return (
+        <>
+          <button type="button" onClick={() => setAberto(true)}>
+            Abrir drawer
+          </button>
+          {aberto ? (
+            <Drawer open title="Editar" busy onClose={() => setAberto(false)}>
+              <input aria-label="Nome" />
+            </Drawer>
+          ) : null}
+        </>
+      )
+    }
+    const user = userEvent.setup()
+    render(<BusyHarness />)
+    await user.click(screen.getByRole('button', { name: 'Abrir drawer' }))
+    expect(screen.getByRole('dialog', { name: 'Editar' })).toHaveAttribute('aria-busy', 'true')
+  })
 })

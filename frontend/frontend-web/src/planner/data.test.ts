@@ -6,6 +6,7 @@ import {
   formatarCapacidadeMinutos,
   minutosDisponiveis,
   minutosUsados,
+  statusElegiveisParaPlano,
 } from './data'
 
 describe('planner/data', () => {
@@ -47,5 +48,21 @@ describe('planner/data', () => {
     ]
     const fora = filtrarElegiveisForaDoPlano(tarefas, ['t-1'])
     expect(fora.map((t) => t.id)).toEqual(['t-2', 't-5'])
+  })
+
+  it('lista vazia e minutos negativos não inventam capacidade', () => {
+    expect(filtrarElegiveisForaDoPlano([], [])).toEqual([])
+    expect(minutosUsados([])).toBe(0)
+    expect(minutosDisponiveis(0, 'SEMANAL')).toBe(0)
+    expect(formatarCapacidadeMinutos(-5)).toMatch(/0min|-/i)
+  })
+
+  it('naoDeveMutarAListaDeStatusElegiveisNemAceitarHorasNegativas', () => {
+    const original = statusElegiveisParaPlano()
+    original.push('FINALIZADA')
+    expect(statusElegiveisParaPlano()).toEqual(['PENDENTE', 'EM_PROGRESSO', 'ATRASADA'])
+    expect(minutosDisponiveis(-2, 'OVERRIDE')).toBe(0)
+    const tarefas = [{ id: 't-1', status: 'PENDENTE' as const, deletada: false }]
+    expect(filtrarElegiveisForaDoPlano(tarefas, new Set(['t-1']))).toEqual([])
   })
 })

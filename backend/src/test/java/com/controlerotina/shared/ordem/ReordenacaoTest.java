@@ -61,6 +61,49 @@ class ReordenacaoTest {
         List<Item> atuais = List.of(new Item(a, "A"), new Item(b, "B"));
 
         assertThatThrownBy(() -> Reordenacao.aplicar(atuais, List.of(a, a), Item::id))
+                .isInstanceOf(ReordenacaoInvalidaException.class)
+                .satisfies(ex -> {
+                    ReordenacaoInvalidaException erro = (ReordenacaoInvalidaException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(400);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Reordenação inválida");
+                });
+        assertThat(atuais).extracting(Item::nome).containsExactly("A", "B");
+    }
+
+    @Test
+    void listaVaziaDeIdsNaoDeveAlterarAtuais() {
+        UUID a = UUID.randomUUID();
+        List<Item> atuais = List.of(new Item(a, "A"));
+
+        assertThatThrownBy(() -> Reordenacao.aplicar(atuais, List.of(), Item::id))
+                .isInstanceOf(ReordenacaoInvalidaException.class)
+                .satisfies(ex -> {
+                    ReordenacaoInvalidaException erro = (ReordenacaoInvalidaException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(400);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Reordenação inválida");
+                });
+        assertThat(atuais).extracting(Item::nome).containsExactly("A");
+    }
+
+    @Test
+    void idsNulosDevemLancarSemMutarLista() {
+        UUID a = UUID.randomUUID();
+        List<Item> atuais = List.of(new Item(a, "A"));
+
+        assertThatThrownBy(() -> Reordenacao.aplicar(atuais, null, Item::id))
                 .isInstanceOf(ReordenacaoInvalidaException.class);
+        assertThat(atuais).hasSize(1);
+    }
+
+    @Test
+    void identidadePreservaOrdem() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        List<Item> atuais = List.of(new Item(a, "A"), new Item(b, "B"));
+
+        List<Item> resultado = Reordenacao.aplicar(atuais, List.of(a, b), Item::id);
+
+        assertThat(resultado).extracting(Item::nome).containsExactly("A", "B");
+        assertThat(atuais).extracting(Item::nome).containsExactly("A", "B");
     }
 }

@@ -38,4 +38,21 @@ describe('mensagensFeedbackXp', () => {
     }
     expect(mensagensFeedbackXp(zero, 2)).toEqual([])
   })
+
+  it('ganho sem level-up não inclui Nível', () => {
+    expect(mensagensFeedbackXp(base, 4)).toEqual(['+90 XP'])
+  })
+
+  it('level-up sem ganho ainda anuncia o nível', () => {
+    const zero: XpConclusao = {
+      ganhoNesteRequest: 0,
+      eventos: [],
+      progresso: { xpTotal: 10, nivel: 3, xpNoNivel: 0, xpParaProximoNivel: 20 },
+    }
+    expect(mensagensFeedbackXp(zero, 2)).toEqual(['Nível 3!'])
+  })
+
+  it('nivelAnterior null não anuncia level-up', () => {
+    expect(mensagensFeedbackXp(base, null)).toEqual(['+90 XP'])
+  })
 })

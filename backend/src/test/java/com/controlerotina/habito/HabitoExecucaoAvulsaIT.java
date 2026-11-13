@@ -3,6 +3,7 @@ package com.controlerotina.habito;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -253,6 +254,49 @@ class HabitoExecucaoAvulsaIT {
 
         assertThat(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
                 usuarioId, TERCA, StatusPlano.APROVADO)).isEmpty();
+    }
+
+    @Test
+    void deveRetornar404AoIniciarHabitoDeOutroUsuario() {
+        UUID habitoId = criarHabitoCorrer();
+        String emailOutro = "hab-avulso-outro-" + UUID.randomUUID() + "@email.com";
+        restTemplate.postForEntity("/usuarios", json(Map.of("nome", "Outro", "email", emailOutro, "senha", SENHA)), Map.class);
+        String tokenOutro = restTemplate.postForEntity(
+                "/auth/login", json(Map.of("email", emailOutro, "senha", SENHA)), Map.class)
+                .getBody().get("accessToken").toString();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenOutro);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/habitos/" + habitoId + "/iniciar?data=" + TERCA,
+                HttpMethod.POST,
+                new HttpEntity<>(headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Hábito não encontrado");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where usuario_id <> ?", Integer.class, usuarioId)).isZero();
+    }
+
+    @Test
+    void deveRetornar409AoIniciarHabitoEmDiaNaoElegivel() {
+        UUID habitoId = criarHabitoCorrer();
+        LocalDate segunda = LocalDate.of(2026, 10, 19);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/habitos/" + habitoId + "/iniciar?data=" + segunda,
+                HttpMethod.POST,
+                authed(null),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Hábito não elegível");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao e join bloco_plano b on b.id = e.bloco_plano_id where b.habito_id = ?",
+                Long.class,
+                habitoId)).isZero();
     }
 
     private UUID criarHabitoCorrer() {

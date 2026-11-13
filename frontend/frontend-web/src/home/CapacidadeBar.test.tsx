@@ -41,6 +41,30 @@ describe('CapacidadeBar (T1)', () => {
     expect(screen.getByText('3 de 6 blocos')).toBeInTheDocument()
     expect(screen.getByText(/2h 10min de 4h/)).toBeInTheDocument()
   })
+
+  it('deveExibirVersaoQuandoMaiorQueZero', () => {
+    render(
+      <CapacidadeBar usadosMinutos={60} disponiveisMinutos={120} versao={3} />,
+    )
+    expect(screen.getByText(/versão 3/i)).toBeInTheDocument()
+  })
+
+  it('naoDeveExibirVersaoQuandoZeroOuAusente', () => {
+    const { rerender } = render(
+      <CapacidadeBar usadosMinutos={60} disponiveisMinutos={120} versao={0} />,
+    )
+    expect(screen.queryByText(/versão/i)).not.toBeInTheDocument()
+    rerender(<CapacidadeBar usadosMinutos={60} disponiveisMinutos={120} />)
+    expect(screen.queryByText(/versão/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+  })
+
+  it('deveTratarDisponiveisZeroComUsadosComoCemPorCento', () => {
+    render(<CapacidadeBar usadosMinutos={30} disponiveisMinutos={0} />)
+    const bar = screen.getByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuenow', '100')
+    expect(bar).toHaveClass('capacidade-bar--sobrecarga')
+  })
 })
 
 describe('saudação / data por extenso', () => {

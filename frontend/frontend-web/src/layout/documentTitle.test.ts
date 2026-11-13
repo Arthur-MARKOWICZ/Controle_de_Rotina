@@ -31,4 +31,28 @@ describe('tituloPorRota (T4)', () => {
     expect(rotuloPorRota('/xyz/abc')).toBeNull()
     expect(rotuloPorRota('/capacidade')).toBe('Capacidade')
   })
+
+  it('não trata subpath extra como detalhe conhecido', () => {
+    expect(tituloPorRota('/tarefas/abc/extra')).toBe('Controle de Rotina')
+    expect(rotuloPorRota('/tarefas/abc/extra')).toBeNull()
+  })
+
+  it('pathname vazio e raiz não têm rótulo', () => {
+    expect(tituloPorRota('')).toBe('Controle de Rotina')
+    expect(rotuloPorRota('/')).toBeNull()
+  })
+
+  it('rotuloPorRota devolve só o nome curto', () => {
+    expect(rotuloPorRota('/login')).toBe('Login')
+    expect(rotuloPorRota('/cadastro')).toBe('Cadastro')
+  })
+
+  it('não casa /tarefas-arquivo com a lista de tarefas', () => {
+    expect(rotuloPorRota('/tarefas-arquivo')).toBeNull()
+  })
+
+  it('trata /decidir/nova como novo item e não como edição', () => {
+    expect(tituloPorRota('/decidir/nova')).toBe('Novo item · Controle de Rotina')
+    expect(tituloPorRota('/decidir/d-1')).toBe('Editar item · Controle de Rotina')
+  })
 })

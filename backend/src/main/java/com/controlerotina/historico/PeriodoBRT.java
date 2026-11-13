@@ -28,6 +28,17 @@ public final class PeriodoBRT {
         return new Intervalo(inicio, fim, semanaInicio, semanaInicio.plusDays(6));
     }
 
+    /** Últimos {@code dias} dias BRT terminando em {@code hoje} (inclusivo). */
+    public static Intervalo intervaloUltimosDias(LocalDate hoje, int dias) {
+        if (dias <= 0) {
+            throw new IllegalArgumentException("dias deve ser positivo: " + dias);
+        }
+        LocalDate inicioLocal = hoje.minusDays(dias - 1L);
+        Instant inicio = inicioLocal.atStartOfDay(ZONE).toInstant();
+        Instant fim = hoje.plusDays(1).atStartOfDay(ZONE).toInstant();
+        return new Intervalo(inicio, fim, inicioLocal, hoje);
+    }
+
     public static LocalDate segundaDaSemana(LocalDate referencia) {
         return referencia.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }

@@ -35,4 +35,20 @@ describe('execucao/data', () => {
       expect(formatarTempoRestante(92)).toBe('1h32')
     })
   })
+
+  it('iniciadoEm inválido ou duração < 1 zera o restante', () => {
+    const agora = new Date('2026-10-27T14:10:00.000Z')
+    expect(minutosRestantes('não-é-data', 60, agora)).toBe(0)
+    expect(minutosRestantes('2026-10-27T14:00:00.000Z', 0, agora)).toBe(0)
+  })
+
+  it('minutosExcedidos é 0 com instant inválido', () => {
+    expect(minutosExcedidos('boom', 60, new Date('2026-10-27T16:00:00.000Z'))).toBe(0)
+  })
+
+  it('formatarTempoRestante não vai abaixo de 0min', () => {
+    expect(formatarTempoRestante(0)).toBe('0min')
+    expect(formatarTempoRestante(-8)).toBe('0min')
+    expect(formatarTempoRestante(120)).toBe('2h')
+  })
 })

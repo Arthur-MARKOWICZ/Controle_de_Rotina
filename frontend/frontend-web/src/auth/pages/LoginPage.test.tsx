@@ -125,4 +125,18 @@ describe('LoginPage', () => {
     })
     expect(getAccessToken()).toBe('jwt-ok')
   })
+
+  it('erro 500 não guarda token nem sai da tela de login', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new Error('Servidor indisponível'))
+    const user = userEvent.setup()
+    renderLogin()
+
+    await user.type(screen.getByLabelText(/^email$/i), 'ana@email.com')
+    await user.type(screen.getByLabelText(/^senha$/i), 'Senha@123')
+    await user.click(screen.getByRole('button', { name: /entrar/i }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(getAccessToken()).toBeNull()
+    expect(screen.queryByText('Home autenticada')).not.toBeInTheDocument()
+  })
 })

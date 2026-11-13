@@ -1,6 +1,7 @@
 package com.controlerotina.execucao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -39,6 +40,8 @@ import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
+import com.controlerotina.usuario.entity.Usuario;
+import com.controlerotina.usuario.repository.UsuarioRepository;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
@@ -70,6 +73,9 @@ class ExecucaoConsultaIT {
 
     @Autowired
     ExecucaoRepository execucaoRepository;
+
+    @Autowired
+    UsuarioRepository usuarioRepository;
 
     private String accessToken;
     private UUID usuarioId;
@@ -167,6 +173,109 @@ class ExecucaoConsultaIT {
         assertThat(comRascunhoMaisNovo.getStatusCode()).isEqualTo(OK);
         assertThat(comRascunhoMaisNovo.getBody().get("planoAprovado")).isNull();
         assertThat((List<?>) comRascunhoMaisNovo.getBody().get("itens")).isEmpty();
+    }
+
+    @Test
+    void deveListarItensDoPlanoAprovadoCorrente() {
+        UUID tarefaId = salvarTarefa("Tarefa lista", 60);
+        UUID planoId = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoId, usuarioId, DIA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA));
+        UUID bloco1 = UUID.randomUUID();
+        blocoPlanoRepository.save(new BlocoPlano(bloco1, planoId, tarefaId, 60, 1, AGORA, AGORA));
+
+        ResponseEntity<Map> comPlano = restTemplate.exchange(
+                "/execucoes?data=" + DIA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(comPlano.getStatusCode()).isEqualTo(OK);
+        Map planoAprovado = (Map) comPlano.getBody().get("planoAprovado");
+        assertThat(planoAprovado.get("id")).isEqualTo(planoId.toString());
+        List<Map> itens = (List<Map>) comPlano.getBody().get("itens");
+        assertThat(itens).hasSize(1);
+        assertThat(((Map) itens.get(0).get("execucao")).get("status")).isEqualTo("NAO_INICIADO");
+    }
+
+    @Test
+    void deveRetornarListaVaziaNoDiaSemPlanoSemAlterarBanco() {
+        ResponseEntity<Map> semPlano = restTemplate.exchange(
+                "/execucoes?data=" + DIA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(semPlano.getStatusCode()).isEqualTo(OK);
+        assertThat(semPlano.getBody().get("planoAprovado")).isNull();
+        assertThat((List<?>) semPlano.getBody().get("itens")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from execucao", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from plano", Integer.class)).isZero();
+    }
+
+    @Test
+    void deveRetornar401AoListarSemToken() {
+        ResponseEntity<Map> semToken = restTemplate.getForEntity("/execucoes?data=" + DIA, Map.class);
+
+        assertThat(semToken.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(semToken.getBody().get("title")).isEqualTo("Não autorizado");
+    }
+
+    @Test
+    void naoDeveListarPlanoDeOutroUsuario() {
+        UUID outro = UUID.randomUUID();
+        usuarioRepository.save(new Usuario(
+                outro, "outro-consulta-" + outro + "@email.com", "$2a$10$hash", "Outro", AGORA, AGORA));
+        UUID tarefaOutro = UUID.randomUUID();
+        tarefaRepository.save(new Tarefa(
+                tarefaOutro, outro, "Alheia", "d", Prioridade.MEDIA,
+                AGORA, StatusTarefa.PENDENTE, 60, AGORA, AGORA));
+        UUID planoOutro = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoOutro, outro, DIA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA));
+        blocoPlanoRepository.save(new BlocoPlano(
+                UUID.randomUUID(), planoOutro, tarefaOutro, 60, 1, AGORA, AGORA));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes?data=" + DIA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("planoAprovado")).isNull();
+        assertThat((List<?>) response.getBody().get("itens")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from plano where id = ?", Integer.class, planoOutro)).isEqualTo(1);
+    }
+
+    @Test
+    void deveRetornar400QuandoDataInvalida() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes?data=nao-e-data",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Parâmetro inválido", "Requisição inválida");
+    }
+
+    @Test
+    void listarNaoDeveCriarExecucao() {
+        UUID tarefaId = salvarTarefa("Só lista", 60);
+        UUID planoId = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoId, usuarioId, DIA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA));
+        blocoPlanoRepository.save(new BlocoPlano(
+                UUID.randomUUID(), planoId, tarefaId, 60, 1, AGORA, AGORA));
+
+        restTemplate.exchange("/execucoes?data=" + DIA, HttpMethod.GET, autenticado(), Map.class);
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from execucao", Integer.class)).isZero();
     }
 
     private UUID salvarTarefa(String titulo, int duracaoMinutos) {

@@ -198,6 +198,30 @@ class CalendarioAgregadorTest {
         CalendarioAgregador.validarIntervalo(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31));
     }
 
+    @Test
+    void intervaloInvertidoDeveLancar400ComTitle() {
+        assertThatThrownBy(() -> CalendarioAgregador.validarIntervalo(
+                LocalDate.of(2026, 11, 1), LocalDate.of(2026, 10, 1)))
+                .isInstanceOf(IntervaloCapacidadeInvalidoException.class)
+                .satisfies(ex -> {
+                    IntervaloCapacidadeInvalidoException erro = (IntervaloCapacidadeInvalidoException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(400);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Intervalo inválido");
+                });
+    }
+
+    @Test
+    void usuarioSemPlanosNemPrazosMontaDiaVazioSemSobrecarga() {
+        CalendarioAgregador.DiaMontado dia = CalendarioAgregador.montarDia(
+                DIA, 240, OrigemCapacidade.VAZIO, List.of(), List.of());
+
+        assertThat(dia.plano()).isNull();
+        assertThat(dia.minutosAlocados()).isZero();
+        assertThat(dia.sobrecarga()).isFalse();
+        assertThat(dia.tarefasComPrazo()).isEmpty();
+        assertThat(dia.statusPlano()).isNull();
+    }
+
     private static CalendarioAgregador.PlanoCandidato planoComBlocos(int duracaoMinutos) {
         return new CalendarioAgregador.PlanoCandidato(
                 PLANO_APROVADO_ID,

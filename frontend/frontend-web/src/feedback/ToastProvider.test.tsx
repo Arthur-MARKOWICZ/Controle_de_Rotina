@@ -70,3 +70,95 @@ describe('ToastProvider ícones (T5)', () => {
     }
   })
 })
+
+describe('ToastProvider extras', () => {
+  it('useToast fora do provider lança', () => {
+    function Broken() {
+      useToast()
+      return null
+    }
+    expect(() => render(<Broken />)).toThrow(/ToastProvider/)
+  })
+
+  it('fecha o toast pelo botão Fechar', async () => {
+    const user = userEvent.setup()
+    function Example() {
+      const toast = useToast()
+      return (
+        <button type="button" onClick={() => toast.error('Falhou')}>
+          Disparar
+        </button>
+      )
+    }
+    render(
+      <ToastProvider>
+        <Example />
+      </ToastProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /disparar/i }))
+    expect(screen.getByRole('status')).toHaveTextContent(/falhou/i)
+    await user.click(screen.getByRole('button', { name: 'Fechar' }))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('erro crítico usa role alert e duration 0 não auto-fecha', async () => {
+    const user = userEvent.setup()
+    function Example() {
+      const toast = useToast()
+      return (
+        <button
+          type="button"
+          onClick={() => toast.error('Crítico', { critical: true, durationMs: 0 })}
+        >
+          Disparar
+        </button>
+      )
+    }
+    render(
+      <ToastProvider>
+        <Example />
+      </ToastProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /disparar/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/crítico/i)
+  })
+
+  it('toast info aparece com a mensagem', async () => {
+    const user = userEvent.setup()
+    function Example() {
+      const toast = useToast()
+      return (
+        <button type="button" onClick={() => toast.info('Plano salvo')}>
+          Disparar
+        </button>
+      )
+    }
+    render(
+      <ToastProvider>
+        <Example />
+      </ToastProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /disparar/i }))
+    expect(screen.getByRole('status')).toHaveTextContent(/plano salvo/i)
+  })
+
+  it('success sem ação não mostra botão Desfazer', async () => {
+    const user = userEvent.setup()
+    function Example() {
+      const toast = useToast()
+      return (
+        <button type="button" onClick={() => toast.success('Salvo')}>
+          Disparar
+        </button>
+      )
+    }
+    render(
+      <ToastProvider>
+        <Example />
+      </ToastProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: /disparar/i }))
+    expect(screen.getByRole('status')).toHaveTextContent(/salvo/i)
+    expect(screen.queryByRole('button', { name: /desfazer/i })).not.toBeInTheDocument()
+  })
+})

@@ -143,4 +143,15 @@ describe('CadastroPage', () => {
       senha: 'Senha@123',
     })
   })
+
+  it('nome vazio não chama a API', async () => {
+    const user = userEvent.setup()
+    renderCadastro()
+    await user.type(screen.getByLabelText(/^email$/i), 'ana@email.com')
+    await user.type(screen.getByLabelText(/^senha$/i), 'Senha@123')
+    await user.type(screen.getByLabelText(/confirmar senha/i), 'Senha@123')
+    await user.click(screen.getByRole('button', { name: /criar conta/i }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(authApi.cadastrarUsuario).not.toHaveBeenCalled()
+  })
 })

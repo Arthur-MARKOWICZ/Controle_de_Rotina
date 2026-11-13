@@ -5,6 +5,7 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -80,6 +81,7 @@ class ExecucaoIniciarIT {
 
     private String accessToken;
     private UUID usuarioId;
+    private UUID tarefaId;
     private UUID blocoId;
 
     @BeforeEach
@@ -111,7 +113,7 @@ class ExecucaoIniciarIT {
                 UUID.class,
                 email);
 
-        UUID tarefaId = UUID.randomUUID();
+        tarefaId = UUID.randomUUID();
         tarefaRepository.save(new Tarefa(
                 tarefaId, usuarioId, "Tarefa iniciar", "desc", Prioridade.MEDIA,
                 AGORA, StatusTarefa.PENDENTE, 60, AGORA, AGORA
@@ -238,6 +240,130 @@ class ExecucaoIniciarIT {
                 autenticadoJson(Map.of("blocoId", blocoOutro.toString())),
                 Map.class);
         assertThat(deOutro.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
+    @Test
+    void deveIniciarExecucaoCom201() {
+        ResponseEntity<Map> criada = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+
+        assertThat(criada.getStatusCode()).isEqualTo(CREATED);
+        assertThat(criada.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
+        assertThat(criada.getBody().get("blocoPlanoId")).isEqualTo(blocoId.toString());
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where bloco_plano_id = ?",
+                Integer.class,
+                blocoId)).isEqualTo(1);
+    }
+
+    @Test
+    void deveRetornar409AoIniciarBlocoJaEmAndamentoSemCriarNovaLinha() {
+        assertThat(restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class).getStatusCode()).isEqualTo(CREATED);
+
+        ResponseEntity<Map> duplicada = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+
+        assertThat(duplicada.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(duplicada.getBody().get("title")).isEqualTo("Execução já em andamento");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where bloco_plano_id = ?",
+                Integer.class,
+                blocoId)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from execucao where bloco_plano_id = ?",
+                String.class,
+                blocoId)).isEqualTo("EM_ANDAMENTO");
+    }
+
+    @Test
+    void deveRetornar404AoIniciarBlocoInexistente() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", UUID.randomUUID().toString())),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Bloco não encontrado");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao", Integer.class)).isZero();
+    }
+
+    @Test
+    void deveRetornar404AoIniciarBlocoDeOutroUsuarioSemAlterarExecucaoAlheia() {
+        UUID outroUsuario = UUID.randomUUID();
+        usuarioRepository.save(new Usuario(
+                outroUsuario, "outro-ini-" + outroUsuario + "@email.com", "$2a$10$hash", "Outro", AGORA, AGORA));
+        UUID tarefaOutro = UUID.randomUUID();
+        tarefaRepository.save(new Tarefa(
+                tarefaOutro, outroUsuario, "Outra", "desc", Prioridade.BAIXA,
+                AGORA, StatusTarefa.PENDENTE, 60, AGORA, AGORA));
+        UUID planoOutro = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoOutro, outroUsuario, DIA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA));
+        UUID blocoOutro = UUID.randomUUID();
+        blocoPlanoRepository.save(new BlocoPlano(
+                blocoOutro, planoOutro, tarefaOutro, 30, 1, AGORA, AGORA));
+
+        ResponseEntity<Map> deOutro = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoOutro.toString())),
+                Map.class);
+
+        assertThat(deOutro.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(deOutro.getBody().get("title")).isEqualTo("Bloco não encontrado");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where bloco_plano_id = ?",
+                Integer.class,
+                blocoOutro)).isZero();
+    }
+
+    @Test
+    void deveRetornar409AoIniciarBlocoDePlanoNaoAprovado() {
+        UUID planoRascunho = UUID.randomUUID();
+        planoRepository.save(new Plano(
+                planoRascunho, usuarioId, DIA.plusDays(1), 1, StatusPlano.RASCUNHO,
+                false, null, null, AGORA, AGORA, AGORA));
+        UUID blocoRascunho = UUID.randomUUID();
+        blocoPlanoRepository.save(new BlocoPlano(
+                blocoRascunho, planoRascunho, tarefaId, 60, 1, AGORA, AGORA));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoRascunho.toString())),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Plano não executável");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where bloco_plano_id = ?",
+                Integer.class,
+                blocoRascunho)).isZero();
+    }
+
+    @Test
+    void deveRetornar401AoIniciarSemToken() {
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/execucoes/iniciar",
+                json(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(response.getBody().get("title")).isEqualTo("Não autorizado");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from execucao", Integer.class)).isZero();
     }
 
     private HttpEntity<Void> autenticado() {

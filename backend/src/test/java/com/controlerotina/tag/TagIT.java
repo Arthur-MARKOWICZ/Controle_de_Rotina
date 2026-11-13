@@ -1,6 +1,7 @@
 package com.controlerotina.tag;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
@@ -227,6 +228,64 @@ class TagIT {
                 Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    }
+
+    @Test
+    void deveRejeitarNomeDuplicadoComAcentoNaMesmaLetra() {
+        assertThat(restTemplate.exchange(
+                "/tags", HttpMethod.POST, autenticadoJson(Map.of("nome", "ação")), Map.class)
+                .getStatusCode()).isEqualTo(CREATED);
+
+        ResponseEntity<Map> duplicada = restTemplate.exchange(
+                "/tags",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("nome", "AÇÃO")),
+                Map.class);
+
+        assertThat(duplicada.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(duplicada.getBody().get("title")).isEqualTo("Tag já existe");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tag where usuario_id = ?", Integer.class, usuarioId)).isEqualTo(1);
+    }
+
+    @Test
+    void deveRejeitarNomeVazio() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tags",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("nome", "  ")),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Requisição inválida", "Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tag where usuario_id = ?", Integer.class, usuarioId)).isZero();
+    }
+
+    @Test
+    void deveRejeitarNomeLongoDemais() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tags",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("nome", "a".repeat(65))),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Requisição inválida", "Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tag where usuario_id = ?", Integer.class, usuarioId)).isZero();
+    }
+
+    @Test
+    void deveListarVazioQuandoUsuarioNaoTemTags() {
+        ResponseEntity<List> lista = restTemplate.exchange(
+                "/tags",
+                HttpMethod.GET,
+                autenticado(accessToken),
+                List.class);
+
+        assertThat(lista.getStatusCode()).isEqualTo(OK);
+        assertThat(lista.getBody()).isEmpty();
     }
 
     private HttpEntity<Void> autenticado(String token) {

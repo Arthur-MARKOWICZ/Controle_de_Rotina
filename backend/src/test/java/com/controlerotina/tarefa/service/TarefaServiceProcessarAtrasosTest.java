@@ -126,4 +126,72 @@ class TarefaServiceProcessarAtrasosTest {
                 any()
         );
     }
+
+    @Test
+    void meiaNoiteBrtUsaInicioDoMesmoDia() {
+        Instant meiaNoite = Instant.parse("2026-10-29T03:00:00Z");
+        TarefaService noLimite = new TarefaService(
+                tarefaRepository,
+                projetoRepository,
+                propostaGeracaoService,
+                execucaoRepository,
+                tagVinculoService,
+                itemDecidirRepository,
+                esperaService,
+                Clock.fixed(meiaNoite, ZoneOffset.UTC)
+        );
+
+        noLimite.processarAtrasos();
+
+        Instant inicioDoDia = PeriodoBRT.intervaloDia(LocalDate.of(2026, 10, 29)).inicioInclusivo();
+        verify(tarefaRepository).atualizarStatusQuandoPrazoPassou(
+                StatusTarefa.PENDENTE, StatusTarefa.ATRASADA, inicioDoDia, meiaNoite);
+        verify(tarefaRepository).atualizarStatusQuandoPrazoPassou(
+                StatusTarefa.EM_PROGRESSO, StatusTarefa.ATRASADA, inicioDoDia, meiaNoite);
+    }
+
+    @Test
+    void umSegundoAntesDaMeiaNoiteBrtAindaEOdiaAnterior() {
+        Instant quaseMeiaNoite = Instant.parse("2026-10-29T02:59:59Z");
+        TarefaService antes = new TarefaService(
+                tarefaRepository,
+                projetoRepository,
+                propostaGeracaoService,
+                execucaoRepository,
+                tagVinculoService,
+                itemDecidirRepository,
+                esperaService,
+                Clock.fixed(quaseMeiaNoite, ZoneOffset.UTC)
+        );
+
+        antes.processarAtrasos();
+
+        Instant inicioDia28 = PeriodoBRT.intervaloDia(LocalDate.of(2026, 10, 28)).inicioInclusivo();
+        verify(tarefaRepository).atualizarStatusQuandoPrazoPassou(
+                StatusTarefa.PENDENTE, StatusTarefa.ATRASADA, inicioDia28, quaseMeiaNoite);
+        verify(tarefaRepository, never()).atualizarStatusQuandoPrazoPassou(
+                eq(StatusTarefa.PENDENTE),
+                eq(StatusTarefa.ATRASADA),
+                eq(PeriodoBRT.intervaloDia(LocalDate.of(2026, 10, 29)).inicioInclusivo()),
+                any()
+        );
+    }
+
+    @Test
+    void naoDeveTocarOutrosRepositorios() {
+        tarefaService.processarAtrasos();
+
+        verifyNoMoreInteractions(projetoRepository, propostaGeracaoService, execucaoRepository);
+    }
+
+    @Test
+    void devePropagarFalhaDoRepositorio() {
+        org.mockito.Mockito.doThrow(new IllegalStateException("falha sql"))
+                .when(tarefaRepository)
+                .atualizarStatusQuandoPrazoPassou(any(), any(), any(), any());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> tarefaService.processarAtrasos())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha sql");
+    }
 }

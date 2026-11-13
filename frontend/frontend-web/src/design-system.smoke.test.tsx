@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as meApi from './auth/api/meApi'
+import { CadastroPage } from './auth/pages/CadastroPage'
 import { LoginPage } from './auth/pages/LoginPage'
 import { AuthProvider } from './auth/session/AuthContext'
 import { clearAccessToken } from './auth/session/tokenStore'
@@ -20,12 +21,15 @@ import { QuickAddProvider } from './layout/QuickAddContext'
 import { HomePage } from './pages/HomePage'
 import * as planoApi from './planner/api/planoApi'
 import * as tarefaApi from './tarefa/api/tarefaApi'
+import * as tagApi from './tag/api/tagApi'
+import { TagsPage } from './tag/pages/TagsPage'
 import { TarefasPage } from './tarefa/pages/TarefasPage'
 import { XpProgressProvider } from './xp/XpProgressContext'
 
 vi.mock('./auth/api/authApi', () => ({
   login: vi.fn(),
   logout: vi.fn(),
+  cadastrarUsuario: vi.fn(),
   ApiError: class ApiError extends Error {
     status: number
     constructor(status: number, message: string) {
@@ -100,11 +104,20 @@ vi.mock('./projeto/api/reservaProjetoApi', () => ({
 vi.mock('./historico/api/historicoApi', () => ({
   consultarHistoricoDia: vi.fn(),
   consultarHistoricoSemana: vi.fn(),
+  consultarCalibracao: vi.fn(),
 }))
 
 vi.mock('./auth/api/meApi', () => ({
   buscarMe: vi.fn(),
   atualizarMe: vi.fn(),
+}))
+
+vi.mock('./tag/api/tagApi', () => ({
+  TAG_COR_PADRAO: '#6B7280',
+  listarTags: vi.fn(),
+  criarTag: vi.fn(),
+  atualizarTag: vi.fn(),
+  excluirTag: vi.fn(),
 }))
 
 vi.mock('./planner/data', async (importOriginal) => {
@@ -132,6 +145,7 @@ describe('design system smoke (T1)', () => {
       planoAprovado: null,
       itens: [],
     })
+    vi.mocked(tagApi.listarTags).mockResolvedValue([])
   })
 
   it('Login monta e CTA Entrar permanece clicável', async () => {
@@ -284,6 +298,13 @@ describe('design system smoke (T1)', () => {
       xpGanho: 0,
     }
     vi.mocked(historicoApi.consultarHistoricoDia).mockResolvedValue(resumo)
+    vi.mocked(historicoApi.consultarCalibracao).mockResolvedValue({
+      janela: { inicio: '2026-07-30', fim: '2026-10-27' },
+      minimoAmostras: 5,
+      geral: { amostras: 0, suficiente: false, razao: null, desvioMedioMinutos: null },
+      porTag: [],
+      porProjeto: [],
+    })
     vi.mocked(historicoApi.consultarHistoricoSemana).mockResolvedValue({
       ...resumo,
       periodo: { escopo: 'SEMANA', inicio: '2026-10-26', fim: '2026-11-01' },
@@ -308,5 +329,40 @@ describe('design system smoke (T1)', () => {
       expect(historicoApi.consultarHistoricoDia).toHaveBeenCalledWith('2026-10-25')
     })
     vi.useRealTimers()
+  })
+
+  it('Cadastro monta e CTA Criar conta permanece clicável', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <CadastroPage />
+      </MemoryRouter>,
+    )
+
+    const criar = screen.getByRole('button', { name: /criar conta/i })
+    expect(criar).toHaveClass('btn', 'btn--primary')
+    await user.click(criar)
+    expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0)
+  })
+
+  it('Tags monta e CTA Criar permanece desabilitado com nome vazio', async () => {
+    vi.mocked(tagApi.listarTags).mockResolvedValue([])
+
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/tags']}>
+          <Routes>
+            <Route path="/tags" element={<TagsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    )
+
+    await screen.findByRole('heading', { name: /tags/i })
+    const criar = screen.getByRole('button', { name: /^criar$/i })
+    expect(criar).toHaveClass('btn', 'btn--primary')
+    expect(criar).toBeDisabled()
+    expect(tagApi.criarTag).not.toHaveBeenCalled()
+    expect(await screen.findByRole('status')).toHaveTextContent(/nenhuma tag ainda/i)
   })
 })

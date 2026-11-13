@@ -45,14 +45,14 @@ describe('TagsPage', () => {
       nome: 'Foco',
       cor: '#112233',
     })
+    vi.mocked(tagApi.criarTag).mockReset()
+    vi.mocked(tagApi.excluirTag).mockReset()
   })
 
   it('renderiza lista de tags', async () => {
     renderPage()
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /tags/i })).toBeInTheDocument()
-    })
-    expect(screen.getByDisplayValue('Foco')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Foco')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /tags/i })).toBeInTheDocument()
   })
 
   it('só salva e notifica ao soltar a cor (blur), não a cada mudança', async () => {
@@ -70,5 +70,50 @@ describe('TagsPage', () => {
     })
     expect(tagApi.atualizarTag).toHaveBeenCalledWith('t1', { nome: 'Foco', cor: '#112233' })
     expect(toastSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it('mostra vazio quando não há tags', async () => {
+    vi.mocked(tagApi.listarTags).mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByText(/nenhuma tag ainda/i)).toBeInTheDocument()
+  })
+
+  it('mostra erro e lista vazia quando listar falha', async () => {
+    const { ApiError } = await import('../../auth/api/authApi')
+    vi.mocked(tagApi.listarTags).mockRejectedValue(new ApiError(500, 'Falha ao listar.'))
+    renderPage()
+    expect(await screen.findByText('Falha ao listar.')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Foco')).not.toBeInTheDocument()
+  })
+
+  it('não cria tag com nome vazio', async () => {
+    vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 't2', nome: 'Nova', cor: '#6B7280' })
+    renderPage()
+    await screen.findByDisplayValue('Foco')
+    expect(screen.getByRole('button', { name: /criar/i })).toBeDisabled()
+    expect(tagApi.criarTag).not.toHaveBeenCalled()
+  })
+
+  it('cria tag válida e notifica', async () => {
+    vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 't2', nome: 'Nova', cor: '#6B7280' })
+    renderPage()
+    const nome = await screen.findByLabelText(/nova tag/i)
+    fireEvent.change(nome, { target: { value: 'Nova' } })
+    fireEvent.submit(nome.closest('form')!)
+    await waitFor(() => {
+      expect(tagApi.criarTag).toHaveBeenCalledWith({ nome: 'Nova', cor: '#6B7280' })
+    })
+    expect(toastSuccess).toHaveBeenCalledWith('Tag criada')
+  })
+
+  it('mostra ApiError 409 ao criar e preserva o nome', async () => {
+    const { ApiError } = await import('../../auth/api/authApi')
+    vi.mocked(tagApi.criarTag).mockRejectedValue(new ApiError(409, 'Nome duplicado.'))
+    renderPage()
+    const nome = await screen.findByLabelText(/nova tag/i)
+    fireEvent.change(nome, { target: { value: 'Foco' } })
+    fireEvent.submit(nome.closest('form')!)
+    expect(await screen.findByText('Nome duplicado.')).toBeInTheDocument()
+    expect(nome).toHaveValue('Foco')
   })
 })

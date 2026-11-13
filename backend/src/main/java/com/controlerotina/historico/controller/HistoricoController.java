@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.controlerotina.historico.dto.CalibracaoResponse;
 import com.controlerotina.historico.dto.HistoricoResumoResponse;
 import com.controlerotina.historico.service.HistoricoService;
 
@@ -36,5 +37,10 @@ public class HistoricoController {
             @RequestParam(required = false) LocalDate semanaInicio
     ) {
         return historicoService.resumirSemana(usuarioId, semanaInicio);
+    }
+
+    @GetMapping("/calibracao")
+    public CalibracaoResponse calibracao(@AuthenticationPrincipal UUID usuarioId) {
+        return historicoService.calibrar(usuarioId);
     }
 }

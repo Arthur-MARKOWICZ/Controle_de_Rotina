@@ -38,4 +38,18 @@ describe('semana', () => {
     expect(formatarIntervaloSemana('2026-10-05')).toMatch(/^5–11\s+out$/i)
     expect(formatarIntervaloSemana('2026-09-28')).toMatch(/^28\s+set\s+–\s+4\s+out$/i)
   })
+
+  it('virada de ano na segunda-feira não mistura dezembro com janeiro', () => {
+    expect(inicioSemana(new Date(2026, 11, 28, 12, 0, 0))).toBe('2026-12-28')
+    expect(fimSemana(new Date(2026, 11, 28, 12, 0, 0))).toBe('2027-01-03')
+    expect(adicionarDiasIso('2026-12-31', 1)).toBe('2027-01-01')
+  })
+
+  it('deveManterAPropriaDataQuandoAReferenciaJaESegunda', () => {
+    const segunda = new Date(2026, 9, 5, 8, 0, 0)
+    expect(inicioSemana(segunda)).toBe('2026-10-05')
+    expect(fimSemana(segunda)).toBe('2026-10-11')
+    expect(adicionarDiasIso('2026-10-05', 0)).toBe('2026-10-05')
+    expect(datasDaSemana('2026-10-05').SEGUNDA).toBe('2026-10-05')
+  })
 })

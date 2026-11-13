@@ -179,6 +179,83 @@ class XpConcessaoConcorrenciaIT {
         }
     }
 
+    @Test
+    void concessaoSequencialDuplicadaNaoDobraSaldo() {
+        Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
+        int xpEsperado = XpMotor.xpBloco(60, Prioridade.MEDIA);
+
+        XpConcessaoService.ResultadoConcessao primeira =
+                xpConcessaoService.concederAoConcluir(usuarioId, execucaoId, 60, 60, tarefa);
+        XpConcessaoService.ResultadoConcessao segunda =
+                xpConcessaoService.concederAoConcluir(usuarioId, execucaoId, 60, 60, tarefa);
+
+        assertThat(primeira.ganhoNesteRequest()).isEqualTo(xpEsperado);
+        assertThat(segunda.ganhoNesteRequest()).isZero();
+        assertThat(segunda.xpTotal()).isEqualTo(xpEsperado);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento where tipo = ? and origem_id = ?",
+                Integer.class,
+                TipoXpEvento.BLOCO_CONCLUIDO.name(),
+                execucaoId
+        )).isEqualTo(1);
+        assertThat(usuarioRepository.findById(usuarioId).orElseThrow().getXpTotal()).isEqualTo(xpEsperado);
+    }
+
+    @Test
+    void xpZeroNaoCriaEventoNemAlteraSaldo() {
+        Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
+        int saldoAntes = usuarioRepository.findById(usuarioId).orElseThrow().getXpTotal();
+
+        XpConcessaoService.ResultadoConcessao resultado =
+                xpConcessaoService.concederAoConcluir(usuarioId, execucaoId, 0, 0, tarefa);
+
+        assertThat(resultado.ganhoNesteRequest()).isZero();
+        assertThat(usuarioRepository.findById(usuarioId).orElseThrow().getXpTotal()).isEqualTo(saldoAntes);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento where origem_id = ?",
+                Integer.class,
+                execucaoId
+        )).isZero();
+    }
+
+    @Test
+    void usuarioInexistenteNaoCriaEvento() {
+        Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
+        UUID inexistente = UUID.fromString("99999999-9999-9999-9999-999999999999");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                xpConcessaoService.concederAoConcluir(inexistente, execucaoId, 60, 60, tarefa)
+        ).isInstanceOf(java.util.NoSuchElementException.class);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento",
+                Integer.class
+        )).isZero();
+    }
+
+    @Test
+    void origemDiferentePodeConcederDeNovo() {
+        Tarefa tarefa = tarefaRepository.findById(tarefaId).orElseThrow();
+        UUID outraExecucao = UUID.randomUUID();
+        UUID outroBloco = UUID.randomUUID();
+        UUID planoId = jdbcTemplate.queryForObject(
+                "select plano_id from bloco_plano limit 1", UUID.class);
+        blocoPlanoRepository.save(new BlocoPlano(
+                outroBloco, planoId, tarefaId, 30, 2, AGORA, AGORA));
+        execucaoRepository.save(new Execucao(
+                outraExecucao, usuarioId, outroBloco, StatusExecucao.EM_ANDAMENTO,
+                AGORA, null, null, AGORA, AGORA));
+
+        xpConcessaoService.concederAoConcluir(usuarioId, execucaoId, 60, 60, tarefa);
+        xpConcessaoService.concederAoConcluir(usuarioId, outraExecucao, 30, 30, tarefa);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento where tipo = ?",
+                Integer.class,
+                TipoXpEvento.BLOCO_CONCLUIDO.name()
+        )).isEqualTo(2);
+    }
+
     private static HttpEntity<Map<String, Object>> json(Map<String, Object> body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

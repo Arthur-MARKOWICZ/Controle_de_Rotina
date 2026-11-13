@@ -32,4 +32,48 @@ class JwtSecretValidatorTest {
         assertThatCode(() -> JwtSecretValidator.validar(SECRET_OK))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void deveAceitarSecretComExatamente32Bytes() {
+        String secret32 = "a".repeat(32);
+        assertThatCode(() -> JwtSecretValidator.validar(secret32))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void deveFalharQuandoSecretTem31Bytes() {
+        assertThatThrownBy(() -> JwtSecretValidator.validar("a".repeat(31)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("32")
+                .hasMessageContaining("31");
+    }
+
+    @Test
+    void deveFalharQuandoSecretUtf8FicaAbaixoDe32Bytes() {
+        assertThatThrownBy(() -> JwtSecretValidator.validar("á".repeat(15)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void construtorDeveValidarSecretDasProperties() {
+        assertThatThrownBy(() -> new JwtSecretValidator(propertiesComSecret("curto")))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatCode(() -> new JwtSecretValidator(propertiesComSecret(SECRET_OK)))
+                .doesNotThrowAnyException();
+    }
+
+    private static com.controlerotina.config.SecurityProperties propertiesComSecret(String secret) {
+        return new com.controlerotina.config.SecurityProperties(
+                new com.controlerotina.config.SecurityProperties.Jwt(
+                        secret,
+                        java.time.Duration.ofMinutes(15),
+                        java.time.Duration.ofDays(5),
+                        "controle-rotina",
+                        "controle-rotina-api"
+                ),
+                new com.controlerotina.config.SecurityProperties.RefreshCookie(
+                        "refresh_token", "/auth", true, false, "Lax"
+                )
+        );
+    }
 }

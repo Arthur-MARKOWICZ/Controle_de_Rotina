@@ -102,6 +102,68 @@ class AuthRateLimitIT {
         assertThat(bloqueado.getStatusCode()).isEqualTo(TOO_MANY_REQUESTS);
     }
 
+    @Test
+    void naoDeveLimitarRefreshNemLoginDeOutroIp() {
+        String ipA = "203.0.113.30";
+        String ipB = "203.0.113.31";
+        String email = "rate-iso-" + UUID.randomUUID() + "@email.com";
+
+        assertThat(restTemplate.postForEntity(
+                "/usuarios",
+                json(Map.of("nome", "Usuario Rate Iso", "email", email, "senha", SENHA), ipA),
+                Map.class
+        ).getStatusCode()).isEqualTo(CREATED);
+
+        for (int i = 0; i < 5; i++) {
+            restTemplate.postForEntity(
+                    "/auth/login",
+                    json(Map.of("email", email, "senha", SENHA), ipA),
+                    Map.class
+            );
+        }
+        ResponseEntity<Map> bloqueadoA = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA), ipA),
+                Map.class
+        );
+        assertThat(bloqueadoA.getStatusCode()).isEqualTo(TOO_MANY_REQUESTS);
+        assertThat(bloqueadoA.getBody()).isNotNull();
+        assertThat(bloqueadoA.getBody().get("title").toString()).containsIgnoringCase("muitas");
+
+        ResponseEntity<Map> loginB = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA), ipB),
+                Map.class
+        );
+        assertThat(loginB.getStatusCode()).isEqualTo(OK);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Forwarded-For", ipA);
+        for (int i = 0; i < 6; i++) {
+            ResponseEntity<Map> refresh = restTemplate.postForEntity(
+                    "/auth/refresh",
+                    new HttpEntity<>(Map.of(), headers),
+                    Map.class
+            );
+            assertThat(refresh.getStatusCode().value()).isNotEqualTo(429);
+        }
+    }
+
+    @Test
+    void getNaoDeveContarParaOLimiteDeLogin() {
+        String ip = "203.0.113.40";
+        for (int i = 0; i < 6; i++) {
+            restTemplate.getForEntity("/me", Map.class);
+        }
+        String email = "rate-get-" + UUID.randomUUID() + "@email.com";
+        assertThat(restTemplate.postForEntity(
+                "/usuarios",
+                json(Map.of("nome", "Usuario Get", "email", email, "senha", SENHA), ip),
+                Map.class
+        ).getStatusCode()).isEqualTo(CREATED);
+    }
+
     private static HttpEntity<Map<String, String>> json(Map<String, String> body, String forwardedFor) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

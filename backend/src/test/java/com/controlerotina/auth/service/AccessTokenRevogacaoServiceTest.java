@@ -39,4 +39,44 @@ class AccessTokenRevogacaoServiceTest {
 
         assertThat(service.estaRevogado("jti-expirado")).isFalse();
     }
+
+    @Test
+    void naoDeveRevogarJtiNuloOuEmBranco() {
+        service.revogar(null, AGORA.plusSeconds(60));
+        service.revogar("  ", AGORA.plusSeconds(60));
+
+        assertThat(service.estaRevogado(null)).isFalse();
+        assertThat(service.estaRevogado("  ")).isFalse();
+        assertThat(service.estaRevogado("qualquer")).isFalse();
+    }
+
+    @Test
+    void naoDeveRevogarQuandoExpiraEmNulo() {
+        service.revogar("jti-sem-exp", null);
+
+        assertThat(service.estaRevogado("jti-sem-exp")).isFalse();
+    }
+
+    @Test
+    void naoDeveRevogarQuandoExpiraEmNaoEDepoisDeAgora() {
+        service.revogar("jti-agora", AGORA);
+
+        assertThat(service.estaRevogado("jti-agora")).isFalse();
+    }
+
+    @Test
+    void jtiDiferenteNaoDeveFicarRevogado() {
+        service.revogar("jti-1", AGORA.plusSeconds(900));
+
+        assertThat(service.estaRevogado("jti-2")).isFalse();
+        assertThat(service.estaRevogado("jti-1")).isTrue();
+    }
+
+    @Test
+    void estaRevogadoDeveContinuarFalsoAposRevogacaoJaExpirada() {
+        service.revogar("jti-ja-expirado", AGORA.minusSeconds(5));
+
+        assertThat(service.estaRevogado("jti-ja-expirado")).isFalse();
+        assertThat(service.estaRevogado("jti-ja-expirado")).isFalse();
+    }
 }

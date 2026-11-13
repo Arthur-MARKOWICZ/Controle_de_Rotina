@@ -184,6 +184,38 @@ class PlanoGeracaoEsperaIT {
         assertThat(minutosDa(blocos, livre.getId())).isEqualTo(120);
     }
 
+    @Test
+    void deveGerarPlanoVazioQuandoNaoHaTarefas() {
+        salvarOverride(2);
+
+        List<Map<String, Object>> blocos = gerar();
+
+        assertThat(blocos).isEmpty();
+    }
+
+    @Test
+    void deveGerarTarefaLivreSemEspera() {
+        salvarOverride(2);
+        Tarefa livre = salvarTarefa("Livre", 60, null, null);
+
+        List<String> tarefasComBloco = gerarEColetarTarefas();
+
+        assertThat(tarefasComBloco).containsExactly(livre.getId().toString());
+    }
+
+    @Test
+    void naoDeveGerarBlocoParaTarefaCancelada() {
+        salvarOverride(2);
+        Tarefa cancelada = salvarTarefa("Cancelada", 60, null, null);
+        jdbcTemplate.update("update tarefa set status = 'CANCELADA' where id = ?", cancelada.getId());
+        Tarefa livre = salvarTarefa("Livre", 60, null, null);
+
+        List<String> tarefasComBloco = gerarEColetarTarefas();
+
+        assertThat(tarefasComBloco).doesNotContain(cancelada.getId().toString());
+        assertThat(tarefasComBloco).contains(livre.getId().toString());
+    }
+
     private List<Map<String, Object>> gerar() {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/planos/gerar?data=" + DIA_D,

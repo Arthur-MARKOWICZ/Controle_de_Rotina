@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../../auth/api/authApi'
 import * as apiClient from '../../auth/session/apiClient'
 import {
   arquivarProjeto,
@@ -165,5 +166,65 @@ describe('projetoApi', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: ['p-2', 'p-1'] }),
     })
+  })
+
+  it('propaga 400', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Bad Request', detail: 'Nome vazio.' }), { status: 400 }),
+    )
+    await expect(criarProjeto({ nome: '' })).rejects.toMatchObject({
+      status: 400,
+      message: 'Nome vazio.',
+    })
+  })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(listarProjetos()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Projeto inexistente.' }), {
+        status: 404,
+      }),
+    )
+    await expect(buscarProjeto('p-sumiu')).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('propaga 409', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Nome duplicado.' }), { status: 409 }),
+    )
+    await expect(criarProjeto({ nome: 'TCC' })).rejects.toMatchObject({
+      status: 409,
+      message: 'Nome duplicado.',
+    })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(listarProjetos()).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('rejeita HTML do proxy em erro e JSON inválido no 2xx', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(listarProjetos()).rejects.toBeInstanceOf(ApiError)
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(listarProjetos()).rejects.toThrow()
   })
 })

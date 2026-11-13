@@ -46,3 +46,40 @@ export async function consultarHistoricoSemana(
   }
   return readApiJson(response)
 }
+
+export type MetricasCalibracao = {
+  amostras: number
+  suficiente: boolean
+  /** `null` quando `suficiente` é falso (sem dados). */
+  razao: number | null
+  desvioMedioMinutos: number | null
+}
+
+export type RecorteTagCalibracao = MetricasCalibracao & {
+  tagId: string
+  nome: string
+  cor: string
+}
+
+export type RecorteProjetoCalibracao = MetricasCalibracao & {
+  projetoId: string
+  nome: string
+}
+
+export type CalibracaoResponse = {
+  janela: { inicio: string; fim: string }
+  minimoAmostras: number
+  geral: MetricasCalibracao
+  porTag: RecorteTagCalibracao[]
+  porProjeto: RecorteProjetoCalibracao[]
+}
+
+export const HISTORICO_CALIBRACAO_URL = '/historico/calibracao'
+
+export async function consultarCalibracao(): Promise<CalibracaoResponse> {
+  const response = await apiFetch(HISTORICO_CALIBRACAO_URL)
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar sua calibração.')
+  }
+  return readApiJson(response)
+}

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../../auth/api/authApi'
 import * as apiClient from '../../auth/session/apiClient'
 import {
   atualizarReserva,
@@ -72,5 +73,70 @@ describe('reservaProjetoApi', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ minutosReservados: 90 }),
     })
+  })
+
+  it('propaga 400', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Bad Request', detail: 'minutos inválidos' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+    await expect(
+      criarReserva('proj-tcc', { diaSemana: 'SEGUNDA', minutosReservados: -1 }),
+    ).rejects.toMatchObject({ status: 400, message: 'minutos inválidos' })
+  })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(listarReservas()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Reserva inexistente.' }), {
+        status: 404,
+      }),
+    )
+    await expect(
+      atualizarReserva('proj-tcc', 'r-sumiu', { minutosReservados: 30 }),
+    ).rejects.toMatchObject({ status: 404, message: 'Reserva inexistente.' })
+  })
+
+  it('propaga 409 de conflito', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Já existe reserva neste dia.' }), {
+        status: 409,
+      }),
+    )
+    await expect(
+      criarReserva('proj-tcc', { diaSemana: 'SEGUNDA', minutosReservados: 60 }),
+    ).rejects.toMatchObject({ status: 409, message: 'Já existe reserva neste dia.' })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(listarReservas()).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('rejeita HTML do proxy e JSON inválido', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(listarReservas()).rejects.toBeInstanceOf(ApiError)
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 500, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(listarReservas()).rejects.toBeInstanceOf(ApiError)
   })
 })

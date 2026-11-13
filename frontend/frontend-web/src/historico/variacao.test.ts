@@ -30,4 +30,9 @@ describe('formatarVariacaoPercentual', () => {
   it('formata zero sem sinal positivo', () => {
     expect(formatarVariacaoPercentual(0)).toBe('0%')
   })
+
+  it('arredonda meio ponto para o inteiro mais próximo', () => {
+    expect(variacaoPercentual(150, 100)).toBe(50)
+    expect(formatarVariacaoPercentual(50)).toBe('+50%')
+  })
 })

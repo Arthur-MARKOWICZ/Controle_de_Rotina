@@ -140,7 +140,72 @@ class HabitoSlotAvulsoServiceTest {
         when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.of(habito));
 
         assertThatThrownBy(() -> service.materializar(USUARIO, HABITO_ID, TERCA))
+                .isInstanceOf(HabitoNaoEncontradoException.class)
+                .satisfies(ex -> {
+                    HabitoNaoEncontradoException erro = (HabitoNaoEncontradoException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(404);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Hábito não encontrado");
+                });
+        verify(planoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRejeitarHabitoDeOutroUsuarioSemCriarPlano() {
+        when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.materializar(USUARIO, HABITO_ID, TERCA))
+                .isInstanceOf(HabitoNaoEncontradoException.class)
+                .satisfies(ex -> {
+                    HabitoNaoEncontradoException erro = (HabitoNaoEncontradoException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(404);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Hábito não encontrado");
+                });
+        verify(planoRepository, never()).save(any());
+        verify(blocoPlanoRepository, never()).save(any());
+    }
+
+    @Test
+    void weekdayInvalidoDeveLancar409ComTitle() {
+        Habito habito = habitoAtivo(Set.of(DiaSemana.SEGUNDA));
+        when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.of(habito));
+
+        assertThatThrownBy(() -> service.materializar(USUARIO, HABITO_ID, TERCA))
+                .isInstanceOf(HabitoNaoElegivelException.class)
+                .satisfies(ex -> {
+                    HabitoNaoElegivelException erro = (HabitoNaoElegivelException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(409);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Hábito não elegível");
+                });
+        verify(blocoPlanoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRejeitarHabitoDeOutroUsuario() {
+        when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.materializar(USUARIO, HABITO_ID, TERCA))
                 .isInstanceOf(HabitoNaoEncontradoException.class);
+        verify(planoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveUsarClockQuandoDataNula() {
+        Habito habito = habitoAtivo(Set.of(DiaSemana.TERCA));
+        when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.of(habito));
+        when(planoRepository.findByUsuarioIdAndDataAndStatus(USUARIO, TERCA, StatusPlano.HABITO_AVULSO))
+                .thenReturn(Optional.empty());
+        when(planoRepository.findMaxVersaoByUsuarioIdAndData(USUARIO, TERCA)).thenReturn(0);
+        when(planoRepository.save(any(Plano.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(blocoPlanoRepository.findMaxOrdemByPlanoId(any())).thenReturn(0);
+        when(blocoPlanoRepository.findByPlanoIdAndHabitoId(any(), eq(HABITO_ID)))
+                .thenReturn(Optional.empty());
+        when(blocoPlanoRepository.save(any(BlocoPlano.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(execucaoRepository.findByBlocoPlanoId(any())).thenReturn(Optional.empty());
+
+        HabitoSlotAvulsoService.SlotAvulso slot = service.materializar(USUARIO, HABITO_ID, null);
+
+        assertThat(slot.plano().getData()).isEqualTo(TERCA);
+        assertThat(slot.habito().getId()).isEqualTo(HABITO_ID);
     }
 
     private Habito habitoAtivo(Set<DiaSemana> dias) {
