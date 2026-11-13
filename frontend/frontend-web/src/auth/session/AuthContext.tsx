@@ -37,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const current = getAccessToken()
     try {
       await logoutApi(current)
+    } catch {
+      // a sessão local cai mesmo se a API falhar
     } finally {
       clearAccessToken()
     }

@@ -7,6 +7,7 @@ import {
   aplicarConcluir,
   aplicarIniciar,
   aplicarRemoverBloco,
+  encontrarBloco,
   mesclarExecucao,
   restaurarBloco,
   restaurarItem,
@@ -146,5 +147,22 @@ describe('mesclarExecucao (T2)', () => {
     })
     expect(resultado[0].bloco).toBe(itens[0].bloco)
     expect(resultado[1]).toBe(itens[1])
+  })
+
+  it('iniciar bloco inexistente devolve a lista intacta', () => {
+    const snapshot = [item('b-1'), item('b-2')]
+    const copia = structuredClone(snapshot)
+    expect(aplicarIniciar(snapshot, 'b-inexistente', agora)).toEqual(snapshot)
+    expect(snapshot).toEqual(copia)
+  })
+
+  it('naoDeveDuplicarNemAlterarQuandoRestaurarBlocoJaPresente', () => {
+    const copia = structuredClone(plano)
+    const mesmo = restaurarBloco(plano, plano.blocos[0])
+    expect(mesmo.blocos).toHaveLength(2)
+    expect(mesmo.blocos.map((bloco) => bloco.id)).toEqual(['b-1', 'b-2'])
+    expect(plano).toEqual(copia)
+    expect(encontrarBloco(plano, 'b-sumiu')).toBeUndefined()
+    expect(encontrarBloco(plano, 'b-1')?.id).toBe('b-1')
   })
 })

@@ -69,4 +69,79 @@ describe('capacidadeResolvidaApi', () => {
       })
     }
   })
+
+  it('propaga 401 quando o refresh da sessão falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-06', dataAte: '2026-10-12' }),
+    ).rejects.toMatchObject({ status: 401, message: 'Sessão expirada.' })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Usuário sem capacidade.' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-06', dataAte: '2026-10-12' }),
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('propaga 409 de conflito de período', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Intervalo inválido.' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-12', dataAte: '2026-10-06' }),
+    ).rejects.toMatchObject({ status: 409, message: 'Intervalo inválido.' })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-06', dataAte: '2026-10-12' }),
+    ).rejects.toMatchObject({ status: 500, message: 'Erro interno' })
+  })
+
+  it('rejeita HTML da SPA no lugar de JSON', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><body><div id="root"></div></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-06', dataAte: '2026-10-12' }),
+    ).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('rejeita JSON inválido', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+
+    await expect(
+      consultarCapacidadeResolvida({ dataDe: '2026-10-06', dataAte: '2026-10-12' }),
+    ).rejects.toMatchObject({ message: 'Resposta inválida da API (não é JSON).' })
+  })
 })

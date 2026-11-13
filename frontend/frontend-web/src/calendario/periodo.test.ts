@@ -55,4 +55,11 @@ describe('periodo calendário', () => {
     expect(labelPeriodo('semana', '2026-10-26')).toMatch(/26/)
     expect(labelPeriodo('mes', '2026-10-01')).toMatch(/outubro/i)
   })
+
+  it('parseVisao e parseLente ignoram valor desconhecido', () => {
+    expect(parseVisao('ano')).toBe('semana')
+    expect(parseVisao('')).toBe('semana')
+    expect(parseLente('foo')).toBe('plano')
+    expect(parseLente('')).toBe('plano')
+  })
 })

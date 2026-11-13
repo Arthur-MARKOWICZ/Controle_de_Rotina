@@ -829,6 +829,37 @@ class ProjetoIT {
                 .containsExactly(c.toString(), b.toString(), a.toString());
     }
 
+    @Test
+    void deveRetornar404AoAcessarReservaDeOutroUsuario() {
+        criarCapacidade(Map.of("SEGUNDA", 3));
+        UUID projetoId = criarProjeto("Reserva alheia", null);
+        UUID reservaId = UUID.fromString(restTemplate.exchange(
+                "/projetos/" + projetoId + "/reservas",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("diaSemana", "SEGUNDA", "minutosReservados", 60)),
+                Map.class).getBody().get("id").toString());
+
+        String emailOutro = "proj-outro-" + UUID.randomUUID() + "@email.com";
+        restTemplate.postForEntity(
+                "/usuarios", json(Map.of("nome", "Outro", "email", emailOutro, "senha", SENHA)), Map.class);
+        String tokenOutro = restTemplate.postForEntity(
+                "/auth/login", json(Map.of("email", emailOutro, "senha", SENHA)), Map.class)
+                .getBody().get("accessToken").toString();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenOutro);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/projetos/" + projetoId + "/reservas/" + reservaId,
+                HttpMethod.DELETE,
+                new HttpEntity<>(headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isIn("Projeto não encontrado", "Reserva não encontrada");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from reserva_projeto_semanal where id = ?", Integer.class, reservaId)).isEqualTo(1);
+    }
+
     private void criarCapacidade(Map<String, Integer> horasPorDia) {
         List<Map<String, Object>> itens = horasPorDia.entrySet().stream()
                 .map(e -> Map.<String, Object>of("diaSemana", e.getKey(), "horas", e.getValue()))

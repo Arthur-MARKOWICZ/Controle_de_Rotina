@@ -73,7 +73,7 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/capacidades`  | semanal, overrides, resolvida              |
 | `/planos`       | planner (consulta, gerar, ajuste, aprovar) |
 | `/execucoes`    | execução de blocos (listar, iniciar, concluir, abortar) |
-| `/historico/dia`, `/historico/semana` | resumo de progresso (a tela SPA é `/historico` exato) |
+| `/historico/dia`, `/historico/semana`, `/historico/calibracao` | resumo de progresso e calibração de estimativas (a tela SPA é `/historico` exato) |
 | `/calendario`   | visão agregada do plano/prazos (SPA e API no mesmo path; ver nota abaixo) |
 | `/projetos`     | CRUD de projetos (SPA e API no mesmo path; ver nota abaixo) |
 | `/habitos`      | CRUD de hábitos (SPA e API no mesmo path; ver nota abaixo) |
@@ -114,7 +114,7 @@ Use a UI logada (`/tarefas`, `/capacidade`, `/plano`) ou o DevTools → Network 
 | `/capacidade` | Tela React (SPA) |
 | `/capacidades/...` | API (proxy → backend) |
 | `/historico` | Tela React (SPA) |
-| `/historico/dia`, `/historico/semana` | API (proxy → backend) |
+| `/historico/dia`, `/historico/semana`, `/historico/calibracao` | API (proxy → backend) |
 | `/calendario` (navegação HTML) | Tela React (SPA) |
 | `/calendario?dataDe&dataAte` (Accept JSON) | API (proxy → backend) |
 | `/projetos` (navegação HTML) | Tela React (SPA) |

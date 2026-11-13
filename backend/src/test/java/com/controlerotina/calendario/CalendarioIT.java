@@ -1,6 +1,7 @@
 package com.controlerotina.calendario;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
@@ -235,6 +236,49 @@ class CalendarioIT {
         assertThat(blocos).hasSize(1);
         assertThat(blocos.get(0).get("titulo")).isEqualTo("Minha");
         assertThat(blocos.get(0).get("titulo")).isNotEqualTo("Do outro");
+    }
+
+    @Test
+    void periodoInvertidoDeveRetornar400ComTitle() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/calendario?dataDe=2026-11-01&dataAte=2026-10-01",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Intervalo inválido");
+    }
+
+    @Test
+    void periodoMaiorQue31DiasDeveRetornar400ComTitle() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/calendario?dataDe=2026-10-01&dataAte=2026-11-02",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Intervalo inválido");
+    }
+
+    @Test
+    void semTokenDeveRetornar401ComTitle() {
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "/calendario?dataDe=" + SEGUNDA + "&dataAte=" + DOMINGO,
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(response.getBody().get("title")).isEqualTo("Não autorizado");
+    }
+
+    @Test
+    void parametroAusenteDeveRetornar400ComTitle() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/calendario?dataDe=" + SEGUNDA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn(
+                "Requisição inválida", "Parâmetro inválido", "Parâmetro obrigatório ausente");
     }
 
     private HttpEntity<Void> autenticado() {

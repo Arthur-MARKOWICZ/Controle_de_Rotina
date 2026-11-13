@@ -32,4 +32,24 @@ describe('espera', () => {
     expect(rotuloEspera([espera({ resolvida: true })])).toBeNull()
     expect(rotuloEspera([])).toBeNull()
   })
+
+  it('undefined não gera rótulo nem irresolvidas', () => {
+    expect(rotuloEspera(undefined)).toBeNull()
+    expect(esperasIrresolvidas(undefined)).toEqual([])
+  })
+
+  it('título vazio ou só espaços cai no fallback de 1 item', () => {
+    expect(rotuloEspera([espera({ alvoTitulo: null })])).toBe('Espera 1 item')
+    expect(rotuloEspera([espera({ alvoTitulo: '   ' })])).toBe('Espera 1 item')
+  })
+
+  it('não mistura resolvidas no resumo de vários itens', () => {
+    expect(
+      rotuloEspera([
+        espera(),
+        espera({ id: 'e-2', alvoTitulo: 'TCC' }),
+        espera({ id: 'e-3', resolvida: true }),
+      ]),
+    ).toBe('Espera 2 itens')
+  })
 })

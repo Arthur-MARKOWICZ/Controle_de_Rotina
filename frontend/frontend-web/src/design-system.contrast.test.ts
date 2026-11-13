@@ -63,4 +63,37 @@ describe('contraste dos tokens (T1)', () => {
       expect(razao).toBeGreaterThanOrEqual(4.5)
     })
   }
+
+  it('deveDefinirTodosOsParesNoTemaClaro', () => {
+    for (const [texto, fundo] of PARES) {
+      expect(claro.has(texto) || claro.has(fundo)).toBe(true)
+      expect(() => resolverHex(claro, texto)).not.toThrow()
+      expect(() => resolverHex(claro, fundo)).not.toThrow()
+    }
+  })
+
+  it('deveDefinirTodosOsParesNoTemaEscuro', () => {
+    for (const [texto, fundo] of PARES) {
+      expect(() => resolverHex(escuro, texto)).not.toThrow()
+      expect(() => resolverHex(escuro, fundo)).not.toThrow()
+    }
+  })
+
+  it('deveResolverReferenciaVarAteHex', () => {
+    const comVar = new Map([['--bg', '#111111'], ['--ink', 'var(--bg)']])
+    expect(resolverHex(comVar, '--ink')).toBe('#111111')
+  })
+
+  it('naoDeveAceitarTokenAusente', () => {
+    expect(() => resolverHex(claro, '--token-inexistente')).toThrow(/não definido/)
+  })
+
+  it('naoDeveAceitarValorQueNaoEHex', () => {
+    const invalidos = new Map([['--ink', 'rgb(0,0,0)']])
+    expect(() => resolverHex(invalidos, '--ink')).toThrow(/não é hex/)
+  })
+
+  it('deveRetornarContrasteUmQuandoAsCoresSaoIguais', () => {
+    expect(contraste('#111111', '#111111')).toBe(1)
+  })
 })

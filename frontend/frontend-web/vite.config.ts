@@ -15,6 +15,7 @@ const API_PROXY_PREFIXES = [
   // /historico (exato) é rota SPA; só os subpaths da API
   '/historico/dia',
   '/historico/semana',
+  '/historico/calibracao',
 ] as const
 
 const backendProxy = {
@@ -68,8 +69,8 @@ export default defineConfig({
       ],
       // Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 70/60.
       thresholds: {
-        lines: 70,
-        branches: 60,
+        lines: 85,
+        branches: 81,
       },
     },
   },

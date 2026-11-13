@@ -101,4 +101,62 @@ describe('BlocoAtivo (T3)', () => {
     expect(screen.queryByLabelText(/tempo restante/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/tempo excedido/i)).toHaveTextContent('+2 min')
   })
+
+  it('deveDesabilitarAcoesQuandoOcupado', async () => {
+    const onConcluir = vi.fn()
+    const onAbortar = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <BlocoAtivo
+        titulo="Estudar Spring"
+        duracaoMinutos={60}
+        iniciadoEm={iniciadoHa(10)}
+        ocupado
+        onConcluir={onConcluir}
+        onAbortar={onAbortar}
+      />,
+    )
+
+    const concluir = screen.getByRole('button', { name: /concluir estudar spring/i })
+    const abortar = screen.getByRole('button', { name: /abortar estudar spring/i })
+    expect(concluir).toBeDisabled()
+    expect(abortar).toBeDisabled()
+    await user.click(concluir)
+    await user.click(abortar)
+    expect(onConcluir).not.toHaveBeenCalled()
+    expect(onAbortar).not.toHaveBeenCalled()
+  })
+
+  it('deveMostrarDuracaoIntegralQuandoInicioAindaNulo', () => {
+    render(
+      <BlocoAtivo
+        titulo="Estudar Spring"
+        duracaoMinutos={60}
+        iniciadoEm={null}
+        ocupado={false}
+        onConcluir={() => undefined}
+        onAbortar={() => undefined}
+      />,
+    )
+
+    expect(screen.getByLabelText(/tempo restante/i)).toHaveTextContent(/1h/)
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+    expect(screen.queryByLabelText(/tempo excedido/i)).not.toBeInTheDocument()
+  })
+
+  it('deveMarcarProgressoCheioQuandoDuracaoZero', () => {
+    render(
+      <BlocoAtivo
+        titulo="Estudar Spring"
+        duracaoMinutos={0}
+        iniciadoEm={iniciadoHa(1)}
+        ocupado={false}
+        onConcluir={() => undefined}
+        onAbortar={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  })
 })

@@ -106,6 +106,21 @@ class AuthRateLimitFilterTest {
         assertThat(chainCalls.get()).isEqualTo(6);
     }
 
+    @Test
+    void deveIsolarLimitePorIp() throws Exception {
+        for (int i = 0; i < 5; i++) {
+            filter.doFilter(loginRequest("10.0.0.1"), new MockHttpServletResponse(), countingChain);
+        }
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(loginRequest("10.0.0.1"), blocked, countingChain);
+        assertThat(blocked.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+
+        MockHttpServletResponse other = new MockHttpServletResponse();
+        filter.doFilter(loginRequest("10.0.0.2"), other, countingChain);
+        assertThat(other.getStatus()).isNotEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(chainCalls.get()).isEqualTo(6);
+    }
+
     private static MockHttpServletRequest loginRequest(String ip) {
         return post("/auth/login", ip);
     }

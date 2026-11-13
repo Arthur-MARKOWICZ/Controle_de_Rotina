@@ -30,4 +30,28 @@ describe('proxy /tarefas (SPA + API)', () => {
     const doc = readFileSync(resolve(root, 'API_PROXY.md'), 'utf8')
     expect(doc).toMatch(/`\/tarefas` \(navegação HTML\)/)
   })
+
+  it('vite aponta o proxy de /tarefas para o backend local', () => {
+    const vite = readFileSync(resolve(root, 'vite.config.ts'), 'utf8')
+    expect(vite).toContain("target: 'http://localhost:8080'")
+    expect(vite).toContain('bypass')
+  })
+
+  it('nginx de /tarefas não é location só-API genérico', () => {
+    const nginx = readFileSync(resolve(root, 'nginx.conf'), 'utf8')
+    const bloco = nginx.match(/location \^~ \/tarefas \{[\s\S]*?\n    \}/)?.[0] ?? ''
+    expect(bloco).not.toMatch(/proxy_pass http:\/\/backend;(\s*)$/)
+  })
+
+  it('API_PROXY.md avisa o rebuild do frontend Docker', () => {
+    const doc = readFileSync(resolve(root, 'API_PROXY.md'), 'utf8')
+    expect(doc.toLowerCase()).toMatch(/rebuild|docker/)
+  })
+
+  it('vite e nginx concordam no path /tarefas', () => {
+    const vite = readFileSync(resolve(root, 'vite.config.ts'), 'utf8')
+    const nginx = readFileSync(resolve(root, 'nginx.conf'), 'utf8')
+    expect(vite).toContain("'/tarefas'")
+    expect(nginx).toContain('location ^~ /tarefas')
+  })
 })

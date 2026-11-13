@@ -424,6 +424,40 @@ class CapacidadeOverrideIT {
     }
 
     @Test
+    void deveRejeitarLoteVazioCom400ETitleLoteInvalido() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/capacidades/overrides",
+                HttpMethod.POST,
+                autenticadoJson(List.of()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Lote inválido", "Requisição inválida", "Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from capacidade_override where usuario_id = ?",
+                Integer.class,
+                usuarioId)).isZero();
+    }
+
+    @Test
+    void deveRetornar404AoRestaurarOverrideAindaAtivoSemAlterarEstado() {
+        UUID id = criarOverrideAutenticado("2026-10-08", 1);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/capacidades/overrides/" + id + "/restore",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Capacidade override não encontrada");
+        assertThat(jdbcTemplate.queryForObject(
+                "select ativo from capacidade_override where id = ?",
+                Boolean.class,
+                id)).isTrue();
+    }
+
+    @Test
     void deveRestaurarOverrideInativo() {
         UUID id = criarOverrideAutenticado("2026-10-08", 1);
         assertThat(restTemplate.exchange(

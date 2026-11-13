@@ -177,5 +177,60 @@ class ExecucaoPersistenciaIT {
                 agora,
                 agora
         ))).isInstanceOf(DataIntegrityViolationException.class);
+
+        assertThat(execucaoRepository.findByBlocoPlanoId(blocoPlanoId)).isPresent();
+        assertThat(execucaoRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void naoDeveEncontrarExecucaoDeOutroUsuario() {
+        Instant agora = Instant.parse("2026-10-27T14:00:00Z");
+        UUID execucaoId = UUID.randomUUID();
+        execucaoRepository.save(new Execucao(
+                execucaoId, usuarioId, blocoPlanoId, StatusExecucao.EM_ANDAMENTO,
+                agora, null, null, agora, agora));
+
+        assertThat(execucaoRepository.findByIdAndUsuarioId(execucaoId, UUID.randomUUID())).isEmpty();
+        assertThat(execucaoRepository.findByIdAndUsuarioId(execucaoId, usuarioId)).isPresent();
+    }
+
+    @Test
+    void existsByBlocoPlanoIdDeveSerFalsoQuandoNaoHaExecucao() {
+        assertThat(execucaoRepository.existsByBlocoPlanoId(blocoPlanoId)).isFalse();
+        assertThat(execucaoRepository.findByBlocoPlanoId(blocoPlanoId)).isEmpty();
+    }
+
+    @Test
+    void devePersistirAbortadoComAbortadoEm() {
+        Instant agora = Instant.parse("2026-10-27T14:00:00Z");
+        UUID execucaoId = UUID.randomUUID();
+        execucaoRepository.save(new Execucao(
+                execucaoId, usuarioId, blocoPlanoId, StatusExecucao.ABORTADO,
+                agora, null, agora, agora, agora));
+
+        Execucao encontrada = execucaoRepository.findById(execucaoId).orElseThrow();
+        assertThat(encontrada.getStatus()).isEqualTo(StatusExecucao.ABORTADO);
+        assertThat(encontrada.getAbortadoEm()).isEqualTo(agora);
+        assertThat(encontrada.getConcluidoEm()).isNull();
+    }
+
+    @Test
+    void devePersistirConcluidoComConcluidoEm() {
+        Instant agora = Instant.parse("2026-10-27T14:00:00Z");
+        UUID execucaoId = UUID.randomUUID();
+        execucaoRepository.save(new Execucao(
+                execucaoId, usuarioId, blocoPlanoId, StatusExecucao.CONCLUIDO,
+                agora, agora, null, agora, agora));
+
+        Execucao encontrada = execucaoRepository.findById(execucaoId).orElseThrow();
+        assertThat(encontrada.getStatus()).isEqualTo(StatusExecucao.CONCLUIDO);
+        assertThat(encontrada.getConcluidoEm()).isEqualTo(agora);
+        assertThat(encontrada.getAbortadoEm()).isNull();
+    }
+
+    @Test
+    void naoDeveEncontrarPorBlocoInexistente() {
+        assertThat(execucaoRepository.findByBlocoPlanoId(UUID.randomUUID())).isEmpty();
+        assertThat(execucaoRepository.existsByBlocoPlanoId(UUID.randomUUID())).isFalse();
     }
 }

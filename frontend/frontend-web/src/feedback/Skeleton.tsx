@@ -4,6 +4,7 @@ type SkeletonVariant =
   | 'capacidade-grade'
   | 'calendario-grade'
   | 'historico-metricas'
+  | 'historico-calibracao'
   | 'perfil-secoes'
 
 const VARIANT_ROWS: Record<SkeletonVariant, number> = {
@@ -12,6 +13,7 @@ const VARIANT_ROWS: Record<SkeletonVariant, number> = {
   'capacidade-grade': 7,
   'calendario-grade': 7,
   'historico-metricas': 4,
+  'historico-calibracao': 2,
   'perfil-secoes': 3,
 }
 

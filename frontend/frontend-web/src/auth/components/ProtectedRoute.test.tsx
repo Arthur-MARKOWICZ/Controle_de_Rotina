@@ -70,4 +70,27 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Tela de login')).toBeInTheDocument()
     expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument()
   })
+
+  it('token vazio continua anônimo', () => {
+    setAccessToken('')
+    renderComRota('/')
+    expect(screen.getByText('Tela de login')).toBeInTheDocument()
+    expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument()
+  })
+
+  it('login permanece acessível sem token', () => {
+    renderComRota('/login')
+    expect(screen.getByText('Tela de login')).toBeInTheDocument()
+  })
+
+  it('não renderiza filhos antes do token', () => {
+    renderComRota('/')
+    expect(screen.queryByText('Conteúdo protegido')).not.toBeInTheDocument()
+  })
+
+  it('token presente não cai no login', () => {
+    setAccessToken('jwt-ok')
+    renderComRota('/')
+    expect(screen.queryByText('Tela de login')).not.toBeInTheDocument()
+  })
 })

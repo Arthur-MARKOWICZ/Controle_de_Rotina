@@ -34,4 +34,21 @@ describe('justificativa', () => {
     ])
     expect(escolhido?.id).toBe('b')
   })
+
+  it('atraso de vários dias usa plural', () => {
+    expect(formatarPrazoRelativo('2026-10-18T12:00:00Z', ref)).toBe('Atrasada há 2 dias')
+  })
+
+  it('lista vazia ou só hábitos não escolhe bloco', () => {
+    expect(escolherBlocoMenorPrioridade([])).toBeNull()
+    expect(escolherBlocoMenorPrioridade([{ id: 'h', ordem: 1, tarefa: null }])).toBeNull()
+  })
+
+  it('empate de prioridade escolhe a maior ordem', () => {
+    const escolhido = escolherBlocoMenorPrioridade([
+      { id: 'a', ordem: 1, tarefa: { prioridade: 'BAIXA' as const } },
+      { id: 'b', ordem: 3, tarefa: { prioridade: 'BAIXA' as const } },
+    ])
+    expect(escolhido?.id).toBe('b')
+  })
 })

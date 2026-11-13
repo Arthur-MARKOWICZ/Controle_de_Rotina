@@ -1,6 +1,7 @@
 package com.controlerotina.shared.lock;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +55,59 @@ class PostgresAdvisoryLockIT {
 
         boolean aposLiberar = advisoryLock.tryWithLock(CHAVE_TESTE, execucoes::incrementAndGet);
         assertThat(aposLiberar).isTrue();
+        assertThat(execucoes.get()).isEqualTo(2);
+    }
+
+    @Test
+    void chavesDiferentesNaoSeBloqueiam() {
+        AtomicInteger execucoes = new AtomicInteger();
+
+        boolean primeira = advisoryLock.tryWithLock(CHAVE_TESTE, execucoes::incrementAndGet);
+        boolean outra = advisoryLock.tryWithLock(CHAVE_TESTE + 1, execucoes::incrementAndGet);
+
+        assertThat(primeira).isTrue();
+        assertThat(outra).isTrue();
+        assertThat(execucoes.get()).isEqualTo(2);
+    }
+
+    @Test
+    void excecaoNaAcaoAindaLiberaOLock() {
+        assertThatThrownBy(() -> advisoryLock.tryWithLock(CHAVE_TESTE, () -> {
+            throw new IllegalStateException("boom");
+        })).isInstanceOf(IllegalStateException.class).hasMessage("boom");
+
+        AtomicInteger execucoes = new AtomicInteger();
+        assertThat(advisoryLock.tryWithLock(CHAVE_TESTE, execucoes::incrementAndGet)).isTrue();
+        assertThat(execucoes.get()).isEqualTo(1);
+    }
+
+    @Test
+    void runnableVazioDeveRetornarTrue() {
+        assertThat(advisoryLock.tryWithLock(CHAVE_TESTE, () -> {
+        })).isTrue();
+    }
+
+    @Test
+    void mesmaChaveEmSequenciaDeveExecutarDuasVezes() {
+        AtomicInteger execucoes = new AtomicInteger();
+
+        assertThat(advisoryLock.tryWithLock(CHAVE_TESTE, execucoes::incrementAndGet)).isTrue();
+        assertThat(advisoryLock.tryWithLock(CHAVE_TESTE, execucoes::incrementAndGet)).isTrue();
+        assertThat(execucoes.get()).isEqualTo(2);
+    }
+
+    @Test
+    void chaveNegativaAindaFunciona() {
+        AtomicInteger execucoes = new AtomicInteger();
+        assertThat(advisoryLock.tryWithLock(-42L, execucoes::incrementAndGet)).isTrue();
+        assertThat(execucoes.get()).isEqualTo(1);
+    }
+
+    @Test
+    void chaveZeroDeveExecutarSemVazarLock() {
+        AtomicInteger execucoes = new AtomicInteger();
+        assertThat(advisoryLock.tryWithLock(0L, execucoes::incrementAndGet)).isTrue();
+        assertThat(advisoryLock.tryWithLock(0L, execucoes::incrementAndGet)).isTrue();
         assertThat(execucoes.get()).isEqualTo(2);
     }
 }

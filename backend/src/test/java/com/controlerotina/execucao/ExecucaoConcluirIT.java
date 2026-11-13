@@ -1,6 +1,7 @@
 package com.controlerotina.execucao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
@@ -273,6 +274,77 @@ class ExecucaoConcluirIT {
                 execucaoId
         );
         assertThat(quantidadeBloco).isEqualTo(45);
+    }
+
+    @Test
+    void deveRetornar409AoConcluirJaConcluidaSemAlterarEstado() {
+        ResponseEntity<Map> iniciada = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+        UUID execucaoId = UUID.fromString(iniciada.getBody().get("id").toString());
+        assertThat(restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/concluir",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> duplicada = restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/concluir",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(duplicada.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(duplicada.getBody().get("title")).isEqualTo("Execução não está em andamento");
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from execucao where id = ?",
+                String.class,
+                execucaoId)).isEqualTo("CONCLUIDO");
+        assertThat(tarefaRepository.findById(tarefaId).orElseThrow().getStatus())
+                .isEqualTo(StatusTarefa.FINALIZADA);
+    }
+
+    @Test
+    void deveRetornar409AoConcluirAbortadaSemAlterarEstado() {
+        ResponseEntity<Map> iniciada = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("blocoId", blocoId.toString())),
+                Map.class);
+        UUID execucaoId = UUID.fromString(iniciada.getBody().get("id").toString());
+        assertThat(restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/abortar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> concluir = restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/concluir",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(concluir.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(concluir.getBody().get("title")).isEqualTo("Execução não está em andamento");
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from execucao where id = ?",
+                String.class,
+                execucaoId)).isEqualTo("ABORTADO");
+    }
+
+    @Test
+    void deveRetornar404AoConcluirInexistente() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes/" + UUID.randomUUID() + "/concluir",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Execução não encontrada");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from execucao", Integer.class)).isZero();
     }
 
     @Test

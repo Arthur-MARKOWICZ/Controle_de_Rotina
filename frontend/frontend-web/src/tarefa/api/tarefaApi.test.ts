@@ -505,4 +505,59 @@ describe('tarefaApi', () => {
       body: JSON.stringify({ ids: ['t-2', 't-1'] }),
     })
   })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(listarTarefas()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 404 ao buscar tarefa inexistente', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Tarefa inexistente.' }), {
+        status: 404,
+      }),
+    )
+    await expect(buscarTarefa('t-sumiu')).rejects.toMatchObject({
+      status: 404,
+      message: 'Tarefa inexistente.',
+    })
+  })
+
+  it('propaga 409 de conflito de versão', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Tarefa já finalizada.' }), {
+        status: 409,
+      }),
+    )
+    await expect(concluirTarefaDireto('t-1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Tarefa já finalizada.',
+    })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(listarTarefas()).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('rejeita HTML da SPA em erro e JSON inválido no 2xx', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(buscarTarefa('t-1')).rejects.toBeInstanceOf(ApiError)
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(listarTarefas()).rejects.toThrow()
+  })
 })

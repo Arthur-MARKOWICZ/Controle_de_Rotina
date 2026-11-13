@@ -463,6 +463,40 @@ class CapacidadeSemanalIT {
     }
 
     @Test
+    void deveRejeitarLoteVazioCom400ETitleLoteInvalido() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/capacidades/semanal",
+                HttpMethod.POST,
+                autenticadoJson(List.of()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isIn("Lote inválido", "Requisição inválida", "Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from capacidade_semanal where usuario_id = ?",
+                Integer.class,
+                usuarioId)).isZero();
+    }
+
+    @Test
+    void deveRetornar404AoRestaurarCapacidadeAindaAtivaSemAlterarEstado() {
+        UUID id = criarSemanalAutenticada("SEGUNDA", 4);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/capacidades/semanal/" + id + "/restore",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Capacidade semanal não encontrada");
+        assertThat(jdbcTemplate.queryForObject(
+                "select ativo from capacidade_semanal where id = ?",
+                Boolean.class,
+                id)).isTrue();
+    }
+
+    @Test
     void deveRestaurarCapacidadeInativa() {
         UUID id = criarSemanalAutenticada("SEGUNDA", 4);
         assertThat(restTemplate.exchange(

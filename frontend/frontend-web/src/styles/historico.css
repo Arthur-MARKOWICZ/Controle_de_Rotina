@@ -194,3 +194,49 @@
     transition: none;
   }
 }
+
+/* Cartão "Seu ritmo real" (calibração de estimativas) */
+.historico-calibracao__frase {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.historico-calibracao__grupo {
+  margin-top: var(--space-4);
+}
+
+.historico-calibracao__grupo h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.historico-calibracao__recortes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historico-calibracao__recortes li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.historico-calibracao__projeto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+.historico-calibracao__razao {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

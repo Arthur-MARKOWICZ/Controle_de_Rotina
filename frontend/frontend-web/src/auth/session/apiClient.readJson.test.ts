@@ -56,4 +56,34 @@ describe('readApiJson', () => {
       })
     }
   })
+
+  it('corpo vazio em 500 usa mensagem de resposta vazia', async () => {
+    await expect(readApiJson(new Response('', { status: 500 }))).rejects.toMatchObject({
+      status: 500,
+      message: 'Resposta vazia da API.',
+    })
+  })
+
+  it('JSON inválido vira ApiError', async () => {
+    await expect(
+      readApiJson(new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    ).rejects.toMatchObject({
+      status: 200,
+      message: 'Resposta inválida da API (não é JSON).',
+    })
+  })
+
+  it('HTML genérico em 404 não culpa o proxy da SPA', async () => {
+    await expect(
+      readApiJson(
+        new Response('<html><body>not found</body></html>', {
+          status: 404,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: expect.stringMatching(/HTML \(HTTP 404\)/),
+    })
+  })
 })

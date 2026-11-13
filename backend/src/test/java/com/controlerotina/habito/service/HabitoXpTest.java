@@ -76,4 +76,86 @@ class HabitoXpTest {
         verify(xpEventoRepository, never()).existsByTipoAndOrigemId(
                 eq(TipoXpEvento.TAREFA_FINALIZADA), any());
     }
+
+    @Test
+    void naoDeveConcederXpDuasVezesParaMesmoBlocoHabito() {
+        UUID usuarioId = UUID.randomUUID();
+        UUID execucaoId = UUID.randomUUID();
+        Usuario usuario = new Usuario(usuarioId, "ana@email.com", "hash", "Ana", AGORA, AGORA);
+        usuario.atualizarProgressoXp(40, 1, AGORA);
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.of(usuario));
+        when(xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId))
+                .thenReturn(true);
+
+        var resultado = service.concederBlocoHabito(usuarioId, execucaoId, 60);
+
+        assertThat(resultado.ganhoNesteRequest()).isZero();
+        assertThat(usuario.getXpTotal()).isEqualTo(40);
+        verify(xpEventoRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void minutosZeroNaoDeveCriarEventoDeHabito() {
+        UUID usuarioId = UUID.randomUUID();
+        Usuario usuario = new Usuario(usuarioId, "ana@email.com", "hash", "Ana", AGORA, AGORA);
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.of(usuario));
+
+        var resultado = service.concederBlocoHabito(usuarioId, UUID.randomUUID(), 0);
+
+        assertThat(resultado.ganhoNesteRequest()).isZero();
+        verify(xpEventoRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void usuarioInexistenteNoHabitoNaoDeveSalvar() {
+        UUID usuarioId = UUID.randomUUID();
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.concederBlocoHabito(usuarioId, UUID.randomUUID(), 60))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+        verify(xpEventoRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void minutosNegativosNaoDeveCreditarHabito() {
+        UUID usuarioId = UUID.randomUUID();
+        Usuario usuario = new Usuario(usuarioId, "ana@email.com", "hash", "Ana", AGORA, AGORA);
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.of(usuario));
+
+        var resultado = service.concederBlocoHabito(usuarioId, UUID.randomUUID(), -15);
+
+        assertThat(resultado.ganhoNesteRequest()).isZero();
+        assertThat(usuario.getXpTotal()).isZero();
+    }
+
+    @Test
+    void concederHabitoNaoDeveConsultarEventoDeTarefaFinalizada() {
+        UUID usuarioId = UUID.randomUUID();
+        UUID execucaoId = UUID.randomUUID();
+        Usuario usuario = new Usuario(usuarioId, "ana@email.com", "hash", "Ana", AGORA, AGORA);
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.of(usuario));
+        when(xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId))
+                .thenReturn(false);
+
+        service.concederBlocoHabito(usuarioId, execucaoId, 30);
+
+        verify(xpEventoRepository, never()).existsByTipoAndOrigemId(
+                eq(TipoXpEvento.TAREFA_FINALIZADA), any());
+    }
+
+    @Test
+    void metadeDaDuracaoDeHabitoDeveCreditarMetadeDoXpMedia() {
+        UUID usuarioId = UUID.randomUUID();
+        UUID execucaoId = UUID.randomUUID();
+        Usuario usuario = new Usuario(usuarioId, "ana@email.com", "hash", "Ana", AGORA, AGORA);
+        when(usuarioRepository.findByIdForUpdate(usuarioId)).thenReturn(Optional.of(usuario));
+        when(xpEventoRepository.existsByTipoAndOrigemId(TipoXpEvento.BLOCO_CONCLUIDO, execucaoId))
+                .thenReturn(false);
+
+        var resultado = service.concederBlocoHabito(usuarioId, execucaoId, 30);
+
+        assertThat(resultado.ganhoNesteRequest()).isEqualTo(45);
+        assertThat(usuario.getXpTotal()).isEqualTo(45);
+    }
 }

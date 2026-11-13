@@ -27,4 +27,22 @@ describe('listaOrdem', () => {
     expect(mesmaOrdem(['a', 'b'], ['a', 'b'])).toBe(true)
     expect(mesmaOrdem(['a', 'b'], ['b', 'a'])).toBe(false)
   })
+
+  it('move de um único item devolve a mesma referência', () => {
+    const itens = ['a']
+    expect(moverItem(itens, 0, 0)).toBe(itens)
+  })
+
+  it('mesmaOrdem é falso com comprimentos diferentes', () => {
+    expect(mesmaOrdem(['a'], ['a', 'b'])).toBe(false)
+    expect(mesmaOrdem([], ['a'])).toBe(false)
+  })
+
+  it('compararOrdem trata ordem ausente como zero', () => {
+    const itens = [
+      { id: 'b', createdAt: '2026-01-02T00:00:00Z' },
+      { id: 'a', createdAt: '2026-01-01T00:00:00Z' },
+    ]
+    expect([...itens].sort(compararOrdem).map((item) => item.id)).toEqual(['a', 'b'])
+  })
 })

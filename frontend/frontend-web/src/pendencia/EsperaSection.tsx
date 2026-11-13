@@ -266,13 +266,13 @@ export function EsperaSection({
           >
             Cancelar espera
           </button>
-          {erro ? (
-            <p id={erroId} className="field-error espera-secao__erro" role="alert">
-              {erro}
-            </p>
-          ) : null}
         </form>
       )}
+      {erro ? (
+        <p id={erroId} className="field-error espera-secao__erro" role="alert">
+          {erro}
+        </p>
+      ) : null}
     </section>
   )
 }

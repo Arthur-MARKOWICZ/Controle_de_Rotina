@@ -187,4 +187,47 @@ describe('planoApi', () => {
       method: 'DELETE',
     })
   })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(gerarPlano('2026-10-20')).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 409 de versão ao aprovar', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Versão desatualizada.' }), {
+        status: 409,
+      }),
+    )
+    await expect(aprovarPlano('p-1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Versão desatualizada.',
+    })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(gerarPlano('2026-10-20')).rejects.toMatchObject({ status: 500 })
+  })
+
+  it('rejeita HTML da SPA e JSON inválido', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(gerarPlano('2026-10-20')).rejects.toBeInstanceOf(ApiError)
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(gerarPlano('2026-10-20')).rejects.toThrow()
+  })
 })

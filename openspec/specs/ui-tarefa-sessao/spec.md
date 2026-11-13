@@ -21,10 +21,10 @@ Na lista de blocos do plano `APROVADO`, cada bloco de tarefa não concluído MUS
 - **THEN** os CTAs de hábito existentes (Iniciar / Concluir direto) permanecem disponíveis
 
 ### Requirement: CTAs na lista de tarefas
-Em `/tarefas`, cards de tarefas elegíveis (não deletadas, com restante > 0, status que permita progresso, **sem filhos não deletados**) MUST oferecer Iniciar e Concluir. Card de pai com filhos MUST NÃO oferecer essas ações de sessão.
+Em `/tarefas`, cards de tarefas elegíveis (não deletadas, com restante > 0, status que permita progresso, **sem filhos não deletados**, **não bloqueadas por espera**) MUST oferecer Iniciar e Concluir. Card de pai com filhos MUST NÃO oferecer essas ações de sessão. Card de tarefa bloqueada MUST NÃO oferecer essas ações de sessão.
 
 #### Scenario: Tarefa com restante
-- **GIVEN** uma tarefa pendente ou em progresso com restante maior que zero e sem filhos não deletados
+- **GIVEN** uma tarefa pendente ou em progresso com restante maior que zero, sem filhos não deletados e sem espera irresolvida
 - **WHEN** o usuário vê o card na lista
 - **THEN** há ações Iniciar e Concluir
 
@@ -36,6 +36,11 @@ Em `/tarefas`, cards de tarefas elegíveis (não deletadas, com restante > 0, st
 #### Scenario: Pai com filhos na lista
 - **GIVEN** uma tarefa com filhos não deletados
 - **WHEN** o usuário vê o card do pai na lista
+- **THEN** Iniciar e Concluir de sessão não são oferecidos
+
+#### Scenario: Tarefa bloqueada na lista
+- **GIVEN** uma folha com restante e espera irresolvida
+- **WHEN** o usuário vê o card na lista
 - **THEN** Iniciar e Concluir de sessão não são oferecidos
 
 ### Requirement: Picker de duração da sessão

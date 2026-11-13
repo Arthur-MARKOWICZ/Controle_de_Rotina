@@ -98,4 +98,60 @@ describe('meApi', () => {
     })
     await expect(atualizarMe({ senhaAtual: 'errada' })).rejects.toBeInstanceOf(ApiError)
   })
+
+  it('propaga 400 de validação', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Dados inválidos', detail: 'Nome muito longo.' }), {
+        status: 400,
+      }),
+    )
+    await expect(atualizarMe({ senhaAtual: 'Senha@123', nome: 'A'.repeat(300) })).rejects.toMatchObject({
+      status: 400,
+      message: 'Nome muito longo.',
+    })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Usuário não encontrado.' }), {
+        status: 404,
+      }),
+    )
+    await expect(buscarMe()).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('propaga 409', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'E-mail já em uso.' }), {
+        status: 409,
+      }),
+    )
+    await expect(
+      atualizarMe({ senhaAtual: 'Senha@123', email: 'outro@email.com' }),
+    ).rejects.toMatchObject({ status: 409, message: 'E-mail já em uso.' })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(buscarMe()).rejects.toMatchObject({ status: 500, message: 'Erro interno' })
+  })
+
+  it('rejeita HTML da SPA no GET /me', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(buscarMe()).rejects.toThrow()
+  })
+
+  it('rejeita JSON inválido', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(buscarMe()).rejects.toThrow()
+  })
 })

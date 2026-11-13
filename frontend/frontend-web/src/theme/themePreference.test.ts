@@ -76,4 +76,9 @@ describe('themePreference', () => {
       expect(document.documentElement.getAttribute('data-theme')).toBe(tema)
     }
   })
+
+  it('storage vazio não inventa chave ao só ler', () => {
+    expect(lerPreferenciaTema()).toBe('system')
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull()
+  })
 })

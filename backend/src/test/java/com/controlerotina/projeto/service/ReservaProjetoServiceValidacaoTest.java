@@ -1,5 +1,6 @@
 package com.controlerotina.projeto.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
@@ -94,6 +95,83 @@ class ReservaProjetoServiceValidacaoTest {
                 .thenReturn(List.of());
 
         assertThatThrownBy(() -> service.validarSomaReservas(USUARIO_ID, DiaSemana.TERCA, 15, null))
-                .isInstanceOf(ReservaCapacidadeInsuficienteException.class);
+                .isInstanceOf(ReservaCapacidadeInsuficienteException.class)
+                .satisfies(ex -> {
+                    ReservaCapacidadeInsuficienteException erro = (ReservaCapacidadeInsuficienteException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(409);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Capacidade insuficiente");
+                });
+    }
+
+    @Test
+    void deveAceitarQuandoSomaCabeNoTemplate() {
+        CapacidadeSemanal template = template(DiaSemana.QUARTA, 2);
+        when(capacidadeSemanalRepository.findByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO_ID, DiaSemana.QUARTA))
+                .thenReturn(Optional.of(template));
+        when(reservaRepository.findByUsuarioIdAndDiaSemana(USUARIO_ID, DiaSemana.QUARTA))
+                .thenReturn(List.of(reserva(60, DiaSemana.QUARTA)));
+
+        service.validarSomaReservas(USUARIO_ID, DiaSemana.QUARTA, 60, null);
+    }
+
+    @Test
+    void deveAceitarQuandoSomaIgualaACapacidade() {
+        CapacidadeSemanal template = template(DiaSemana.QUINTA, 1);
+        when(capacidadeSemanalRepository.findByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO_ID, DiaSemana.QUINTA))
+                .thenReturn(Optional.of(template));
+        when(reservaRepository.findByUsuarioIdAndDiaSemana(USUARIO_ID, DiaSemana.QUINTA))
+                .thenReturn(List.of());
+
+        service.validarSomaReservas(USUARIO_ID, DiaSemana.QUINTA, 60, null);
+    }
+
+    @Test
+    void aoAtualizarDeveIgnorarAPropriaReservaNaSoma() {
+        UUID propria = UUID.randomUUID();
+        CapacidadeSemanal template = template(DiaSemana.SEXTA, 1);
+        when(capacidadeSemanalRepository.findByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO_ID, DiaSemana.SEXTA))
+                .thenReturn(Optional.of(template));
+        ReservaProjetoSemanal existente = new ReservaProjetoSemanal(
+                propria, USUARIO_ID, UUID.randomUUID(), DiaSemana.SEXTA, 60, AGORA, AGORA);
+        when(reservaRepository.findByUsuarioIdAndDiaSemana(USUARIO_ID, DiaSemana.SEXTA))
+                .thenReturn(List.of(existente));
+
+        service.validarSomaReservas(USUARIO_ID, DiaSemana.SEXTA, 60, propria);
+    }
+
+    @Test
+    void minutosZeroNaoDevemEstourarCapacidadeVazia() {
+        when(capacidadeSemanalRepository.findByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO_ID, DiaSemana.SABADO))
+                .thenReturn(Optional.empty());
+        when(reservaRepository.findByUsuarioIdAndDiaSemana(USUARIO_ID, DiaSemana.SABADO))
+                .thenReturn(List.of());
+
+        service.validarSomaReservas(USUARIO_ID, DiaSemana.SABADO, 0, null);
+    }
+
+    @Test
+    void excederPorUmMinutoDeveLancar409() {
+        CapacidadeSemanal template = template(DiaSemana.DOMINGO, 1);
+        when(capacidadeSemanalRepository.findByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO_ID, DiaSemana.DOMINGO))
+                .thenReturn(Optional.of(template));
+        when(reservaRepository.findByUsuarioIdAndDiaSemana(USUARIO_ID, DiaSemana.DOMINGO))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.validarSomaReservas(USUARIO_ID, DiaSemana.DOMINGO, 61, null))
+                .isInstanceOf(ReservaCapacidadeInsuficienteException.class)
+                .satisfies(ex -> {
+                    ReservaCapacidadeInsuficienteException erro = (ReservaCapacidadeInsuficienteException) ex;
+                    assertThat(erro.getStatusCode().value()).isEqualTo(409);
+                    assertThat(erro.getBody().getTitle()).isEqualTo("Capacidade insuficiente");
+                });
+    }
+
+    private CapacidadeSemanal template(DiaSemana dia, int horas) {
+        return new CapacidadeSemanal(UUID.randomUUID(), USUARIO_ID, dia, horas, true, AGORA, AGORA);
+    }
+
+    private ReservaProjetoSemanal reserva(int minutos, DiaSemana dia) {
+        return new ReservaProjetoSemanal(
+                UUID.randomUUID(), USUARIO_ID, UUID.randomUUID(), dia, minutos, AGORA, AGORA);
     }
 }

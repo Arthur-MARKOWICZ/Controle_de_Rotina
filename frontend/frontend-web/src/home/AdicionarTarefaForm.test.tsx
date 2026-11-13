@@ -78,4 +78,82 @@ describe('AdicionarTarefaForm', () => {
     await user.keyboard('{ArrowDown}')
     expect(onSelecionar).toHaveBeenLastCalledWith('t-3')
   })
+
+  it('mostra estado vazio quando não há elegíveis', () => {
+    render(
+      <AdicionarTarefaForm
+        elegiveis={[]}
+        tarefaSelecionadaId=""
+        carregandoElegiveis={false}
+        adicionando={false}
+        onSelecionar={vi.fn()}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+    expect(screen.getByText(/nenhuma tarefa elegível/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/buscar tarefa/i)).not.toBeInTheDocument()
+  })
+
+  it('mostra carregando e não lista opções', () => {
+    render(
+      <AdicionarTarefaForm
+        elegiveis={elegiveis}
+        tarefaSelecionadaId=""
+        carregandoElegiveis
+        adicionando={false}
+        onSelecionar={vi.fn()}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+    expect(screen.getByText(/carregando tarefas elegíveis/i)).toBeInTheDocument()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('busca sem correspondência não chama onSelecionar nas setas', async () => {
+    const user = userEvent.setup()
+    const onSelecionar = vi.fn()
+    render(
+      <AdicionarTarefaForm
+        elegiveis={elegiveis}
+        tarefaSelecionadaId="t-2"
+        carregandoElegiveis={false}
+        adicionando={false}
+        onSelecionar={onSelecionar}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+    await user.type(screen.getByLabelText(/buscar tarefa/i), 'xyz-inexistente')
+    expect(screen.getByRole('status')).toHaveTextContent(/nenhuma tarefa corresponde/i)
+    screen.getByLabelText(/buscar tarefa/i).focus()
+    await user.keyboard('{ArrowDown}')
+    expect(onSelecionar).not.toHaveBeenCalled()
+  })
+
+  it('submit fica desabilitado sem seleção', () => {
+    render(
+      <AdicionarTarefaForm
+        elegiveis={elegiveis}
+        tarefaSelecionadaId=""
+        carregandoElegiveis={false}
+        adicionando={false}
+        onSelecionar={vi.fn()}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /adicionar ao plano/i })).toBeDisabled()
+  })
+
+  it('adicionando desabilita o submit', () => {
+    render(
+      <AdicionarTarefaForm
+        elegiveis={elegiveis}
+        tarefaSelecionadaId="t-2"
+        carregandoElegiveis={false}
+        adicionando
+        onSelecionar={vi.fn()}
+        onSubmit={(event) => event.preventDefault()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /adicionando/i })).toBeDisabled()
+  })
 })

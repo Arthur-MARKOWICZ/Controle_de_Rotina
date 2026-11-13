@@ -44,4 +44,49 @@ class PeriodoBRTTest {
         assertThat(PeriodoBRT.segundaDaSemana(LocalDate.of(2026, 10, 26)))
                 .isEqualTo(LocalDate.of(2026, 10, 26));
     }
+
+    @Test
+    void deveCobrirUltimos90DiasTerminandoHojeEmBrt() {
+        PeriodoBRT.Intervalo intervalo = PeriodoBRT.intervaloUltimosDias(LocalDate.of(2026, 11, 13), 90);
+
+        assertThat(intervalo.inicioLocal()).isEqualTo(LocalDate.of(2026, 8, 16));
+        assertThat(intervalo.fimLocal()).isEqualTo(LocalDate.of(2026, 11, 13));
+        assertThat(intervalo.inicioInclusivo()).isEqualTo(Instant.parse("2026-08-16T03:00:00Z"));
+        assertThat(intervalo.fimExclusivo()).isEqualTo(Instant.parse("2026-11-14T03:00:00Z"));
+    }
+
+    @Test
+    void deveCruzarViradaDeAnoNosUltimosDias() {
+        PeriodoBRT.Intervalo intervalo = PeriodoBRT.intervaloUltimosDias(LocalDate.of(2027, 1, 2), 5);
+
+        assertThat(intervalo.inicioLocal()).isEqualTo(LocalDate.of(2026, 12, 29));
+        assertThat(intervalo.fimExclusivo()).isEqualTo(Instant.parse("2027-01-03T03:00:00Z"));
+    }
+
+    @Test
+    void deveCobrirSoHojeQuandoUmDia() {
+        PeriodoBRT.Intervalo intervalo = PeriodoBRT.intervaloUltimosDias(LocalDate.of(2026, 3, 1), 1);
+
+        assertThat(intervalo.inicioLocal()).isEqualTo(LocalDate.of(2026, 3, 1));
+        assertThat(intervalo.inicioInclusivo()).isEqualTo(Instant.parse("2026-03-01T03:00:00Z"));
+        assertThat(intervalo.fimExclusivo()).isEqualTo(Instant.parse("2026-03-02T03:00:00Z"));
+    }
+
+    @Test
+    void deveRejeitarUltimosDiasZero() {
+        assertThatThrownBy(() -> PeriodoBRT.intervaloUltimosDias(LocalDate.of(2026, 11, 13), 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void deveRejeitarUltimosDiasNegativo() {
+        assertThatThrownBy(() -> PeriodoBRT.intervaloUltimosDias(LocalDate.of(2026, 11, 13), -3))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void deveRejeitarHojeNuloNosUltimosDias() {
+        assertThatThrownBy(() -> PeriodoBRT.intervaloUltimosDias(null, 90))
+                .isInstanceOf(NullPointerException.class);
+    }
 }

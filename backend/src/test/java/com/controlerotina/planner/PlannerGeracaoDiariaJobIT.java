@@ -159,6 +159,42 @@ class PlannerGeracaoDiariaJobIT {
                 .isEqualTo(StatusPlano.APROVADO);
     }
 
+    @Test
+    void naoDeveGerarQuandoNaoHaUsuarios() {
+        plannerGeracaoDiariaJob.gerarPlanosPara(DIA_D);
+
+        assertThat(planoRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void deveGerarRascunhoMesmoSemTarefasQuandoHaCapacidade() {
+        UUID usuarioId = salvarUsuario("sem-tarefa");
+        salvarOverride(usuarioId, 2);
+
+        plannerGeracaoDiariaJob.gerarPlanosPara(DIA_D);
+
+        Plano corrente = planoRepository
+                .findFirstByUsuarioIdAndDataOrderByVersaoDesc(usuarioId, DIA_D)
+                .orElseThrow();
+        assertThat(corrente.getStatus()).isEqualTo(StatusPlano.RASCUNHO);
+    }
+
+    @Test
+    void segundaRodadaNaoAlteraPlanoAprovado() {
+        UUID usuarioId = salvarUsuario("dupla-rodada");
+        salvarOverride(usuarioId, 2);
+        salvarTarefa(usuarioId, "Tarefa");
+        Plano gerado = plannerGeracaoService.gerar(usuarioId, DIA_D);
+        jdbcTemplate.update("update plano set status = ? where id = ?", StatusPlano.APROVADO.name(), gerado.getId());
+
+        plannerGeracaoDiariaJob.gerarPlanosPara(DIA_D);
+        plannerGeracaoDiariaJob.gerarPlanosPara(DIA_D);
+
+        assertThat(planoRepository.findMaxVersaoByUsuarioIdAndData(usuarioId, DIA_D)).isEqualTo(1);
+        assertThat(planoRepository.findById(gerado.getId())).get().extracting(Plano::getStatus)
+                .isEqualTo(StatusPlano.APROVADO);
+    }
+
     private UUID salvarUsuario(String sufixo) {
         UUID id = UUID.randomUUID();
         usuarioRepository.save(new Usuario(

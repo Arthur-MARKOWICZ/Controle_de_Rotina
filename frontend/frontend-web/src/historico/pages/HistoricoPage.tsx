@@ -24,6 +24,7 @@ import {
   tituloDiaHistorico,
   tituloSemanaHistorico,
 } from '../formatacao'
+import { CartaoCalibracao } from '../CartaoCalibracao'
 import { GraficoXpSemana, type PontoXpDia } from '../GraficoXpSemana'
 import { formatarVariacaoPercentual, variacaoPercentual } from '../variacao'
 
@@ -292,6 +293,8 @@ export function HistoricoPage() {
           ) : null}
         </div>
       ) : null}
+
+      <CartaoCalibracao />
     </main>
   )
 }

@@ -138,6 +138,45 @@ class HistoricoSemanaIT {
                 autenticado(),
                 Map.class);
         assertThat(invalido.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(invalido.getBody().get("title")).isEqualTo("semanaInicio inválido");
+    }
+
+    @Test
+    void semanaVaziaDeveDevolverZeros() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/semana?semanaInicio=" + SEGUNDA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("tarefasFinalizadas")).isEqualTo(0);
+        assertThat(response.getBody().get("blocosConcluidos")).isEqualTo(0);
+        assertThat(response.getBody().get("minutosTrabalhados")).isEqualTo(0);
+        assertThat(response.getBody().get("xpGanho")).isEqualTo(0);
+    }
+
+    @Test
+    void domingoComoInicioDeveRetornar400ComTitleSemConsultarMetricas() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/semana?semanaInicio=2026-11-01",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("semanaInicio inválido");
+        assertThat(response.getBody().get("semanaInicio")).isEqualTo("2026-11-01");
+    }
+
+    @Test
+    void dataMalformadaDeveRetornar400ComTitle() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/semana?semanaInicio=segunda",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+        assertThat(response.getStatusCode().is4xxClientError()).isTrue();
+        assertThat(response.getBody().get("title")).isIn(
+                "Requisição inválida", "Parâmetro inválido", "Parâmetro obrigatório ausente");
     }
 
     @Test
@@ -146,6 +185,33 @@ class HistoricoSemanaIT {
                 "/historico/semana?semanaInicio=" + SEGUNDA,
                 Map.class);
         assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
+    @Test
+    void deveRetornar400ComTitleQuandoSemanaNaoComecaNaSegunda() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/semana?semanaInicio=2026-10-27",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("semanaInicio inválido");
+    }
+
+    @Test
+    void deveRetornarZerosQuandoUsuarioNaoTemAtividadeNaSemana() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/historico/semana?semanaInicio=" + SEGUNDA,
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("tarefasFinalizadas")).isEqualTo(0);
+        assertThat(response.getBody().get("blocosConcluidos")).isEqualTo(0);
+        assertThat(response.getBody().get("minutosTrabalhados")).isEqualTo(0);
+        assertThat(response.getBody().get("xpGanho")).isEqualTo(0);
     }
 
     private void seedDia(LocalDate dataPlano, Instant concluidoEm, int minutos, int xp) {

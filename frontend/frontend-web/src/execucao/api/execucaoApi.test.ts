@@ -101,4 +101,70 @@ describe('execucaoApi', () => {
     await expect(concluirExecucao('e-1')).resolves.toMatchObject({ status: 'CONCLUIDO' })
     await expect(abortarExecucao('e-2')).resolves.toMatchObject({ status: 'ABORTADO' })
   })
+
+  it('propaga 400', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Bad Request', detail: 'blocoId é obrigatório.' }), {
+        status: 400,
+      }),
+    )
+    await expect(iniciarExecucao('')).rejects.toMatchObject({
+      status: 400,
+      message: 'blocoId é obrigatório.',
+    })
+  })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(listarExecucoes('2026-10-27')).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Execução inexistente.' }), {
+        status: 404,
+      }),
+    )
+    await expect(concluirExecucao('e-sumiu')).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('propaga 409', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Conflito', detail: 'Já em andamento.' }), {
+        status: 409,
+      }),
+    )
+    await expect(iniciarExecucao('b-1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Já em andamento.',
+    })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(abortarExecucao('e-1')).rejects.toMatchObject({ status: 500 })
+  })
+
+  it('rejeita HTML da SPA e JSON inválido', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(listarExecucoes('2026-10-27')).rejects.toThrow()
+
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(listarExecucoes('2026-10-27')).rejects.toMatchObject({
+      message: 'Resposta inválida da API (não é JSON).',
+    })
+  })
 })

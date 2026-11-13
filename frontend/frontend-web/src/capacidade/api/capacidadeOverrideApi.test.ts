@@ -183,4 +183,58 @@ describe('capacidadeOverrideApi', () => {
       })
     }
   })
+
+  it('propaga 400 de validação', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Bad Request', detail: 'data inválida.' }), {
+        status: 400,
+      }),
+    )
+    await expect(criarCapacidadeOverride({ data: 'ontem', horas: 1 })).rejects.toMatchObject({
+      status: 400,
+      message: 'data inválida.',
+    })
+  })
+
+  it('propaga 401 quando o refresh falhou', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+        status: 401,
+      }),
+    )
+    await expect(listarCapacidadesOverride()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('propaga 404', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Override inexistente.' }), {
+        status: 404,
+      }),
+    )
+    await expect(atualizarCapacidadeOverride('o-sumiu', { horas: 2 })).rejects.toMatchObject({
+      status: 404,
+    })
+  })
+
+  it('propaga 500', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ title: 'Erro interno' }), { status: 500 }),
+    )
+    await expect(listarCapacidadesOverride()).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('rejeita HTML da SPA e JSON inválido', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('<!doctype html><html><div id="root"></div></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+    await expect(listarCapacidadesOverride()).rejects.toBeInstanceOf(ApiError)
+
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(listarCapacidadesOverride()).rejects.toThrow()
+  })
 })

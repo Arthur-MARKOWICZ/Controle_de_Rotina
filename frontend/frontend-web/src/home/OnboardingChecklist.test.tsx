@@ -112,4 +112,74 @@ describe('OnboardingChecklist (T4)', () => {
     expect(screen.queryByRole('link', { name: /^hoje$/i })).not.toBeInTheDocument()
     expect(lista.querySelector('a[href="/"]')).toBeNull()
   })
+
+  it('some quando /me falha (estado inalterado)', async () => {
+    vi.mocked(meApi.buscarMe).mockRejectedValue(new Error('rede'))
+    render(
+      <MemoryRouter>
+        <OnboardingChecklist temPlano={false} />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(meApi.buscarMe).toHaveBeenCalled())
+    expect(screen.queryByRole('heading', { name: /primeiros passos/i })).not.toBeInTheDocument()
+  })
+
+  it('some quando todos os passos já estão feitos', async () => {
+    vi.mocked(capacidadeApi.listarCapacidadesSemanais).mockResolvedValue([
+      {
+        id: 'c-1',
+        diaSemana: 'SEGUNDA',
+        horas: 4,
+        ativo: true,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ])
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
+      content: [{ id: 't-1' } as never],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 1,
+    })
+    render(
+      <MemoryRouter>
+        <OnboardingChecklist temPlano />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(meApi.buscarMe).toHaveBeenCalled())
+    expect(screen.queryByRole('heading', { name: /primeiros passos/i })).not.toBeInTheDocument()
+  })
+
+  it('usa o callback de gerar plano quando informado', async () => {
+    const onGerarPlano = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <OnboardingChecklist temPlano={false} onGerarPlano={onGerarPlano} />
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /gerar primeiro plano/i }))
+    expect(onGerarPlano).toHaveBeenCalledOnce()
+  })
+
+  it('capacidade com 0h não marca o passo', async () => {
+    vi.mocked(capacidadeApi.listarCapacidadesSemanais).mockResolvedValue([
+      {
+        id: 'c-1',
+        diaSemana: 'SEGUNDA',
+        horas: 0,
+        ativo: true,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ])
+    render(
+      <MemoryRouter>
+        <OnboardingChecklist temPlano={false} />
+      </MemoryRouter>,
+    )
+    const link = await screen.findByRole('link', { name: /definir capacidade semanal/i })
+    expect(link).toHaveAttribute('href', '/capacidade')
+  })
 })

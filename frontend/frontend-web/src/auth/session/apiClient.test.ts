@@ -88,4 +88,36 @@ describe('apiFetch', () => {
     expect(detalheRefresh.toLowerCase()).not.toContain('reutiliz')
     expect(detalheRefresh).toContain('Credenciais inválidas.')
   })
+
+  it('sem token não envia Authorization', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiFetch('/qualquer')
+    const headers = fetchMock.mock.calls[0][1]?.headers as Headers
+    expect(headers.get('Authorization')).toBeNull()
+  })
+
+  it('2xx não dispara refresh', async () => {
+    setAccessToken('access-1')
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiFetch('/ok')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(getAccessToken()).toBe('access-1')
+  })
+
+  it('refresh 200 sem accessToken limpa a sessão e devolve 401', async () => {
+    setAccessToken('access-expirado')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await apiFetch('/protegido')
+    expect(response.status).toBe(401)
+    expect(getAccessToken()).toBeNull()
+  })
 })

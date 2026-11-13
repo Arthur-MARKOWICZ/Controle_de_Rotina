@@ -379,6 +379,69 @@ class AuthSessaoIT {
         assertThat(meDepois.getStatusCode()).isEqualTo(UNAUTHORIZED);
     }
 
+    @Test
+    void deveRetornar401QuandoRefreshExpiradoSemRotacionar() {
+        ResponseEntity<Map> login = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA)),
+                Map.class);
+        String cookie = refreshCookieValue(login);
+        UUID usuarioId = jdbcTemplate.queryForObject(
+                "select id from usuario where email = ?", UUID.class, email);
+        jdbcTemplate.update(
+                "update refresh_token set expires_at = ? where usuario_id = ? and revoked_at is null",
+                Timestamp.from(Instant.now().minus(1, ChronoUnit.MINUTES)),
+                usuarioId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.COOKIE, "refresh_token=" + cookie);
+        ResponseEntity<Map> refresh = restTemplate.exchange(
+                "/auth/refresh",
+                HttpMethod.POST,
+                new HttpEntity<>(null, headers),
+                Map.class);
+
+        assertThat(refresh.getStatusCode()).isEqualTo(UNAUTHORIZED);
+        assertThat(refresh.getBody()).isNotNull();
+        assertThat(refresh.getBody().get("title")).isEqualTo("Não autorizado");
+        Integer ativos = jdbcTemplate.queryForObject(
+                """
+                select count(*) from refresh_token
+                where usuario_id = ? and revoked_at is null
+                """,
+                Integer.class,
+                usuarioId);
+        assertThat(ativos).isEqualTo(1);
+    }
+
+    @Test
+    void logoutDuploNaoDeveReativarRefresh() {
+        ResponseEntity<Map> login = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", email, "senha", SENHA)),
+                Map.class);
+        String cookie = refreshCookieValue(login);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.COOKIE, "refresh_token=" + cookie);
+
+        ResponseEntity<Void> primeiro = restTemplate.exchange(
+                "/auth/logout", HttpMethod.POST, new HttpEntity<>(null, headers), Void.class);
+        ResponseEntity<Void> segundo = restTemplate.exchange(
+                "/auth/logout", HttpMethod.POST, new HttpEntity<>(null, headers), Void.class);
+
+        assertThat(primeiro.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(segundo.getStatusCode().is2xxSuccessful()).isTrue();
+        Integer ativos = jdbcTemplate.queryForObject(
+                """
+                select count(*) from refresh_token rt
+                join usuario u on u.id = rt.usuario_id
+                where u.email = ? and rt.revoked_at is null
+                """,
+                Integer.class,
+                email);
+        assertThat(ativos).isZero();
+    }
+
     private static HttpEntity<Map<String, String>> json(Map<String, String> body) {
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

@@ -170,6 +170,57 @@ class PlannerGeracaoDiariaJobTest {
         verify(plannerGeracaoService, times(2)).gerar(usuarioId, data);
     }
 
+    @Test
+    void listaVaziaDeUsuariosNaoChamaGeracao() {
+        stubPaginaUnica(List.of());
+
+        job.gerarPlanosPara(LocalDate.of(2026, 10, 20));
+
+        verify(plannerGeracaoService, never()).gerar(any(), any());
+        verify(propostaGeracaoService, never()).gerarSeDiaAnteriorIncompleto(any(), any());
+    }
+
+    @Test
+    void falhaNaPropostaNaoImpedeGeracaoDoProximoUsuario() {
+        Instant instante = Instant.parse("2026-10-20T12:00:00Z");
+        LocalDate data = LocalDate.of(2026, 10, 20);
+        UUID idFalha = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID idOk = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        stubPaginaUnica(List.of(usuario(idFalha, instante), usuario(idOk, instante)));
+        when(planoRepository.existsByUsuarioIdAndDataAndStatus(any(), eq(data), eq(StatusPlano.APROVADO)))
+                .thenReturn(true);
+        doThrow(new RuntimeException("proposta falhou"))
+                .when(propostaGeracaoService).gerarSeDiaAnteriorIncompleto(idFalha, data);
+        when(propostaGeracaoService.gerarSeDiaAnteriorIncompleto(idOk, data)).thenReturn(false);
+
+        job.gerarPlanosPara(data);
+
+        verify(propostaGeracaoService).gerarSeDiaAnteriorIncompleto(idOk, data);
+        verify(plannerGeracaoService, never()).gerar(any(), any());
+    }
+
+    @Test
+    void naoGeraQuandoNaoHaUsuarios() {
+        stubPaginaUnica(List.of());
+
+        job.gerarPlanosPara(LocalDate.of(2026, 10, 20));
+
+        verify(plannerGeracaoService, never()).gerar(any(), any());
+    }
+
+    @Test
+    void gerarPlanosDoDiaUsaViradaDeAnoEmBRT() {
+        Instant instante = Instant.parse("2027-01-01T03:00:00Z");
+        Clock fixedUtc = Clock.fixed(instante, ZoneOffset.UTC);
+        when(clock.withZone(PeriodoBRT.ZONE)).thenReturn(fixedUtc.withZone(PeriodoBRT.ZONE));
+        stubPaginaUnica(List.of());
+
+        job.gerarPlanosDoDia();
+
+        verify(plannerGeracaoService, never()).gerar(any(), any());
+        verify(advisoryLock).tryWithLock(eq(PlannerGeracaoDiariaJob.LOCK_GERACAO_DIARIA), any());
+    }
+
     private void stubPaginaUnica(List<Usuario> usuarios) {
         when(usuarioRepository.findAll(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(

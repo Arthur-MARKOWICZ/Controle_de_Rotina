@@ -88,4 +88,41 @@ describe('ThemeProvider', () => {
     expect(screen.getByTestId('efetivo')).toHaveTextContent('dark')
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
   })
+
+  it('light persiste e aplica data-theme claro', async () => {
+    const user = userEvent.setup()
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Claro' }))
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
+
+  it('valor inválido no storage cai em system', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'neon')
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    )
+    expect(screen.getByTestId('preferencia')).toHaveTextContent('system')
+  })
+
+  it('useTheme fora do provider lança', () => {
+    expect(() => render(<Probe />)).toThrow(/ThemeProvider/)
+  })
+
+  it('system com SO claro aplica light', () => {
+    mockMatchMedia(false)
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    )
+    expect(screen.getByTestId('efetivo')).toHaveTextContent('light')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
 })

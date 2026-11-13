@@ -53,4 +53,63 @@ describe('ConfirmDialog (T2)', () => {
     await user.keyboard('{Escape}')
     expect(onConfirm).not.toHaveBeenCalled()
   })
+
+  it('não renderiza quando fechado', () => {
+    render(
+      <ConfirmDialog
+        open={false}
+        title="Abortar execução?"
+        message="msg"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('mostra título e mensagem', () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Abortar execução?"
+        message="Esta ação não pode ser desfeita na UI."
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: /abortar execução/i })).toBeInTheDocument()
+    expect(screen.getByText(/não pode ser desfeita/i)).toBeInTheDocument()
+  })
+
+  it('usa rótulos customizados', () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Apagar?"
+        message="msg"
+        confirmLabel="Apagar"
+        cancelLabel="Voltar"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /^apagar$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^voltar$/i })).toBeInTheDocument()
+  })
+
+  it('Cancelar chama onCancel', async () => {
+    const onCancel = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <ConfirmDialog
+        open
+        title="Abortar execução?"
+        message="msg"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^cancelar$/i }))
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
 })

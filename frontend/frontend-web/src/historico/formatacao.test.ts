@@ -4,6 +4,8 @@ import {
   formatarDataCurtaPtBr,
   formatarDiaSemanaCurto,
   formatarMinutosTrabalhados,
+  formatarRazao,
+  fraseCalibracao,
   tituloDiaHistorico,
   tituloSemanaHistorico,
 } from './formatacao'
@@ -49,5 +51,47 @@ describe('formatarDiaSemanaCurto', () => {
   it('retorna abreviação do dia em pt-BR', () => {
     expect(formatarDiaSemanaCurto('2026-10-26')).toBe('Seg')
     expect(formatarDiaSemanaCurto('2026-10-27')).toBe('Ter')
+  })
+})
+
+describe('formatarRazao', () => {
+  it('formata com uma casa e vírgula', () => {
+    expect(formatarRazao(1.4)).toBe('1,4×')
+    expect(formatarRazao(0.6)).toBe('0,6×')
+    expect(formatarRazao(2)).toBe('2,0×')
+  })
+
+  it('arredonda meio para cima', () => {
+    expect(formatarRazao(1.25)).toBe('1,3×')
+    expect(formatarRazao(1.24)).toBe('1,2×')
+  })
+
+  it('não inventa número sem dados', () => {
+    expect(formatarRazao(null)).toBeNull()
+    expect(formatarRazao(Number.NaN)).toBeNull()
+    expect(formatarRazao(Number.POSITIVE_INFINITY)).toBeNull()
+  })
+})
+
+describe('fraseCalibracao', () => {
+  it('diz que leva mais que o estimado acima de 1,05', () => {
+    expect(fraseCalibracao(1.4)).toBe('Você costuma levar 1,4× o estimado')
+    expect(fraseCalibracao(1.06)).toBe('Você costuma levar 1,1× o estimado')
+  })
+
+  it('considera em dia nos limites inclusivos 0,95 e 1,05', () => {
+    expect(fraseCalibracao(0.95)).toBe('Suas estimativas estão em dia')
+    expect(fraseCalibracao(1.03)).toBe('Suas estimativas estão em dia')
+    expect(fraseCalibracao(1.05)).toBe('Suas estimativas estão em dia')
+  })
+
+  it('diz que termina antes abaixo de 0,95', () => {
+    expect(fraseCalibracao(0.8)).toBe('Você costuma terminar em 0,8× do estimado')
+    expect(fraseCalibracao(0.94)).toBe('Você costuma terminar em 0,9× do estimado')
+  })
+
+  it('devolve null sem dados', () => {
+    expect(fraseCalibracao(null)).toBeNull()
+    expect(fraseCalibracao(Number.NaN)).toBeNull()
   })
 })

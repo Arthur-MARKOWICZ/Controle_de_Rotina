@@ -110,6 +110,28 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
             @Param("fim") Instant fim
     );
 
+    /**
+     * Amostras para calibração: [iniciadoEm, concluidoEm, duracaoMinutos do bloco, tarefaId, projetoId].
+     * Só blocos de tarefa (o join com Tarefa exclui hábitos).
+     */
+    @Query("""
+            SELECT e.iniciadoEm, e.concluidoEm, b.duracaoMinutos, t.id, t.projetoId
+              FROM Execucao e, BlocoPlano b, Tarefa t
+             WHERE e.blocoPlanoId = b.id
+               AND b.tarefaId = t.id
+               AND e.usuarioId = :usuarioId
+               AND e.status = :status
+               AND e.iniciadoEm IS NOT NULL
+               AND e.concluidoEm >= :inicio
+               AND e.concluidoEm < :fim
+            """)
+    List<Object[]> listarAmostrasCalibracao(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("status") StatusExecucao status,
+            @Param("inicio") Instant inicio,
+            @Param("fim") Instant fim
+    );
+
     @Query("""
             SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END
               FROM Execucao e, BlocoPlano b, Plano p

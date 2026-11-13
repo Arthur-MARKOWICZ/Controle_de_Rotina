@@ -93,6 +93,12 @@ class CadastroUsuarioIT {
         ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(segundo), Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Email já cadastrado");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from usuario where email = ?",
+                Integer.class,
+                "duplicado@email.com"
+        )).isEqualTo(1);
     }
 
     @Test
@@ -143,6 +149,12 @@ class CadastroUsuarioIT {
         ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(body), Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from usuario where email = ?",
+                Integer.class,
+                "fraca@email.com"
+        )).isZero();
     }
 
     @Test
@@ -156,6 +168,34 @@ class CadastroUsuarioIT {
         ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(body), Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Dados inválidos");
+    }
+
+    @Test
+    void corpoVazioDeveRetornar400SemCriarUsuario() {
+        ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(Map.of()), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Dados inválidos");
+    }
+
+    @Test
+    void nomeEmBrancoDeveRetornar400SemPersistir() {
+        var body = Map.of(
+                "nome", "   ",
+                "email", "branco@email.com",
+                "senha", "Senha@123"
+        );
+
+        ResponseEntity<Map> response = restTemplate.postForEntity("/usuarios", json(body), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Dados inválidos");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from usuario where email = ?",
+                Integer.class,
+                "branco@email.com"
+        )).isZero();
     }
 
     private static HttpEntity<Map<String, String>> json(Map<String, String> body) {

@@ -56,4 +56,32 @@ describe('lerErroApi', () => {
 
     expect(erro.message).toBe('Falha genérica')
   })
+
+  it('propaga ApiError de HTML da SPA', async () => {
+    const response = new Response('<!doctype html><html><div id="root"></div></html>', {
+      status: 404,
+      headers: { 'Content-Type': 'text/html' },
+    })
+    const erro = await lerErroApi(response, 'fallback')
+    expect(erro).toBeInstanceOf(ApiError)
+    expect(erro.message).toMatch(/SPA|HTML/i)
+  })
+
+  it('usa fallback quando o JSON é inválido', async () => {
+    const response = new Response('não-é-json', { status: 500, headers: { 'Content-Type': 'application/json' } })
+    const erro = await lerErroApi(response, 'Falha genérica')
+    expect(erro.status).toBe(500)
+    expect(erro.message).toBe('Resposta inválida da API (não é JSON).')
+  })
+
+  it('junta várias mensagens de errors', async () => {
+    const response = new Response(
+      JSON.stringify({
+        errors: [{ message: 'nome obrigatório' }, { message: 'email inválido' }],
+      }),
+      { status: 400 },
+    )
+    const erro = await lerErroApi(response, 'fallback')
+    expect(erro.message).toBe('nome obrigatório email inválido')
+  })
 })
