@@ -14,6 +14,14 @@ mcp/node_modules/
 mcp/dist/
 mcp/.env
 
+# Mobile (Gradle / Android)
+mobile/.env
+mobile/local.properties
+mobile/.gradle/
+mobile/.kotlin/
+mobile/build/
+mobile/**/build/
+
 # Segredos locais (modelo versionado: .env.example)
 .env
 

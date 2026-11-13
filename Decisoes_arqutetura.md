@@ -21,6 +21,11 @@ Utilizar docker com docker compose para subir os componetes da applicacao
  - node 24.x.x
  - react
  - API via paths relativos; proxy no Vite (dev) e Nginx (Docker). **Todo prefixo novo de endpoint** deve ser registrado nos dois — ver `frontend/frontend-web/API_PROXY.md`.
+### Mobile
+ - Kotlin Multiplatform + Compose Multiplatform, **Android primeiro** (iOS só estruturado, não validado). Pacote `mobile/` na raiz.
+ - Cliente direto da API REST (sem proxy vite/nginx); URL por `mobile/.env` no build, HTTPS obrigatório em release.
+ - Sessão: access em memória, refresh cifrado (Android Keystore) reenviado como cookie só em `/auth/*`; sem mudança no backend.
+ - Decisão: [`docs/decisions/0002-app-mobile-kmp-android-primeiro.md`](docs/decisions/0002-app-mobile-kmp-android-primeiro.md); change: `openspec/changes/app-mobile-android/`.
 
 ## Banco de dados
 - postgres

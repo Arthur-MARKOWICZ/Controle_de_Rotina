@@ -1,0 +1,58 @@
+name: Mobile — testes e build Android
+
+# Só roda quando o app mobile (ou este workflow) muda: o deploy da web/API não depende dele.
+on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Testes compartilhados, lint e APK debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # O daemon do Gradle pede JDK 25 (gradle/gradle-daemon-jvm.properties).
+      - name: Configurar Java 25
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      # Sem local.properties nem .env no CI: o SDK vem de ANDROID_HOME e a URL da API
+      # cai no padrão do emulador (androidApp/build.gradle.kts). iOS não é validado (ADR-0002).
+      - name: Testes, lint e build
+        working-directory: mobile
+        run: ./gradlew :shared:jvmTest :androidApp:lint :androidApp:assembleDebug --no-configuration-cache
+
+      - name: Publicar relatórios
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: relatorios-mobile
+          path: |
+            mobile/shared/build/reports/tests/jvmTest
+            mobile/androidApp/build/reports/lint-results-debug.html
+          retention-days: 7
+          if-no-files-found: ignore
