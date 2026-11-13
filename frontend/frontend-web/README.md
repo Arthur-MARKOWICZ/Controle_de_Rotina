@@ -22,6 +22,7 @@ docker compose up -d --build frontend
 ## Scripts
 
 - `npm run test` — Vitest
+- `npm run test:coverage` — Vitest com cobertura (v8) em `coverage/`; falha abaixo de `test.coverage.thresholds` (`vite.config.ts`). Regra mínima de cenários e catraca: `AGENTS.md` → Testes
 - `npm run build` — build de produção
 
 ## TypeScript: `null` da API ≠ `undefined`

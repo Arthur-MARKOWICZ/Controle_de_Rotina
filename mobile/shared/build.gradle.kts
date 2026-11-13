@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -61,6 +62,24 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.ktor.client.mock)
+        }
+    }
+}
+
+// Cobertura dos testes JVM (commonTest). Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 70/60.
+kover {
+    reports {
+        verify {
+            rule {
+                bound {
+                    coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE
+                    minValue = 42
+                }
+                bound {
+                    coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH
+                    minValue = 21
+                }
+            }
         }
     }
 }

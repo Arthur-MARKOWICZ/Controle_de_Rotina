@@ -38,3 +38,28 @@ vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(...)
 
 Sem isso o Docker quebra com `Property 'mock' does not exist on type`.  
 Detalhes: `frontend/frontend-web/README.md`.
+
+## Testes: regra mínima "1 + 3 + 3" (Definition of Done)
+
+Toda unidade **com lógica** (service, motor, job, validator, filtro, endpoint, hook, componente com comportamento, utilitário, ViewModel) precisa de **≥ 7 cenários**, somando os arquivos que a testam diretamente (unitário + IT contam juntos). DTO/record sem regra, tipos e config declarativa ficam fora.
+
+| Tipo | Qtd. | O teste verifica |
+|---|---|---|
+| ✅ Caminho feliz | ≥ 1 | uso normal → resultado esperado |
+| ⚠️ Anomalia | ≥ 3 | recurso de outro usuário, chamada duplicada/concorrente, soft-deleted/arquivado, lista vazia, limites (0, máx., meia-noite BRT, virada de semana), token expirado no meio do fluxo, resposta vazia/malformada — **e que o estado (banco / tela) não foi alterado** |
+| ❌ Erro esperado | ≥ 3 | **status e identificador do erro**: no backend, `status` + `$.title` do ProblemDetail (e a propriedade específica, ex. `$.nome`); em unitário, o **tipo concreto** da exceção; no cliente, a mensagem/estado de erro exibido. "Deu erro" não basta |
+
+- Nome do teste diz condição e resultado: `deveRetornar409QuandoPlanoJaAprovado`, `naoDeveConcederXpDuasVezesParaMesmoEvento`.
+- Tempo: use `Clock` fixo nos limites (meia-noite, virada de semana/mês/ano em BRT), nunca o relógio real.
+- Matriz padrão para clientes de API (`*Api.test.ts`, `RotinaApi`): 2xx, 400, 401→refresh, 404, 409, 500/timeout, HTML do proxy / JSON inválido.
+
+### Cobertura e gate (catraca)
+
+| Stack | Comando | Relatório | Limite em |
+|---|---|---|---|
+| Backend | `cd backend && mvn test` | `target/site/jacoco/` | `pom.xml` (`jacoco.minimo.*`) |
+| Frontend | `cd frontend/frontend-web && npm run test:coverage` | `coverage/` | `vite.config.ts` (`test.coverage.thresholds`) |
+| MCP | `cd mcp && pnpm test:coverage` | `coverage/` | `vitest.config.ts` |
+| Mobile | `cd mobile && ./gradlew :shared:jvmTest :shared:koverHtmlReportJvm :shared:koverVerifyJvm` | `shared/build/reports/kover/` | `shared/build.gradle.kts` (`kover {}`) |
+
+O CI (`deploy.yml`, `mobile.yml`) falha abaixo do limite e publica os relatórios como artefato. **Limite só sobe, nunca desce:** ao fechar um PR de testes, eleve o limite da stack para o novo piso medido (arredondado para baixo). Alvo: **70% linhas / 60% branches** em todas as stacks.

@@ -38,6 +38,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/frontend-web/package-lock.json
 
+      # `mvn test` também gera o relatório JaCoCo e aplica o gate de cobertura (pom.xml).
       - name: Testar backend
         working-directory: backend
         run: mvn -B test
@@ -47,8 +48,30 @@ jobs:
         run: |
           set -Eeuo pipefail
           npm ci
-          npm test
+          npm run test:coverage
           npm run build
+
+      # pnpm na versão do campo packageManager (mcp/package.json), via corepack do Node.
+      - name: Testar MCP
+        working-directory: mcp
+        run: |
+          set -Eeuo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test:coverage
+
+      - name: Publicar relatórios de cobertura
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cobertura
+          path: |
+            backend/target/site/jacoco
+            frontend/frontend-web/coverage
+            mcp/coverage
+          retention-days: 14
+          if-no-files-found: ignore
 
   deploy:
     name: Construir e publicar em produção

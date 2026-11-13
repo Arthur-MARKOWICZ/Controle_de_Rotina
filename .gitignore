@@ -8,10 +8,12 @@ backend/.mvn/wrapper/maven-wrapper.jar
 node_modules/
 frontend/frontend-web/node_modules/
 frontend/frontend-web/dist/
+frontend/frontend-web/coverage/
 
 # MCP
 mcp/node_modules/
 mcp/dist/
+mcp/coverage/
 mcp/.env
 
 # Mobile (Gradle / Android)
