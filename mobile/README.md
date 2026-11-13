@@ -53,9 +53,12 @@ hosts de `androidApp/src/debug/res/xml/network_security_config.xml`.
 ```bash
 ./gradlew :androidApp:installDebug          # emulador ou aparelho conectado (adb)
 ./gradlew :shared:jvmTest                   # testes de API, sessão, regras e view-models
+./gradlew :shared:koverHtmlReportJvm :shared:koverVerifyJvm   # cobertura (shared/build/reports/kover) + gate
 ./gradlew :androidApp:lint
 ./gradlew :androidApp:connectedDebugAndroidTest   # Keystore: precisa de aparelho/emulador
 ```
+
+Regra mínima de cenários (1 feliz + 3 anomalias + 3 erros) e catraca de cobertura: `AGENTS.md` → Testes.
 
 Release (APK sem assinatura; assine localmente, sem Play Store neste corte):
 

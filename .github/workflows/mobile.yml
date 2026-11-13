@@ -42,9 +42,9 @@ jobs:
 
       # Sem local.properties nem .env no CI: o SDK vem de ANDROID_HOME e a URL da API
       # cai no padrão do emulador (androidApp/build.gradle.kts). iOS não é validado (ADR-0002).
-      - name: Testes, lint e build
+      - name: Testes, cobertura (Kover), lint e build
         working-directory: mobile
-        run: ./gradlew :shared:jvmTest :androidApp:lint :androidApp:assembleDebug --no-configuration-cache
+        run: ./gradlew :shared:jvmTest :shared:koverHtmlReportJvm :shared:koverXmlReportJvm :shared:koverVerifyJvm :androidApp:lint :androidApp:assembleDebug --no-configuration-cache
 
       - name: Publicar relatórios
         if: ${{ !cancelled() }}
@@ -53,6 +53,7 @@ jobs:
           name: relatorios-mobile
           path: |
             mobile/shared/build/reports/tests/jvmTest
+            mobile/shared/build/reports/kover
             mobile/androidApp/build/reports/lint-results-debug.html
           retention-days: 7
           if-no-files-found: ignore

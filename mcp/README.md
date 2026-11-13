@@ -86,4 +86,7 @@ nem títulos de tarefas em logs do host. O processo MCP só escreve banner em
 
 ```bash
 cd mcp && pnpm test
+cd mcp && pnpm test:coverage   # cobertura em coverage/; gate em vitest.config.ts
 ```
+
+Roda no CI (`deploy.yml`, job `validate`). Regra mínima de cenários (1 feliz + 3 anomalias + 3 erros) e catraca de cobertura: `AGENTS.md` → Testes.

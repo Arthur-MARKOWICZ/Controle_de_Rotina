@@ -4,3 +4,4 @@ dist/
 *.iml
 .git/
 README.md
+coverage/
