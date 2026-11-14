@@ -132,6 +132,8 @@ Entradas adicionais: hábitos `ATIVO`, `deletedAt == null`, com `DiaSemana` de `
 
 Streak **não** entra no histórico agregado (`historico.md`) neste slice — só nos campos do hábito / UI.
 
+> **Atualização (#84, change OpenSpec `historico-habitos`):** existe agora um histórico **por hábito** em `GET /habitos/{id}/historico` (dia, minutos dedicados, meta do dia, `suficiente` ≥ 100%), exibido no drawer `/habitos/:id`. O concluir direto aceita `{ "minutos": n }`. O streak continua fora do `/historico` agregado e **não** depende do tempo dedicado.
+
 ---
 
 ## Back-end

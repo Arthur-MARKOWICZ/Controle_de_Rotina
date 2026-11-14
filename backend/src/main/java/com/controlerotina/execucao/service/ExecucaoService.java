@@ -299,19 +299,22 @@ public class ExecucaoService {
 
     /**
      * Conclui execução de hábito já materializada (avulso ou plano), inclusive direto
-     * sem passar por EM_ANDAMENTO.
+     * sem passar por EM_ANDAMENTO. Sem {@code minutosInformados}, usa a duração do bloco;
+     * com execução {@code EM_ANDAMENTO}, vale o timer e os minutos são ignorados.
      */
     @Transactional
     public ResultadoConclusao concluirHabitoDiretoNoBloco(
             UUID usuarioId,
             BlocoPlano bloco,
             Plano plano,
-            Habito habito
+            Habito habito,
+            Integer minutosInformados
     ) {
         if (bloco.getHabitoId() == null || !bloco.getHabitoId().equals(habito.getId())) {
             throw new PlanoNaoExecutavelException();
         }
         Instant agora = clock.instant();
+        int minutos = minutosInformados != null ? minutosInformados : bloco.getDuracaoMinutos();
         var existente = execucaoRepository.findByBlocoPlanoId(bloco.getId());
 
         if (existente.isPresent()) {
@@ -329,7 +332,7 @@ public class ExecucaoService {
                 case ABORTADO, NAO_INICIADO -> {
                     boolean jaCumprido = execucaoRepository.existsCumprimentoHabitoNaData(
                             habito.getId(), plano.getData(), StatusExecucao.CONCLUIDO);
-                    execucao.concluirDireto(agora);
+                    execucao.concluirDireto(agora, minutos);
                     Execucao salva = execucaoRepository.save(execucao);
                     yield finalizarHabitoAposConclusao(
                             usuarioId, habito, plano.getData(), salva, bloco.getDuracaoMinutos(), jaCumprido);
@@ -344,7 +347,8 @@ public class ExecucaoService {
                     UUID.randomUUID(),
                     usuarioId,
                     bloco.getId(),
-                    agora
+                    agora,
+                    minutos
             ));
             return finalizarHabitoAposConclusao(
                     usuarioId, habito, plano.getData(), criada, bloco.getDuracaoMinutos(), jaCumprido);
@@ -391,11 +395,9 @@ public class ExecucaoService {
     ) {
         habitoStreakService.registrarCumprimento(habito, dataPlano, jaCumpridoAntes);
 
-        int minutosEfetivos = XpMotor.minutosEfetivos(
-                duracaoMinutos,
-                execucao.getIniciadoEm(),
-                execucao.getConcluidoEm()
-        );
+        int minutosEfetivos = execucao.getMinutosInformados() != null
+                ? XpMotor.minutosEfetivos(duracaoMinutos, execucao.getMinutosInformados())
+                : XpMotor.minutosEfetivos(duracaoMinutos, execucao.getIniciadoEm(), execucao.getConcluidoEm());
         XpConcessaoService.ResultadoConcessao xp = xpConcessaoService.concederBlocoHabito(
                 usuarioId,
                 execucao.getId(),

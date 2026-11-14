@@ -24,6 +24,7 @@ vi.mock('./api/habitoApi', async (importOriginal) => {
     atualizarHabito: vi.fn(),
     excluirHabito: vi.fn(),
     restaurarHabito: vi.fn(),
+    buscarHistoricoHabito: vi.fn(),
   }
 })
 
@@ -74,6 +75,7 @@ describe('HabitoDrawer', () => {
     vi.mocked(habitoApi.atualizarHabito).mockReset()
     vi.mocked(habitoApi.excluirHabito).mockReset()
     vi.mocked(habitoApi.restaurarHabito).mockReset()
+    vi.mocked(habitoApi.buscarHistoricoHabito).mockReset().mockResolvedValue([])
   })
 
   it('cria hábito válido e notifica a lista', async () => {
@@ -185,5 +187,46 @@ describe('HabitoDrawer', () => {
     expect(await screen.findByText('Falha ao restaurar')).toBeInTheDocument()
     expect(aoAtualizar).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: /hábito excluído/i })).toBeInTheDocument()
+  })
+
+  describe('seção Histórico', () => {
+    it('não mostra a seção nem consulta o histórico ao criar', async () => {
+      renderDrawer('/habitos/nova')
+
+      expect(await screen.findByLabelText('Título')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Histórico' })).not.toBeInTheDocument()
+      expect(habitoApi.buscarHistoricoHabito).not.toHaveBeenCalled()
+    })
+
+    it('mostra a seção com o histórico do hábito em edição', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue(habito)
+      vi.mocked(habitoApi.buscarHistoricoHabito).mockResolvedValue([
+        { data: '2026-11-10', minutosDedicados: 30, metaMinutos: 30, suficiente: true, origem: 'INFORMADO' },
+      ])
+      renderDrawer('/habitos/h-1')
+
+      expect(await screen.findByRole('heading', { name: 'Histórico' })).toBeInTheDocument()
+      expect(await screen.findByText('Meta atingida')).toBeInTheDocument()
+      expect(habitoApi.buscarHistoricoHabito).toHaveBeenCalledWith('h-1')
+    })
+
+    it('erro no histórico não impede salvar o hábito', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue(habito)
+      vi.mocked(habitoApi.buscarHistoricoHabito).mockRejectedValue(new ApiError(500, 'Erro interno'))
+      vi.mocked(habitoApi.atualizarHabito).mockResolvedValue({ ...habito, titulo: 'Correr 5km' })
+      const user = userEvent.setup()
+      renderDrawer('/habitos/h-1')
+
+      expect(await screen.findByText(/não foi possível carregar o histórico/i)).toBeInTheDocument()
+      const titulo = screen.getByLabelText('Título')
+      await user.clear(titulo)
+      await user.type(titulo, 'Correr 5km')
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(habitoApi.atualizarHabito).toHaveBeenCalled()
+      })
+      expect(aoAtualizar).toHaveBeenCalled()
+    })
   })
 })

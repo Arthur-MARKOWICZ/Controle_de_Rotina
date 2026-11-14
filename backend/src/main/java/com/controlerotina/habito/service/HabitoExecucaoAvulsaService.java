@@ -23,6 +23,7 @@ import com.controlerotina.planner.entity.StatusPlano;
 import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.shared.exception.HabitoNaoEncontradoException;
+import com.controlerotina.shared.exception.MinutosInformadosInvalidosException;
 
 @Service
 public class HabitoExecucaoAvulsaService {
@@ -65,7 +66,8 @@ public class HabitoExecucaoAvulsaService {
     }
 
     @Transactional
-    public ResultadoConclusao concluirDireto(UUID usuarioId, UUID habitoId, LocalDate data) {
+    public ResultadoConclusao concluirDireto(UUID usuarioId, UUID habitoId, LocalDate data, Integer minutos) {
+        validarMinutos(minutos);
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, habitoId, dia);
         if (noPlano.isPresent()) {
@@ -75,7 +77,8 @@ public class HabitoExecucaoAvulsaService {
                     usuarioId,
                     noPlano.get().bloco(),
                     noPlano.get().plano(),
-                    habito
+                    habito,
+                    minutos
             );
         }
         HabitoSlotAvulsoService.SlotAvulso slot = slotAvulsoService.materializar(usuarioId, habitoId, dia);
@@ -83,8 +86,16 @@ public class HabitoExecucaoAvulsaService {
                 usuarioId,
                 slot.bloco(),
                 slot.plano(),
-                slot.habito()
+                slot.habito(),
+                minutos
         );
+    }
+
+    private static void validarMinutos(Integer minutos) {
+        if (minutos != null
+                && (minutos < 1 || minutos > MinutosInformadosInvalidosException.MINUTOS_MAXIMO)) {
+            throw new MinutosInformadosInvalidosException();
+        }
     }
 
     /**

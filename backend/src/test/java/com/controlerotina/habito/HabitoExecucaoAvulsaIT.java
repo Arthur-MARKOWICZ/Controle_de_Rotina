@@ -1,6 +1,8 @@
 package com.controlerotina.habito;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -17,11 +19,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -297,6 +302,159 @@ class HabitoExecucaoAvulsaIT {
                 "select count(*) from execucao e join bloco_plano b on b.id = e.bloco_plano_id where b.habito_id = ?",
                 Long.class,
                 habitoId)).isZero();
+    }
+
+    @Test
+    void deveGravarMinutosInformadosECreditarXpPorEles() {
+        UUID habitoId = criarHabitoCorrer();
+
+        ResponseEntity<Map> response = concluirDireto(habitoId, TERCA, Map.of("minutos", 20));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("status")).isEqualTo("CONCLUIDO");
+        assertThat(xpGanho(response)).isEqualTo(30);
+        assertThat(minutosInformados(habitoId)).isEqualTo(20);
+    }
+
+    @Test
+    void deveUsarDuracaoDoBlocoECreditarXpCheioQuandoConcluirDiretoSemBody() {
+        UUID habitoId = criarHabitoCorrer();
+
+        ResponseEntity<Map> response = concluirDireto(habitoId, TERCA, null);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(xpGanho(response)).isEqualTo(45);
+        assertThat(minutosInformados(habitoId)).isEqualTo(30);
+    }
+
+    @Test
+    void deveLimitarXpNaDuracaoQuandoMinutosInformadosPassamDaMeta() {
+        UUID habitoId = criarHabitoCorrer();
+
+        ResponseEntity<Map> response = concluirDireto(habitoId, TERCA, Map.of("minutos", 60));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(xpGanho(response)).isEqualTo(45);
+        assertThat(minutosInformados(habitoId)).isEqualTo(60);
+    }
+
+    @Test
+    void deveUsarTimerEIgnorarMinutosQuandoExecucaoJaEstaEmAndamento() {
+        UUID habitoId = criarHabitoCorrer();
+        ResponseEntity<Map> inicio = restTemplate.exchange(
+                "/habitos/" + habitoId + "/iniciar?data=" + TERCA,
+                HttpMethod.POST,
+                authed(null),
+                Map.class);
+        assertThat(inicio.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
+
+        ResponseEntity<Map> response = concluirDireto(habitoId, TERCA, Map.of("minutos", 25));
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("status")).isEqualTo("CONCLUIDO");
+        assertThat(minutosInformados(habitoId)).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, 1441})
+    void deveRetornar400SemCriarExecucaoNemXpQuandoMinutosForaDoLimite(int minutos) {
+        UUID habitoId = criarHabitoCorrer();
+
+        ResponseEntity<Map> response = concluirDireto(habitoId, TERCA, Map.of("minutos", minutos));
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Minutos informados inválidos");
+        assertThat(response.getBody().get("minutosMaximo")).isEqualTo(1440);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from execucao where usuario_id = ?", Long.class, usuarioId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from bloco_plano b join plano p on p.id = b.plano_id where p.usuario_id = ?",
+                Long.class, usuarioId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento where usuario_id = ?", Long.class, usuarioId)).isZero();
+    }
+
+    @Test
+    void deveRetornar404AoConcluirDiretoHabitoDeOutroUsuario() {
+        UUID habitoId = criarHabitoCorrer();
+        String emailOutro = "hab-minutos-outro-" + UUID.randomUUID() + "@email.com";
+        restTemplate.postForEntity("/usuarios", json(Map.of("nome", "Outro", "email", emailOutro, "senha", SENHA)), Map.class);
+        String tokenOutro = restTemplate.postForEntity(
+                "/auth/login", json(Map.of("email", emailOutro, "senha", SENHA)), Map.class)
+                .getBody().get("accessToken").toString();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenOutro);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/habitos/" + habitoId + "/concluir-direto?data=" + TERCA,
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of("minutos", 20), headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Hábito não encontrado");
+        assertThat(minutosInformados(habitoId)).isNull();
+    }
+
+    @Test
+    void naoDeveConcederXpDuasVezesAoRepetirConcluirDireto() {
+        UUID habitoId = criarHabitoCorrer();
+        assertThat(concluirDireto(habitoId, TERCA, Map.of("minutos", 20)).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> repetido = concluirDireto(habitoId, TERCA, Map.of("minutos", 20));
+
+        assertThat(repetido.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from xp_evento where usuario_id = ?", Long.class, usuarioId)).isEqualTo(1L);
+    }
+
+    @Test
+    void deveManterSequenciaMesmoComTempoInsuficiente() {
+        UUID habitoId = criarHabitoCorrer();
+        assertThat(concluirDireto(habitoId, TERCA.minusWeeks(1), Map.of("minutos", 30)).getStatusCode())
+                .isEqualTo(OK);
+
+        assertThat(concluirDireto(habitoId, TERCA, Map.of("minutos", 5)).getStatusCode()).isEqualTo(OK);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select streak_atual from habito where id = ?", Integer.class, habitoId)).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1441})
+    void bancoDeveRejeitarMinutosInformadosForaDoLimite(int minutos) {
+        UUID habitoId = criarHabitoCorrer();
+        assertThat(concluirDireto(habitoId, TERCA, null).getStatusCode()).isEqualTo(OK);
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "update execucao set minutos_informados = ? where usuario_id = ?", minutos, usuarioId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(minutosInformados(habitoId)).isEqualTo(30);
+    }
+
+    private ResponseEntity<Map> concluirDireto(UUID habitoId, LocalDate data, Map<String, Object> body) {
+        return restTemplate.exchange(
+                "/habitos/" + habitoId + "/concluir-direto?data=" + data,
+                HttpMethod.POST,
+                authed(body),
+                Map.class);
+    }
+
+    private static int xpGanho(ResponseEntity<Map> response) {
+        return ((Number) ((Map<?, ?>) response.getBody().get("xp")).get("ganhoNesteRequest")).intValue();
+    }
+
+    private Integer minutosInformados(UUID habitoId) {
+        List<Integer> valores = jdbcTemplate.queryForList(
+                """
+                        select e.minutos_informados from execucao e
+                        join bloco_plano b on b.id = e.bloco_plano_id
+                        where b.habito_id = ? and e.status = 'CONCLUIDO'
+                        """,
+                Integer.class,
+                habitoId);
+        return valores.isEmpty() ? null : valores.get(0);
     }
 
     private UUID criarHabitoCorrer() {

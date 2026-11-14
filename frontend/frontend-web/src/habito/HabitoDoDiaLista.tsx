@@ -16,6 +16,7 @@ import {
   type HabitoDoDia,
   type SlotExecucaoHabito,
 } from './api/habitoApi'
+import { useMinutosHabito } from './useMinutosHabito'
 
 function mensagemErro(error: unknown, fallback: string): string {
   if (error instanceof ApiError || error instanceof Error) {
@@ -58,6 +59,8 @@ export function HabitoDoDiaLista({
   const toast = useToast()
   const [pendenteId, setPendenteId] = useState<string | null>(null)
 
+  const { pedirMinutos, dialog: minutosDialog } = useMinutosHabito()
+
   async function refrescar() {
     const lista = await listarHabitosDoDia(data)
     onAtualizado(lista)
@@ -76,9 +79,13 @@ export function HabitoDoDiaLista({
   }
 
   async function handleConcluirDireto(habito: HabitoDoDia) {
+    const minutos = await pedirMinutos(habito.titulo, habito.duracaoMinutos)
+    if (minutos === null) {
+      return
+    }
     setPendenteId(habito.id)
     try {
-      const execucao = await concluirHabitoDireto(habito.id, data)
+      const execucao = await concluirHabitoDireto(habito.id, data, minutos)
       const xp = execucao.xp?.ganhoNesteRequest ?? 0
       if (xp > 0) {
         toast.success(`+${xp} XP`)
@@ -225,6 +232,7 @@ export function HabitoDoDiaLista({
           )
         })}
       </ul>
+      {minutosDialog}
     </section>
   )
 }

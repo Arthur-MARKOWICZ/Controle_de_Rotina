@@ -109,4 +109,42 @@ class XpMotorTest {
         assertThat(progresso.xpNoNivel()).isEqualTo(1);
         assertThat(progresso.xpParaProximoNivel()).isEqualTo(20);
     }
+    @ParameterizedTest
+    @CsvSource({
+            "30, 10, 10",
+            "30, 24, 30",
+            "30, 23, 23",
+            "30, 30, 30",
+            "30, 60, 30",
+            "30, 1, 1"
+    })
+    void deveAplicarRegraDe80PorcentoAosMinutosInformados(int duracao, int minutos, int esperado) {
+        assertThat(XpMotor.minutosEfetivos(duracao, minutos)).isEqualTo(esperado);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "30, 0",
+            "30, -5",
+            "0, 20",
+            "-30, 20"
+    })
+    void deveRetornarZeroComMinutosOuDuracaoNaoPositivos(int duracao, int minutos) {
+        assertThat(XpMotor.minutosEfetivos(duracao, minutos)).isZero();
+    }
+
+    @Test
+    void versaoPorInstantesDeveConcordarComVersaoPorMinutos() {
+        for (int minutos = 1; minutos <= 40; minutos++) {
+            Instant fim = INICIO.plus(minutos, ChronoUnit.MINUTES);
+            assertThat(XpMotor.minutosEfetivos(30, INICIO, fim))
+                    .as("minutos=%d", minutos)
+                    .isEqualTo(XpMotor.minutosEfetivos(30, minutos));
+        }
+    }
+
+    @Test
+    void naoDeveCreditarNadaQuandoConcluirDiretoSemMinutosTemInicioIgualAoFim() {
+        assertThat(XpMotor.minutosEfetivos(30, INICIO, INICIO)).isZero();
+    }
 }

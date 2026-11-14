@@ -161,4 +161,24 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
             @Param("datas") Collection<LocalDate> datas,
             @Param("status") StatusExecucao status
     );
+
+    @Query("""
+            SELECT new com.controlerotina.execucao.repository.CumprimentoHabitoLinha(
+                       p.data, b.duracaoMinutos, e.iniciadoEm, e.concluidoEm, e.minutosInformados)
+              FROM Execucao e, BlocoPlano b, Plano p
+             WHERE e.blocoPlanoId = b.id
+               AND b.planoId = p.id
+               AND b.habitoId = :habitoId
+               AND e.usuarioId = :usuarioId
+               AND e.status = :status
+               AND p.data BETWEEN :dataDe AND :dataAte
+             ORDER BY p.data DESC
+            """)
+    List<CumprimentoHabitoLinha> listarCumprimentosHabitoNoIntervalo(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("habitoId") UUID habitoId,
+            @Param("dataDe") LocalDate dataDe,
+            @Param("dataAte") LocalDate dataAte,
+            @Param("status") StatusExecucao status
+    );
 }

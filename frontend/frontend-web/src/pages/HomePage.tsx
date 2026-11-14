@@ -13,6 +13,7 @@ import {
   listarHabitosDoDia,
   type HabitoDoDia,
 } from '../habito/api/habitoApi'
+import { useMinutosHabito } from '../habito/useMinutosHabito'
 import { AdicionarTarefaForm } from '../home/AdicionarTarefaForm'
 import { AjustarCapacidadeHoje } from '../home/AjustarCapacidadeHoje'
 import { BlocoCard } from '../home/BlocoCard'
@@ -51,6 +52,7 @@ function descricaoCabecalho(visao: VisaoHome, dataSelecionada: string, dataHoje:
 
 export function HomePage() {
   const toast = useToast()
+  const { pedirMinutos, dialog: minutosDialog } = useMinutosHabito()
   const { refrescarDoDia, registrarInicio } = useSessaoAtiva()
   const home = usePlanoDoDia()
   const {
@@ -157,6 +159,7 @@ export function HomePage() {
   return (
     <main className="home-page">
       {home.confirmDialog}
+      {minutosDialog}
       <PageHeader
         title={formatarDataIsoPorExtenso(dataSelecionada)}
         description={descricaoCabecalho(visao, dataSelecionada, dataHoje)}
@@ -437,10 +440,18 @@ export function HomePage() {
                                     disabled={pendente}
                                     onClick={() => {
                                       void (async () => {
+                                        const minutos = await pedirMinutos(
+                                          titulo,
+                                          item.bloco.duracaoMinutos,
+                                        )
+                                        if (minutos === null) {
+                                          return
+                                        }
                                         try {
                                           const execucao = await concluirHabitoDireto(
                                             habitoId,
                                             dataSelecionada,
+                                            minutos,
                                           )
                                           const xp = execucao.xp?.ganhoNesteRequest ?? 0
                                           toast.success(xp > 0 ? `+${xp} XP` : 'Hábito concluído')
