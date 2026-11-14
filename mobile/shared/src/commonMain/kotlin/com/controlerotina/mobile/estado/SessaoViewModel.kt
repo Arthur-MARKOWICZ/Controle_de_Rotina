@@ -36,6 +36,8 @@ data class FormLogin(
 class SessaoViewModel(
     private val auth: Autenticador,
     val escopo: CoroutineScope,
+    /** Roda depois de login ou restauração bem-sucedidos (ex.: reagendar lembretes). */
+    private val aoAutenticar: suspend () -> Unit = {},
     /** Apaga o que é do usuário (telas, sessão ativa local) ao sair ou ao expirar a sessão. */
     private val aoEncerrar: suspend () -> Unit = {},
 ) {
@@ -60,7 +62,10 @@ class SessaoViewModel(
         _estado.value = try {
             when {
                 !auth.temSessaoGuardada() -> EstadoApp.Login()
-                auth.restaurar() -> EstadoApp.Autenticado
+                auth.restaurar() -> {
+                    aoAutenticar()
+                    EstadoApp.Autenticado
+                }
                 else -> {
                     aoEncerrar()
                     EstadoApp.Login(MSG_SESSAO_EXPIRADA)
@@ -88,6 +93,7 @@ class SessaoViewModel(
         _form.update { it.copy(enviando = true, erro = null) }
         try {
             auth.login(atual.email.trim(), atual.senha)
+            aoAutenticar()
             _form.value = FormLogin()
             _estado.value = EstadoApp.Autenticado
         } catch (e: CancellationException) {

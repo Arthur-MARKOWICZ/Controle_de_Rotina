@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.controlerotina.mobile.AppDependencias
+import com.controlerotina.mobile.estado.Destino
 import com.controlerotina.mobile.api.ApiErro
 import kotlinx.coroutines.launch
 
@@ -39,6 +40,9 @@ fun PerfilTela(deps: AppDependencias, modifier: Modifier) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
+        OutlinedButton(onClick = { deps.navegacao.abrir(Destino.Lembretes) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Lembretes")
+        }
         OutlinedButton(
             onClick = {
                 saindo = true

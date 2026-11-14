@@ -163,11 +163,17 @@ data class Tarefa(
     val parentTitulo: String? = null,
 )
 
-/** Filtros de `GET /tarefas` que o app usa. Os status abertos são sempre enviados. */
+/**
+ * Filtros de `GET /tarefas` que o app usa. [status] padrão são os abertos.
+ * [prazoDe]/[prazoAte] são instantes ISO-8601 UTC; o backend trata os dois limites como inclusivos.
+ */
 data class FiltroTarefas(
     val somenteRaizes: Boolean = false,
     val parentId: String? = null,
     val projetoId: String? = null,
+    val status: List<StatusTarefa> = STATUS_ABERTOS,
+    val prazoDe: String? = null,
+    val prazoAte: String? = null,
 )
 
 @Serializable
@@ -176,6 +182,7 @@ data class PaginaTarefas(
     val number: Int = 0,
     val totalPages: Int = 0,
     val last: Boolean? = null,
+    val totalElements: Long? = null,
 ) {
     val ultima: Boolean get() = last ?: (number + 1 >= totalPages)
 }

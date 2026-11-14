@@ -35,4 +35,16 @@ class NavegacaoTest {
         assertEquals(Aba.TAREFAS, nav.aba.value)
         assertTrue(nav.pilha.value.isEmpty())
     }
+
+    @Test
+    fun lembretesEmpilhaSobrePerfilEVoltarRetornaAoPerfil() {
+        val nav = Navegacao()
+        nav.abrir(Destino.Perfil)
+        nav.abrir(Destino.Lembretes)
+        assertEquals(listOf(Destino.Perfil, Destino.Lembretes), nav.pilha.value)
+        nav.abrir(Destino.Lembretes)
+        assertEquals(2, nav.pilha.value.size, "abrir duas vezes não empilha duplicado")
+        assertEquals(true, nav.voltar())
+        assertEquals(Destino.Perfil, nav.pilha.value.last())
+    }
 }

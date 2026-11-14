@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.compose.foundation)

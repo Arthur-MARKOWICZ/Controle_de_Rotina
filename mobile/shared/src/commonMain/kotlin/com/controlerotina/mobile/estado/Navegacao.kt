@@ -17,6 +17,7 @@ enum class Aba(val rotulo: String) {
 /** Telas empilhadas por cima da aba atual (design D5). */
 sealed interface Destino {
     data object Perfil : Destino
+    data object Lembretes : Destino
     data class TarefaDetalhe(val id: String) : Destino
     data class ProjetoDetalhe(val id: String) : Destino
     data class DecidirDetalhe(val id: String) : Destino
