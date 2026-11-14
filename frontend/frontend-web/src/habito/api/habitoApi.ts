@@ -223,23 +223,69 @@ export async function iniciarHabitoAvulso(
   return readApiJson<ExecucaoResponse>(response)
 }
 
+/**
+ * Conclui o hábito sem timer. `minutos` é o tempo que o usuário diz ter dedicado;
+ * sem ele o backend usa a duração do hábito.
+ */
 export async function concluirHabitoDireto(
   habitoId: string,
   data?: string,
+  minutos?: number,
 ): Promise<ExecucaoResponse> {
   const params = new URLSearchParams()
   if (data) {
     params.set('data', data)
   }
   const query = params.toString()
+  const init: RequestInit =
+    minutos === undefined
+      ? { method: 'POST' }
+      : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ minutos }),
+        }
   const response = await apiFetch(
     query
       ? `/habitos/${habitoId}/concluir-direto?${query}`
       : `/habitos/${habitoId}/concluir-direto`,
-    { method: 'POST' },
+    init,
   )
   if (!response.ok) {
     throw await lerErroApi(response, 'Não foi possível concluir o hábito.')
   }
   return readApiJson<ExecucaoResponse>(response)
+}
+
+export type OrigemTempo = 'TIMER' | 'INFORMADO' | 'MISTO'
+
+export type HabitoHistoricoDia = {
+  data: string
+  minutosDedicados: number
+  metaMinutos: number
+  suficiente: boolean
+  origem: OrigemTempo
+}
+
+/** Cumprimentos do hábito por dia; sem datas, o backend usa os últimos 84 dias (BRT). */
+export async function buscarHistoricoHabito(
+  habitoId: string,
+  dataDe?: string,
+  dataAte?: string,
+): Promise<HabitoHistoricoDia[]> {
+  const params = new URLSearchParams()
+  if (dataDe) {
+    params.set('dataDe', dataDe)
+  }
+  if (dataAte) {
+    params.set('dataAte', dataAte)
+  }
+  const query = params.toString()
+  const response = await apiFetch(
+    query ? `/habitos/${habitoId}/historico?${query}` : `/habitos/${habitoId}/historico`,
+  )
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar o histórico.')
+  }
+  return readApiJson<HabitoHistoricoDia[]>(response)
 }

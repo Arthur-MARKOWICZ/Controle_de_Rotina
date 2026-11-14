@@ -163,9 +163,9 @@ class HabitoExecucaoAvulsaServiceTest {
         ResultadoConclusao conclusao = new ResultadoConclusao(
                 execucao(bloco.getId(), StatusExecucao.CONCLUIDO),
                 new XpConcessaoService.ResultadoConcessao(0, List.of(), 0, null));
-        when(execucaoService.concluirHabitoDiretoNoBloco(USUARIO, bloco, plano, habito)).thenReturn(conclusao);
+        when(execucaoService.concluirHabitoDiretoNoBloco(USUARIO, bloco, plano, habito, null)).thenReturn(conclusao);
 
-        assertThat(service.concluirDireto(USUARIO, HABITO_ID, TERCA)).isSameAs(conclusao);
+        assertThat(service.concluirDireto(USUARIO, HABITO_ID, TERCA, null)).isSameAs(conclusao);
         verify(slotAvulsoService, never()).materializar(any(), any(), any());
     }
 
@@ -179,7 +179,7 @@ class HabitoExecucaoAvulsaServiceTest {
         when(execucaoRepository.findByBlocoPlanoId(bloco.getId())).thenReturn(Optional.empty());
         when(habitoRepository.findByIdAndUsuarioId(HABITO_ID, USUARIO)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.concluirDireto(USUARIO, HABITO_ID, TERCA))
+        assertThatThrownBy(() -> service.concluirDireto(USUARIO, HABITO_ID, TERCA, null))
                 .isInstanceOf(HabitoNaoEncontradoException.class);
     }
 
@@ -195,9 +195,9 @@ class HabitoExecucaoAvulsaServiceTest {
         ResultadoConclusao conclusao = new ResultadoConclusao(
                 execucao(bloco.getId(), StatusExecucao.CONCLUIDO),
                 new XpConcessaoService.ResultadoConcessao(0, List.of(), 0, null));
-        when(execucaoService.concluirHabitoDiretoNoBloco(USUARIO, bloco, avulso, habito)).thenReturn(conclusao);
+        when(execucaoService.concluirHabitoDiretoNoBloco(USUARIO, bloco, avulso, habito, null)).thenReturn(conclusao);
 
-        assertThat(service.concluirDireto(USUARIO, HABITO_ID, TERCA)).isSameAs(conclusao);
+        assertThat(service.concluirDireto(USUARIO, HABITO_ID, TERCA, null)).isSameAs(conclusao);
     }
 
     private static Habito habito() {

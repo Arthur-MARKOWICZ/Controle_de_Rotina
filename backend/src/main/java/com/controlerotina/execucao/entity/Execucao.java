@@ -43,6 +43,9 @@ public class Execucao {
     @Column(name = "abortado_em")
     private Instant abortadoEm;
 
+    @Column(name = "minutos_informados")
+    private Integer minutosInformados;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -100,6 +103,11 @@ public class Execucao {
 
     public Instant getAbortadoEm() {
         return abortadoEm;
+    }
+
+    /** Minutos informados no concluir-direto de hábito; {@code null} quando o tempo vem do timer. */
+    public Integer getMinutosInformados() {
+        return minutosInformados;
     }
 
     public Instant getCreatedAt() {
@@ -166,6 +174,25 @@ public class Execucao {
                 agora,
                 agora
         );
+    }
+
+    /** Conclusão direta de hábito com os minutos informados pelo usuário. */
+    public static Execucao concluirDiretoNova(
+            UUID id,
+            UUID usuarioId,
+            UUID blocoPlanoId,
+            Instant agora,
+            int minutosInformados
+    ) {
+        Execucao execucao = concluirDiretoNova(id, usuarioId, blocoPlanoId, agora);
+        execucao.minutosInformados = minutosInformados;
+        return execucao;
+    }
+
+    /** Conclusão direta de hábito com os minutos informados pelo usuário. */
+    public void concluirDireto(Instant agora, int minutosInformados) {
+        concluirDireto(agora);
+        this.minutosInformados = minutosInformados;
     }
 
     public void concluirDireto(Instant agora) {

@@ -29,10 +29,21 @@ public final class XpMotor {
             return 0;
         }
         int decorridoMin = (int) Math.round(millis / 60_000.0);
-        if (decorridoMin >= duracaoBlocoMinutos * FRACAO_CREDITO_CHEIO) {
+        return minutosEfetivos(duracaoBlocoMinutos, decorridoMin);
+    }
+
+    /**
+     * Mesma regra do timer a partir de minutos já conhecidos (ex.: informados no concluir-direto):
+     * crédito cheio a partir de 80% da duração, senão os próprios minutos, com teto na duração.
+     */
+    public static int minutosEfetivos(int duracaoBlocoMinutos, int minutosDecorridos) {
+        if (duracaoBlocoMinutos <= 0 || minutosDecorridos <= 0) {
+            return 0;
+        }
+        if (minutosDecorridos >= duracaoBlocoMinutos * FRACAO_CREDITO_CHEIO) {
             return duracaoBlocoMinutos;
         }
-        return Math.min(duracaoBlocoMinutos, decorridoMin);
+        return Math.min(duracaoBlocoMinutos, minutosDecorridos);
     }
 
     public static int xpBloco(int minutosEfetivos, Prioridade prioridade) {

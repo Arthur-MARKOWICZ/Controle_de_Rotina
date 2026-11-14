@@ -28,12 +28,15 @@ import com.controlerotina.execucao.dto.ResultadoConclusao;
 import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.shared.dto.ReordenarRequest;
 import com.controlerotina.habito.dto.AtualizarHabitoRequest;
+import com.controlerotina.habito.dto.ConcluirHabitoDiretoRequest;
 import com.controlerotina.habito.dto.CriarHabitoRequest;
 import com.controlerotina.habito.dto.HabitoDoDiaResponse;
+import com.controlerotina.habito.dto.HabitoHistoricoDiaResponse;
 import com.controlerotina.habito.dto.HabitoResponse;
 import com.controlerotina.habito.entity.StatusHabito;
 import com.controlerotina.habito.service.HabitoDoDiaService;
 import com.controlerotina.habito.service.HabitoExecucaoAvulsaService;
+import com.controlerotina.habito.service.HabitoHistoricoService;
 import com.controlerotina.habito.service.HabitoService;
 import com.controlerotina.xp.dto.XpConclusaoResponse;
 
@@ -49,15 +52,18 @@ public class HabitoController {
     private final HabitoService habitoService;
     private final HabitoDoDiaService habitoDoDiaService;
     private final HabitoExecucaoAvulsaService habitoExecucaoAvulsaService;
+    private final HabitoHistoricoService habitoHistoricoService;
 
     public HabitoController(
             HabitoService habitoService,
             HabitoDoDiaService habitoDoDiaService,
-            HabitoExecucaoAvulsaService habitoExecucaoAvulsaService
+            HabitoExecucaoAvulsaService habitoExecucaoAvulsaService,
+            HabitoHistoricoService habitoHistoricoService
     ) {
         this.habitoService = habitoService;
         this.habitoDoDiaService = habitoDoDiaService;
         this.habitoExecucaoAvulsaService = habitoExecucaoAvulsaService;
+        this.habitoHistoricoService = habitoHistoricoService;
     }
 
     @PostMapping
@@ -111,10 +117,22 @@ public class HabitoController {
     public ExecucaoResponse concluirDireto(
             @AuthenticationPrincipal UUID usuarioId,
             @PathVariable UUID id,
-            @RequestParam(required = false) LocalDate data
+            @RequestParam(required = false) LocalDate data,
+            @RequestBody(required = false) ConcluirHabitoDiretoRequest body
     ) {
-        ResultadoConclusao resultado = habitoExecucaoAvulsaService.concluirDireto(usuarioId, id, data);
+        Integer minutos = body != null ? body.minutos() : null;
+        ResultadoConclusao resultado = habitoExecucaoAvulsaService.concluirDireto(usuarioId, id, data, minutos);
         return ExecucaoResponse.from(resultado.execucao(), XpConclusaoResponse.from(resultado.xp()));
+    }
+
+    @GetMapping("/{id}/historico")
+    public List<HabitoHistoricoDiaResponse> historico(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id,
+            @RequestParam(required = false) LocalDate dataDe,
+            @RequestParam(required = false) LocalDate dataAte
+    ) {
+        return habitoHistoricoService.listar(usuarioId, id, dataDe, dataAte);
     }
 
     @GetMapping("/{id}")

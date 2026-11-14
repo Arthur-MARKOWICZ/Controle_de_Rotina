@@ -337,9 +337,10 @@ describe('HabitosPage', () => {
       renderLista()
 
       await user.click(await screen.findByRole('button', { name: /concluir correr/i }))
+      await user.click(screen.getByRole('button', { name: 'Concluir' }))
 
       await waitFor(() => {
-        expect(habitoApi.concluirHabitoDireto).toHaveBeenCalledWith('h-correr', '2026-11-11')
+        expect(habitoApi.concluirHabitoDireto).toHaveBeenCalledWith('h-correr', '2026-11-11', 30)
       })
       expect(await screen.findByText('+10 XP')).toBeInTheDocument()
     })

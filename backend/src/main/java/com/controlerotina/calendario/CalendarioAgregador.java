@@ -2,7 +2,6 @@ package com.controlerotina.calendario;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -10,7 +9,7 @@ import java.util.UUID;
 import com.controlerotina.capacidade.entity.OrigemCapacidade;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.entity.StatusPlano;
-import com.controlerotina.shared.exception.IntervaloCapacidadeInvalidoException;
+import com.controlerotina.shared.periodo.IntervaloDatas;
 import com.controlerotina.tarefa.entity.Prioridade;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 
@@ -22,17 +21,7 @@ public final class CalendarioAgregador {
     }
 
     public static void validarIntervalo(LocalDate dataDe, LocalDate dataAte) {
-        if (dataDe == null || dataAte == null) {
-            throw new IntervaloCapacidadeInvalidoException("dataDe e dataAte são obrigatórios.");
-        }
-        if (dataAte.isBefore(dataDe)) {
-            throw new IntervaloCapacidadeInvalidoException("dataAte deve ser maior ou igual a dataDe.");
-        }
-        if (ChronoUnit.DAYS.between(dataDe, dataAte) + 1 > INTERVALO_MAXIMO_DIAS) {
-            throw new IntervaloCapacidadeInvalidoException(
-                    "Intervalo máximo permitido é de " + INTERVALO_MAXIMO_DIAS + " dias."
-            );
-        }
+        IntervaloDatas.validar(dataDe, dataAte, INTERVALO_MAXIMO_DIAS);
     }
 
     public static DiaMontado montarDia(

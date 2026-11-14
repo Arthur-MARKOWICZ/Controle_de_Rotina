@@ -141,9 +141,61 @@ describe('HabitoDoDiaLista', () => {
     renderLista([pendente], onAtualizado)
 
     await user.click(screen.getByRole('button', { name: /concluir direto correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
 
     expect(await screen.findByText('Falha ao concluir')).toBeInTheDocument()
     expect(onAtualizado).not.toHaveBeenCalled()
+  })
+
+  it('concluir direto envia os minutos confirmados no diálogo', async () => {
+    const onAtualizado = vi.fn()
+    vi.mocked(habitoApi.concluirHabitoDireto).mockResolvedValue({
+      id: 'e-1',
+      blocoPlanoId: 'b-1',
+      status: 'CONCLUIDO',
+      iniciadoEm: null,
+      concluidoEm: '2026-11-11T15:20:00Z',
+      abortadoEm: null,
+    })
+    vi.mocked(habitoApi.listarHabitosDoDia).mockResolvedValue([])
+    const user = userEvent.setup()
+    renderLista([pendente], onAtualizado)
+
+    await user.click(screen.getByRole('button', { name: /concluir direto correr/i }))
+    await user.clear(screen.getByLabelText('Minutos dedicados'))
+    await user.type(screen.getByLabelText('Minutos dedicados'), '15')
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+    await waitFor(() => expect(onAtualizado).toHaveBeenCalled())
+    expect(vi.mocked(habitoApi.concluirHabitoDireto).mock.calls[0][2]).toBe(15)
+  })
+
+  it('cancelar o diálogo não chama a API nem recarrega', async () => {
+    const onAtualizado = vi.fn()
+    const user = userEvent.setup()
+    renderLista([pendente], onAtualizado)
+
+    await user.click(screen.getByRole('button', { name: /concluir direto correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(habitoApi.concluirHabitoDireto).not.toHaveBeenCalled()
+    expect(onAtualizado).not.toHaveBeenCalled()
+  })
+
+  it('400 de minutos inválidos mostra o erro e mantém o hábito pendente', async () => {
+    const onAtualizado = vi.fn()
+    vi.mocked(habitoApi.concluirHabitoDireto).mockRejectedValue(
+      new ApiError(400, 'Minutos informados inválidos'),
+    )
+    const user = userEvent.setup()
+    renderLista([pendente], onAtualizado)
+
+    await user.click(screen.getByRole('button', { name: /concluir direto correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+    expect(await screen.findByText('Minutos informados inválidos')).toBeInTheDocument()
+    expect(onAtualizado).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /concluir direto correr/i })).toBeInTheDocument()
   })
 
   it('mostra toast quando abortar falha', async () => {

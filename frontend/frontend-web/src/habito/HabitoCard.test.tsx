@@ -173,10 +173,60 @@ describe('HabitoCard', () => {
     renderCard()
 
     await user.click(await screen.findByRole('button', { name: /concluir correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
 
     expect(await screen.findByText('Falha ao concluir')).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /concluir correr/i })).not.toBeDisabled()
     })
+  })
+
+  it('pede os minutos e envia o valor informado ao concluir direto', async () => {
+    vi.mocked(habitoApi.concluirHabitoDireto).mockResolvedValue({
+      id: 'e-1',
+      blocoPlanoId: 'b-1',
+      status: 'CONCLUIDO',
+      iniciadoEm: null,
+      concluidoEm: '2026-11-11T15:20:00Z',
+      abortadoEm: null,
+    })
+    const user = userEvent.setup()
+    renderCard()
+
+    await user.click(await screen.findByRole('button', { name: /concluir correr/i }))
+    const campo = screen.getByLabelText('Minutos dedicados')
+    expect(campo).toHaveValue(30)
+    await user.clear(campo)
+    await user.type(campo, '20')
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+    await waitFor(() => {
+      expect(habitoApi.concluirHabitoDireto).toHaveBeenCalledWith('h-1', expect.any(String), 20)
+    })
+  })
+
+  it('cancelar o diálogo de minutos não conclui o hábito', async () => {
+    const user = userEvent.setup()
+    renderCard()
+
+    await user.click(await screen.findByRole('button', { name: /concluir correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(habitoApi.concluirHabitoDireto).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Minutos dedicados')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /concluir correr/i })).not.toBeDisabled()
+  })
+
+  it('mostra a mensagem do servidor quando os minutos são rejeitados (400)', async () => {
+    vi.mocked(habitoApi.concluirHabitoDireto).mockRejectedValue(
+      new ApiError(400, 'Minutos informados inválidos'),
+    )
+    const user = userEvent.setup()
+    renderCard()
+
+    await user.click(await screen.findByRole('button', { name: /concluir correr/i }))
+    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+    expect(await screen.findByText('Minutos informados inválidos')).toBeInTheDocument()
   })
 })

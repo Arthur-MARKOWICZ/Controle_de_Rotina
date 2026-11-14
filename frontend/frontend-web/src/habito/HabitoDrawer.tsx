@@ -16,6 +16,7 @@ import {
   type HabitoResponse,
 } from './api/habitoApi'
 import { HabitoCampos } from './HabitoCampos'
+import { HabitoHistoricoSecao } from './HabitoHistoricoSecao'
 import {
   HABITO_FORM_VAZIO,
   primeiroErroHabito,
@@ -339,6 +340,7 @@ export function HabitoDrawer() {
             ) : null}
           </form>
         ) : null}
+        {modo === 'editar' && id ? <HabitoHistoricoSecao habitoId={id} /> : null}
       </Drawer>
       {confirmDialog}
     </>

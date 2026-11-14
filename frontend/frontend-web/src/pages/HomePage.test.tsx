@@ -1375,4 +1375,70 @@ describe('HomePage — plano do dia', () => {
       expect(screen.queryByText(/^espera/i)).not.toBeInTheDocument()
     })
   })
+
+  describe('concluir direto de bloco de hábito', () => {
+    const itemHabito: ItemExecucaoResponse = {
+      ...itemExecucaoBase,
+      bloco: { id: 'b-h', duracaoMinutos: 20, ordem: 1 },
+      tarefaResumo: null,
+      habitoResumo: { id: 'h-1', titulo: 'Meditar', horarioPreferencial: null, streakAtual: 2 },
+    }
+
+    beforeEach(() => {
+      vi.mocked(habitoApi.concluirHabitoDireto).mockReset()
+      vi.mocked(habitoApi.listarHabitosDoDia).mockReset().mockResolvedValue([])
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({ ...planoBase, status: 'APROVADO' })
+      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
+        planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
+        itens: [itemHabito],
+      })
+    })
+
+    it('pede os minutos com a duração do bloco e envia o valor confirmado', async () => {
+      vi.mocked(habitoApi.concluirHabitoDireto).mockResolvedValue({
+        id: 'e-1',
+        blocoPlanoId: 'b-h',
+        status: 'CONCLUIDO',
+        iniciadoEm: null,
+        concluidoEm: '2026-10-20T12:00:00Z',
+        abortadoEm: null,
+      })
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /concluir direto meditar/i }))
+      expect(screen.getByLabelText('Minutos dedicados')).toHaveValue(20)
+      await user.clear(screen.getByLabelText('Minutos dedicados'))
+      await user.type(screen.getByLabelText('Minutos dedicados'), '12')
+      await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+      await waitFor(() => {
+        expect(habitoApi.concluirHabitoDireto).toHaveBeenCalledWith('h-1', '2026-10-20', 12)
+      })
+    })
+
+    it('cancelar o diálogo não conclui o bloco', async () => {
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /concluir direto meditar/i }))
+      await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+      expect(habitoApi.concluirHabitoDireto).not.toHaveBeenCalled()
+    })
+
+    it('mostra o erro do servidor quando os minutos são rejeitados', async () => {
+      vi.mocked(habitoApi.concluirHabitoDireto).mockRejectedValue(
+        new Error('Minutos informados inválidos'),
+      )
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /concluir direto meditar/i }))
+      await user.click(screen.getByRole('button', { name: 'Concluir' }))
+
+      expect(await screen.findByText('Minutos informados inválidos')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /concluir direto meditar/i })).toBeInTheDocument()
+    })
+  })
 })

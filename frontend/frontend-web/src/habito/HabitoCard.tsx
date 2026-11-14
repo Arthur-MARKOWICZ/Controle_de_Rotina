@@ -18,6 +18,7 @@ import {
   type StatusHabito,
 } from './api/habitoApi'
 import type { HabitoDrawerState } from './HabitoDrawer'
+import { useMinutosHabito } from './useMinutosHabito'
 import { rotuloDiasSemana } from './validation/habitoForm'
 
 const DRAWER_STATE: HabitoDrawerState = { daLista: true }
@@ -58,6 +59,7 @@ export function HabitoCard({
   itemRef,
   arrastando = false,
 }: Props) {
+  const { pedirMinutos, dialog: minutosDialog } = useMinutosHabito()
   const toast = useToast()
   const { progresso, aplicarProgresso } = useXpProgress()
   const { registrarInicio, refrescarDoDia, sessao, limpar } = useSessaoAtiva()
@@ -80,6 +82,13 @@ export function HabitoCard({
   }
 
   async function handleAcao(acao: 'iniciar' | 'concluir') {
+    let minutos: number | null = null
+    if (acao === 'concluir') {
+      minutos = await pedirMinutos(habito.titulo, habito.duracaoMinutos)
+      if (minutos === null) {
+        return
+      }
+    }
     setOcupado(true)
     try {
       const hoje = dataHojeIso()
@@ -89,7 +98,7 @@ export function HabitoCard({
         setExecucaoAtivaId(execucao.id)
         toast.success('Sessão iniciada')
       } else {
-        const execucao = await concluirHabitoDireto(habito.id, hoje)
+        const execucao = await concluirHabitoDireto(habito.id, hoje, minutos ?? undefined)
         if (execucao.xp) {
           creditarXp(execucao.xp)
         } else {
@@ -290,6 +299,7 @@ export function HabitoCard({
           </button>
         ) : null}
       </div>
+      {minutosDialog}
     </li>
   )
 }

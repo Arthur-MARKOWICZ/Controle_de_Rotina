@@ -224,6 +224,7 @@ Correção: hábito **visível/executável sem plano aprovado** (calendário + C
 | 46b | [`ui-habitos-correcoes.md`](../plans/ui/ui-habitos-correcoes.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `ui-habitos.md`; `habitos-correcoes.md` (B4/B6) | Conflito CTA, copy dias, streak Home, form |
 | 47 | [`habito-sem-plano.md`](../plans/negocio/habito-sem-plano.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `habitos.md` + correções ideais, execução, XP, `calendario/calendario.md` | Bloco implícito `HABITO_AVULSO`; calendário `habitosDoDia`; iniciar / concluir-direto |
 | 48 | [`ui-habito-calendario.md`](../plans/ui/ui-habito-calendario.md) | [#43](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/43) | pendente | `habito-sem-plano.md`; calendário UI; Home | Lente Hábitos, painel, CTAs, Home sem aprovado |
+| 48a | OpenSpec [`historico-habitos`](../openspec/changes/historico-habitos/) | [#84](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/84) | feito | `habito-sem-plano.md` (concluir-direto), execução, XP | Histórico por hábito (dia, minutos, meta, suficiente); minutos no concluir direto |
 
 ```text
 núcleo + regras planner → (calendario / projetos) → habitos (#43) → ui-habitos
