@@ -125,4 +125,48 @@ class SessaoViewModelTest {
         assertEquals(1, limpezas)
         assertEquals(EstadoApp.Login(MSG_SESSAO_EXPIRADA), vm.estado.value)
     }
+
+    @Test
+    fun loginValidoDeveChamarAoAutenticarUmaVez() = runTest {
+        var autenticacoes = 0
+        val vm = SessaoViewModel(auth, backgroundScope, aoAutenticar = { autenticacoes++ })
+        vm.alterarEmail("x@y.z")
+        vm.alterarSenha("certa")
+        vm.entrar()
+        assertEquals(1, autenticacoes)
+    }
+
+    @Test
+    fun restauracaoValidaNoBootDeveChamarAoAutenticar() = runTest {
+        auth.guardada = true
+        var autenticacoes = 0
+        val vm = SessaoViewModel(auth, backgroundScope, aoAutenticar = { autenticacoes++ })
+        vm.iniciar()
+        assertEquals(1, autenticacoes)
+    }
+
+    @Test
+    fun naoDeveChamarAoAutenticarQuandoLoginFalha() = runTest {
+        auth.loginFalha = ApiErro.Http(401, null)
+        var autenticacoes = 0
+        val vm = SessaoViewModel(auth, backgroundScope, aoAutenticar = { autenticacoes++ })
+        vm.alterarEmail("x@y.z")
+        vm.alterarSenha("errada")
+        vm.entrar()
+        assertEquals(0, autenticacoes)
+        assertEquals(MSG_CREDENCIAIS, vm.form.value.erro)
+    }
+
+    @Test
+    fun naoDeveChamarAoAutenticarQuandoSessaoGuardadaInvalidaOuSemRede() = runTest {
+        auth.guardada = true
+        var autenticacoes = 0
+        auth.restaura = { false }
+        SessaoViewModel(auth, backgroundScope, aoAutenticar = { autenticacoes++ }).iniciar()
+        auth.restaura = { throw ApiErro.Rede(RuntimeException()) }
+        val vm = SessaoViewModel(auth, backgroundScope, aoAutenticar = { autenticacoes++ })
+        vm.iniciar()
+        assertEquals(0, autenticacoes)
+        assertEquals(EstadoApp.SemConexaoNoBoot, vm.estado.value)
+    }
 }

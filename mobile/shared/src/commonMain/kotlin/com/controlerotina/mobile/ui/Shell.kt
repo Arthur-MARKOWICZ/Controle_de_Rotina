@@ -115,6 +115,7 @@ fun Shell(deps: AppDependencias) {
                 Aba.DECIDIR -> DecidirTela(deps.decidirVm, deps, mod)
             }
             Destino.Perfil -> PerfilTela(deps, mod)
+            Destino.Lembretes -> LembretesTela(deps, mod)
             is Destino.TarefaDetalhe -> TarefaDetalheTela(destino.id, deps, mod)
             is Destino.ProjetoDetalhe -> ProjetoDetalheTela(destino.id, deps, mod)
             is Destino.DecidirDetalhe -> DecidirDetalheTela(destino.id, deps, mod)

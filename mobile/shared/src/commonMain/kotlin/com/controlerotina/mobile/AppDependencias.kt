@@ -16,6 +16,13 @@ import com.controlerotina.mobile.estado.HojeViewModel
 import com.controlerotina.mobile.estado.SessaoAtivaStore
 import com.controlerotina.mobile.estado.SessaoViewModel
 import com.controlerotina.mobile.estado.TarefasViewModel
+import com.controlerotina.mobile.lembrete.AgendadorLembretes
+import com.controlerotina.mobile.lembrete.ExecutorLembrete
+import com.controlerotina.mobile.lembrete.LembretesViewModel
+import com.controlerotina.mobile.lembrete.Notificador
+import com.controlerotina.mobile.lembrete.PermissaoNotificacao
+import com.controlerotina.mobile.lembrete.PreferenciasLembretes
+import com.controlerotina.mobile.lembrete.SemNotificacao
 import com.controlerotina.mobile.sessao.PreferenciasLocais
 import com.controlerotina.mobile.sessao.SecureTokenStore
 import io.ktor.client.engine.HttpClientEngine
@@ -25,6 +32,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.TimeZone
+import kotlin.time.Clock
 
 /**
  * DI manual (design D5): um grafo criado no Application e vivo enquanto o processo vive,
@@ -35,6 +44,12 @@ class AppDependencias(
     baseUrl: String,
     tokenStore: SecureTokenStore,
     preferencias: PreferenciasLocais,
+    private val notificador: Notificador = SemNotificacao,
+    private val agendador: AgendadorLembretes = SemNotificacao,
+    permissao: PermissaoNotificacao = SemNotificacao,
+    /** Relógio e fuso dos lembretes; os testes passam valores fixos. */
+    clock: Clock = Clock.System,
+    fuso: () -> TimeZone = { TimeZone.currentSystemDefault() },
     val escopo: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
 ) {
     private val http = ApiHttp(engine, baseUrl, tokenStore)
@@ -72,8 +87,23 @@ class AppDependencias(
         aoPromover = { tarefasVm.recarregar() },
     )
 
+    private val preferenciasLembretes = PreferenciasLembretes(preferencias)
+    val lembretesVm = LembretesViewModel(preferenciasLembretes, agendador, permissao, clock, fuso)
+
+    /** Usado pelo worker de lembrete no mesmo processo: mesmo `ApiHttp`, mesmo Mutex de refresh (design L2). */
+    val executorLembrete = ExecutorLembrete(api, preferenciasLembretes, notificador, agendador, clock, fuso)
+
     // Logout ou sessão expirada: nada do usuário anterior pode aparecer para o próximo login.
-    val sessao = SessaoViewModel(http, escopo) {
+    val sessao = SessaoViewModel(
+        http,
+        escopo,
+        aoAutenticar = { lembretesVm.reagendarLigados() },
+        aoEncerrar = ::encerrarSessaoLocal,
+    )
+
+    private suspend fun encerrarSessaoLocal() {
+        agendador.cancelarTodos()
+        notificador.limparTodas()
         sessaoAtiva.limpar()
         hojeVm.limpar()
         tarefasVm.limpar()

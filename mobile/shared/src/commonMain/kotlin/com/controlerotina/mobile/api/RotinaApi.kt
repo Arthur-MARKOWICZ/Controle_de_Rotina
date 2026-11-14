@@ -86,10 +86,12 @@ class KtorRotinaApi(private val http: ApiHttp) : RotinaApi {
         mapOf(
             "page" to pagina,
             "size" to tamanho,
-            "status" to STATUS_ABERTOS.map { it.name },
+            "status" to filtro.status.map { it.name },
             "somenteRaizes" to filtro.somenteRaizes.takeIf { it },
             "parentId" to filtro.parentId,
             "projetoId" to filtro.projetoId,
+            "prazoDe" to filtro.prazoDe,
+            "prazoAte" to filtro.prazoAte,
         ),
     )
 
