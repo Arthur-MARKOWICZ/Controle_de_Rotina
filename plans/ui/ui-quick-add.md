@@ -86,3 +86,28 @@ Sem entity nova. Ajuste de validação em `Tarefa`:
 ```text
 B1 → F1 → F2
 ```
+
+---
+
+## Linguagem curta (issue #74)
+
+Especificado em [`openspec/changes/quick-add-linguagem-curta`](../../openspec/changes/quick-add-linguagem-curta/). O quick add e o inline add interpretam tokens no campo de título; tudo o que foi interpretado aparece como **chip** antes de salvar.
+
+| Token | Exemplos | Resultado |
+|-------|----------|-----------|
+| Duração | `2h`, `30min`, `90m`, `1h30` | `duracaoMinutos` (≥ 15 e múltiplo de 15; senão o chip mostra erro e bloqueia o envio) |
+| Prazo | `hoje`, `amanhã`, `seg`…`dom` (`sexta`, `sexta-feira`, `sáb`), `dd/mm` | 23:59 BRT do dia |
+| Prioridade | `!alta`, `!media`/`!média`, `!baixa` | `prioridade` |
+| Tag | `#faculdade` | `tagIds`; tag inexistente vira chip "criar #nome?" e só é criada se confirmada |
+
+Regras:
+
+- **Dia da semana = sempre a próxima ocorrência.** Digitar o dia de hoje cai 7 dias depois (use `hoje` para hoje). `dd/mm` já passado vai para o ano seguinte; data inexistente fica no título.
+- Só conta palavra inteira; token repetido: vale o último. O campo aceita 200 caracteres; o limite de 120 vale só para o título restante.
+- Tags casam ignorando maiúsculas, mas não acentos (`#ciencia` ≠ `Ciência`), como a unicidade de nome no servidor.
+- **Escape:** remover o chip devolve o texto ao título (e ele não é reinterpretado até a próxima criação); `\2h` / `\#1` ficam literais.
+- No inline add o token atualiza o select de prioridade/duração; mexer no select depois descarta o token.
+- "Mais detalhes" leva título, duração, prazo, prioridade e as tags existentes ao formulário completo.
+
+Código: `src/tarefa/quickAdd/` (`interpretarQuickAdd`, `QuickAddChips`, `useQuickAdd`) e `src/tarefa/dataCivilBrt.ts`.
+

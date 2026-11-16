@@ -79,6 +79,7 @@ Ordem alinhada à issue pai e subtarefas #2–#13. Um arquivo de plano por subta
 | 12 | [`ui-revisao-rascunho.md`](../plans/ui/ui-revisao-rascunho.md) | [#6](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/6) | feito | home-agenda, estados | Diferencial: revisar e aprovar |
 | 13 | [`ui-xp-feedback.md`](../plans/ui/ui-xp-feedback.md) | [#4](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/4) | feito | xp, layout, estados | Fecha F1–F2 + enrich `/me` e concluir |
 | 14 | [`ui-quick-add.md`](../plans/ui/ui-quick-add.md) | [#7](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/7) | feito | tarefa, estados | Criação rápida |
+| 14a | OpenSpec [`quick-add-linguagem-curta`](../openspec/changes/quick-add-linguagem-curta/) | [#74](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/74) | em andamento | quick-add, tags | Linguagem curta no quick add / inline add (duração, prazo, prioridade, tag) com chips |
 | 15 | [`ui-lista-tarefas.md`](../plans/ui/ui-lista-tarefas.md) | [#8](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/8) | feito | quick-add, estados | Lista agrupada + URL + desfazer |
 | 16 | [`ui-capacidade-visual.md`](../plans/ui/ui-capacidade-visual.md) | [#9](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/9) | feito | capacidade, home | Semana visual + ajuste do dia |
 | 17 | [`ui-historico-grafico.md`](../plans/ui/ui-historico-grafico.md) | [#10](https://github.com/Arthur-MARKOWICZ/Controle_de_Rotina/issues/10) | feito | historico | Gráfico + vs período anterior |

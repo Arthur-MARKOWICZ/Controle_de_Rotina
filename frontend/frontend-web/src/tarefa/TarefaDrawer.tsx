@@ -46,6 +46,12 @@ export type TarefaDrawerState = {
   daLista?: boolean
   /** Título pré-preenchido (ex.: vindo do quick-add). */
   titulo?: string
+  /** Valores interpretados no quick-add (só em modo criar). */
+  duracaoMinutos?: number
+  /** Instante ISO. */
+  prazo?: string
+  prioridade?: Prioridade
+  tags?: TagResumo[]
 }
 
 type Snapshot = { values: TarefaFormValues; projetoId: string; tagIds: string[] }
@@ -87,15 +93,21 @@ export function TarefaDrawer() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [inicial, setInicial] = useState<Snapshot>(() => ({
-    values: { ...VAZIO, titulo: estado.titulo ?? '' },
+    values: {
+      ...VAZIO,
+      titulo: estado.titulo ?? '',
+      prioridade: estado.prioridade ?? '',
+      prazo: instantParaDatetimeLocal(estado.prazo),
+      duracaoMinutos: estado.duracaoMinutos ?? '',
+    },
     projetoId: '',
-    tagIds: [],
+    tagIds: estado.tags?.map((tag) => tag.id) ?? [],
   }))
   const [values, setValues] = useState<TarefaFormValues>(inicial.values)
   const [projetoId, setProjetoId] = useState('')
   const [projetoNomeVinculado, setProjetoNomeVinculado] = useState<string | null>(null)
-  const [tagIds, setTagIds] = useState<string[]>([])
-  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
+  const [tagIds, setTagIds] = useState<string[]>(inicial.tagIds)
+  const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>(estado.tags ?? [])
   const [tarefa, setTarefa] = useState<TarefaResponse | null>(null)
   const [esperas, setEsperas] = useState<EsperaResumo[]>([])
   const [carregando, setCarregando] = useState(modo === 'editar')

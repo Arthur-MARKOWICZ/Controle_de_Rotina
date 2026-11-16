@@ -3,16 +3,21 @@ import { useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../auth/api/authApi'
 import { useToast } from '../feedback/ToastProvider'
-import { criarTarefa } from './api/tarefaApi'
+import { criarTarefa, type CriarTarefaRequest } from './api/tarefaApi'
+import { ERRO_TITULO_LONGO, TEXTO_MAXIMO, TITULO_MAXIMO } from './quickAdd/interpretarQuickAdd'
+import { QuickAddChips } from './quickAdd/QuickAddChips'
+import { camposDoResultado, useQuickAdd } from './quickAdd/useQuickAdd'
 import type { TarefaDrawerState } from './TarefaDrawer'
 
 type Props = {
   open: boolean
   onClose: () => void
   onCriada?: () => void
+  /** Instante de referência para resolver datas (testes). */
+  referencia?: Date
 }
 
-export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
+export function QuickAddTarefaDialog({ open, onClose, onCriada, referencia }: Props) {
   const navigate = useNavigate()
   const toast = useToast()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -21,6 +26,8 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
   const [erroTitulo, setErroTitulo] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [erroApi, setErroApi] = useState<string | null>(null)
+  const { resultado, confirmadas, rejeitar, alternarTag, resetar, resolverTagIds, tagsExistentes } =
+    useQuickAdd({ texto: titulo, ativo: open, referencia })
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -44,7 +51,8 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
     setErroTitulo(null)
     setErroApi(null)
     setEnviando(false)
-  }, [open])
+    resetar()
+  }, [open, resetar])
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -60,7 +68,11 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
   }, [onClose])
 
   function abrirMaisDetalhes() {
-    const state: TarefaDrawerState = { titulo }
+    const state: TarefaDrawerState = {
+      titulo: resultado.titulo,
+      ...camposDoResultado(resultado),
+      ...(tagsExistentes.length ? { tags: tagsExistentes } : {}),
+    }
     onClose()
     navigate('/tarefas/nova', { state })
   }
@@ -69,16 +81,28 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
     event.preventDefault()
     setErroApi(null)
 
-    const texto = titulo.trim()
+    const texto = resultado.titulo.trim()
     if (!texto) {
       setErroTitulo('Informe um título.')
       return
     }
+    if (texto.length > TITULO_MAXIMO) {
+      setErroTitulo(ERRO_TITULO_LONGO)
+      return
+    }
     setErroTitulo(null)
+    if (resultado.duracao?.erro) {
+      return
+    }
 
     setEnviando(true)
     try {
-      const criada = await criarTarefa({ titulo: texto })
+      const tagIds = await resolverTagIds()
+      const body: CriarTarefaRequest = { titulo: texto, ...camposDoResultado(resultado) }
+      if (tagIds.length) {
+        body.tagIds = tagIds
+      }
+      const criada = await criarTarefa(body)
       toast.success('Tarefa criada', {
         action: {
           label: 'Abrir',
@@ -115,7 +139,7 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
             id="quick-titulo"
             name="titulo"
             type="text"
-            maxLength={120}
+            maxLength={TEXTO_MAXIMO}
             value={titulo}
             onChange={(e) => {
               setTitulo(e.target.value)
@@ -123,7 +147,15 @@ export function QuickAddTarefaDialog({ open, onClose, onCriada }: Props) {
             }}
             aria-invalid={Boolean(erroTitulo)}
             aria-describedby={erroTitulo ? 'quick-titulo-erro' : undefined}
+            placeholder="Ex.: Estudar 2h sex !alta #faculdade"
             autoFocus
+          />
+          <QuickAddChips
+            tokens={resultado.tokens}
+            tagsConfirmadas={confirmadas}
+            onRemover={rejeitar}
+            onAlternarTag={alternarTag}
+            disabled={enviando}
           />
           {erroTitulo ? (
             <p id="quick-titulo-erro" className="field-error" role="alert">

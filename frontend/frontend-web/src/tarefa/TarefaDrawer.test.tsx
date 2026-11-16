@@ -8,9 +8,11 @@ import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { QuickAddProvider, useQuickAdd } from '../layout/QuickAddContext'
 import * as projetoApi from '../projeto/api/projetoApi'
+import * as tagApi from '../tag/api/tagApi'
 import { XpProgressProvider } from '../xp/XpProgressContext'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
+import { adicionarDiasCivil, fimDoDiaBrtIso, partesCivisBrt } from './dataCivilBrt'
 import { TarefasPage } from './pages/TarefasPage'
 import { TarefaDrawer } from './TarefaDrawer'
 
@@ -436,6 +438,45 @@ describe('TarefaDrawer', () => {
       expect(drawer(/nova tarefa/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/^título$/i)).toHaveValue('Ler artigo')
       expect(screen.getByRole('button', { name: /adicionar descrição/i })).toBeInTheDocument()
+    })
+
+    it('quick-add "Mais detalhes" pré-preenche os valores interpretados e só leva tags existentes (#74)', async () => {
+      const faculdade = { id: 'tag-fac', nome: 'Faculdade', cor: '#123456' }
+      vi.mocked(tagApi.listarTags).mockResolvedValue([faculdade])
+      vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina([]))
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefa)
+      const user = userEvent.setup()
+      renderApp('/tarefas')
+
+      await user.click(await screen.findByRole('button', { name: /abrir quick-add teste/i }))
+      const quickAdd = screen.getByRole('dialog', { name: /nova tarefa/i })
+      await user.type(
+        within(quickAdd).getByLabelText(/^título$/i),
+        'Estudar 2h amanhã !alta #faculdade #nova',
+      )
+      await within(quickAdd).findByText('#Faculdade')
+      await user.click(within(quickAdd).getByRole('button', { name: /mais detalhes/i }))
+
+      expect(drawer(/nova tarefa/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^título$/i)).toHaveValue('Estudar')
+      expect(screen.getByLabelText(/^prioridade$/i)).toHaveValue('ALTA')
+      expect(screen.getByLabelText(/duração/i)).toHaveValue(120)
+      await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+
+      const hoje = partesCivisBrt(new Date())
+      const amanha = adicionarDiasCivil(hoje.y, hoje.m, hoje.d, 1)
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith(
+          expect.objectContaining({
+            titulo: 'Estudar',
+            prioridade: 'ALTA',
+            duracaoMinutos: 120,
+            prazo: fimDoDiaBrtIso(amanha.y, amanha.m, amanha.d),
+            tagIds: ['tag-fac'],
+          }),
+        )
+      })
+      expect(tagApi.criarTag).not.toHaveBeenCalled()
     })
   })
 
