@@ -64,11 +64,10 @@ export function HabitoCard({
   const { progresso, aplicarProgresso } = useXpProgress()
   const { registrarInicio, refrescarDoDia, sessao, limpar } = useSessaoAtiva()
   const [ocupado, setOcupado] = useState(false)
-  const [execucaoAtivaId, setExecucaoAtivaId] = useState<string | null>(null)
   const dias = rotuloDiasSemana(habito.diasSemana)
   const podeSessao = podeSessaoHabito(habito)
-  const execucaoId =
-    execucaoAtivaId ?? (sessao?.habitoId === habito.id ? sessao.execucaoId : null)
+  // Fonte única: a sessão ativa do contexto, reconstruída do servidor (sobrevive ao F5).
+  const execucaoId = sessao?.habitoId === habito.id ? sessao.execucaoId : null
   const emAndamento = execucaoId != null
   const pendente = ocupado || acaoId === habito.id
   const destino = `/habitos/${habito.id}`
@@ -95,7 +94,6 @@ export function HabitoCard({
       if (acao === 'iniciar') {
         const execucao = await iniciarHabitoAvulso(habito.id, hoje)
         registrarInicio(habito.titulo, habito.duracaoMinutos, execucao, { habitoId: habito.id })
-        setExecucaoAtivaId(execucao.id)
         toast.success('Sessão iniciada')
       } else {
         const execucao = await concluirHabitoDireto(habito.id, hoje, minutos ?? undefined)
@@ -132,7 +130,6 @@ export function HabitoCard({
       } else {
         toast.success('Sessão concluída')
       }
-      setExecucaoAtivaId(null)
       limpar()
       await refrescarDoDia()
     } catch (error) {
@@ -151,7 +148,6 @@ export function HabitoCard({
     try {
       await abortarExecucao(execucaoId)
       toast.success('Sessão pausada')
-      setExecucaoAtivaId(null)
       limpar()
       await refrescarDoDia()
     } catch (error) {

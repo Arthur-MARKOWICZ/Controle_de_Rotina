@@ -107,7 +107,7 @@ Sem prefixo HTTP novo (reusa `/habitos`, `/execucoes`, `/calendario`). Proxy já
 1. **POST /habitos/{id}/iniciar**  
    - Query: `data` (`LocalDate`, opcional; default hoje BRT).  
    - Materializa slot avulso.  
-   - Se execução do bloco avulso já `EM_ANDAMENTO` → **409**.  
+   - Se a execução do bloco escolhido (aberto no aprovado ou avulso) já está `EM_ANDAMENTO` → **200** com a execução existente (mesmo `id` e `iniciadoEm`), sem criar nada. Retoma a sessão quando o front está desatualizado (F5, outra aba). Antes era 409; `POST /execucoes/iniciar` continua 409 (change `sessao-ativa-persistente-habito`).  
    - Se já `CONCLUIDO` → **409**.  
    - Se `ABORTADO` ou ausente → inicia (mesmo espírito de `execucao.md`).  
    - 200: `ExecucaoResponse` (enrich `habitoResumo`).
@@ -136,6 +136,12 @@ Sem prefixo HTTP novo (reusa `/habitos`, `/execucoes`, `/calendario`). Proxy já
 5. **GET /execucoes?data=**  
    - Continua listando só blocos do plano `APROVADO` corrente (tarefas + hábitos no plano).  
    - Hábitos avulsos **não** misturam nesta lista (Home usa `GET /habitos/do-dia` + execuções do aprovado).
+
+6. **GET /execucoes/ativa** (change `sessao-ativa-persistente-habito`)  
+   - Sessão em andamento do usuário em **qualquer** plano (`APROVADO` corrente, `HABITO_AVULSO`, `TAREFA_AVULSA`), sem filtro de data (cobre sessão que atravessa a meia-noite).  
+   - 200: item no shape de `GET /execucoes` (`bloco`, `tarefaResumo`, `habitoResumo`, `execucao`); com mais de uma, a de `iniciadoEm` mais recente. 204 quando não há.  
+   - Ignora execução em plano aprovado substituído (concluir/abortar não seriam aceitos).  
+   - É a fonte da barra global de sessão no front (`SessaoAtivaContext`): a sessão é reconstruída do servidor ao carregar a app, então sobrevive ao F5.
 
 ### Calendário (extensão — sem path novo)
 

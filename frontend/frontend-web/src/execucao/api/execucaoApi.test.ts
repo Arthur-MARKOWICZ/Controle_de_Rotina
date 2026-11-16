@@ -4,6 +4,7 @@ import { apiFetch } from '../../auth/session/apiClient'
 import {
   abortarExecucao,
   buildExecucoesQuery,
+  buscarSessaoAtiva,
   concluirExecucao,
   iniciarExecucao,
   listarExecucoes,
@@ -165,6 +166,104 @@ describe('execucaoApi', () => {
     )
     await expect(listarExecucoes('2026-10-27')).rejects.toMatchObject({
       message: 'Resposta inválida da API (não é JSON).',
+    })
+  })
+
+  describe('buscarSessaoAtiva', () => {
+    const item = {
+      bloco: { id: 'b-1', duracaoMinutos: 30, ordem: 1 },
+      tarefaResumo: null,
+      habitoResumo: { id: 'h-1', titulo: 'Ler' },
+      execucao: {
+        id: 'e-1',
+        blocoPlanoId: 'b-1',
+        status: 'EM_ANDAMENTO',
+        iniciadoEm: '2026-10-27T11:00:00Z',
+        concluidoEm: null,
+        abortadoEm: null,
+      },
+    }
+
+    it('devolve o item da sessão em andamento (200)', async () => {
+      vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify(item), { status: 200 }))
+
+      const resultado = await buscarSessaoAtiva()
+
+      expect(apiFetch).toHaveBeenCalledWith('/execucoes/ativa')
+      expect(resultado?.execucao.id).toBe('e-1')
+      expect(resultado?.habitoResumo?.id).toBe('h-1')
+    })
+
+    it('devolve null quando não há sessão (204)', async () => {
+      vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+      await expect(buscarSessaoAtiva()).resolves.toBeNull()
+    })
+
+    it('propaga 400 com a mensagem do servidor', async () => {
+      vi.mocked(apiFetch).mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Requisição inválida', detail: 'Parâmetro inválido.' }), {
+          status: 400,
+        }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({
+        status: 400,
+        message: 'Parâmetro inválido.',
+      })
+    })
+
+    it('propaga 401 quando o refresh falhou (o retry fica no apiFetch)', async () => {
+      vi.mocked(apiFetch).mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Sessão expirada.' }), {
+          status: 401,
+        }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({ status: 401 })
+      expect(apiFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('propaga 404 e 409', async () => {
+      vi.mocked(apiFetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ title: 'Não encontrado', detail: 'Rota inexistente.' }), {
+          status: 404,
+        }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({ status: 404 })
+
+      vi.mocked(apiFetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ title: 'Conflito', detail: 'Conflito.' }), { status: 409 }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({ status: 409 })
+    })
+
+    it('usa a mensagem padrão em 500 sem detalhe', async () => {
+      vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 500 }))
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({
+        status: 500,
+        message: 'Não foi possível carregar a sessão ativa.',
+      })
+    })
+
+    it('propaga timeout de rede', async () => {
+      vi.mocked(apiFetch).mockRejectedValue(new TypeError('Failed to fetch'))
+      await expect(buscarSessaoAtiva()).rejects.toThrow('Failed to fetch')
+    })
+
+    it('rejeita HTML do proxy e JSON inválido', async () => {
+      vi.mocked(apiFetch).mockResolvedValueOnce(
+        new Response('<!doctype html><html><div id="root"></div></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toThrow()
+
+      vi.mocked(apiFetch).mockResolvedValueOnce(
+        new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      )
+      await expect(buscarSessaoAtiva()).rejects.toMatchObject({
+        message: 'Resposta inválida da API (não é JSON).',
+      })
     })
   })
 })

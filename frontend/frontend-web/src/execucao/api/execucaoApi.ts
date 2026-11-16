@@ -76,6 +76,21 @@ export async function listarExecucoes(data?: string): Promise<ExecucoesDoDiaResp
   return readApiJson<ExecucoesDoDiaResponse>(response)
 }
 
+/**
+ * Sessão em andamento do usuário em qualquer plano (aprovado ou avulso), sem filtro de data.
+ * `null` quando não há sessão (204).
+ */
+export async function buscarSessaoAtiva(): Promise<ItemExecucaoResponse | null> {
+  const response = await apiFetch('/execucoes/ativa')
+  if (response.status === 204) {
+    return null
+  }
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar a sessão ativa.')
+  }
+  return readApiJson<ItemExecucaoResponse>(response)
+}
+
 export async function iniciarExecucao(blocoId: string): Promise<ExecucaoResponse> {
   const response = await apiFetch('/execucoes/iniciar', {
     method: 'POST',

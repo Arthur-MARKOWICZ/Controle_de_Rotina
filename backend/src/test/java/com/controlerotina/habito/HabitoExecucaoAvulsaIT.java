@@ -11,6 +11,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,14 +103,10 @@ class HabitoExecucaoAvulsaIT {
     }
 
     @Test
-    void t6_deveIniciarHabitoSemPlanoAprovadoERepetir409() {
+    void t6_deveIniciarHabitoSemPlanoAprovadoERetomarAoRepetir() {
         UUID habitoId = criarHabitoCorrer();
 
-        ResponseEntity<Map> primeiro = restTemplate.exchange(
-                "/habitos/" + habitoId + "/iniciar?data=" + TERCA,
-                HttpMethod.POST,
-                authed(null),
-                Map.class);
+        ResponseEntity<Map> primeiro = iniciarHabito(habitoId);
         assertThat(primeiro.getStatusCode()).isIn(CREATED, OK);
         assertThat(primeiro.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
 
@@ -118,12 +115,119 @@ class HabitoExecucaoAvulsaIT {
         assertThat(planoRepository.findFirstByUsuarioIdAndDataAndStatusOrderByVersaoDesc(
                 usuarioId, TERCA, StatusPlano.APROVADO)).isEmpty();
 
-        ResponseEntity<Map> segundo = restTemplate.exchange(
-                "/habitos/" + habitoId + "/iniciar?data=" + TERCA,
+        ResponseEntity<Map> segundo = iniciarHabito(habitoId);
+        assertThat(segundo.getStatusCode()).isEqualTo(OK);
+        assertThat(segundo.getBody().get("id")).isEqualTo(primeiro.getBody().get("id"));
+        assertThat(Instant.parse(segundo.getBody().get("iniciadoEm").toString()))
+                .isEqualTo(Instant.parse(primeiro.getBody().get("iniciadoEm").toString())
+                        .truncatedTo(ChronoUnit.MICROS));
+        assertThat(segundo.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
+    }
+
+    @Test
+    void naoDeveCriarNovaLinhaAoRetomarHabitoEmAndamento() {
+        UUID habitoId = criarHabitoCorrer();
+        iniciarHabito(habitoId);
+        int planos = contar("plano");
+        int blocos = contar("bloco_plano");
+        int execucoes = contar("execucao");
+
+        ResponseEntity<Map> segundo = iniciarHabito(habitoId);
+        ResponseEntity<Map> terceiro = iniciarHabito(habitoId);
+
+        assertThat(segundo.getStatusCode()).isEqualTo(OK);
+        assertThat(terceiro.getStatusCode()).isEqualTo(OK);
+        assertThat(contar("plano")).isEqualTo(planos);
+        assertThat(contar("bloco_plano")).isEqualTo(blocos);
+        assertThat(contar("execucao")).isEqualTo(execucoes);
+    }
+
+    @Test
+    void deveRetomarBlocoDoPlanoAprovadoEmAndamento() {
+        UUID habitoId = criarHabitoCorrer();
+        Plano aprovado = planoRepository.save(new Plano(
+                UUID.randomUUID(), usuarioId, TERCA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA));
+        BlocoPlano bloco = blocoPlanoRepository.save(new BlocoPlano(
+                UUID.randomUUID(), aprovado.getId(), null, habitoId, 30, 1, AGORA, AGORA));
+        ResponseEntity<Map> inicioPlano = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                authed(Map.of("blocoId", bloco.getId().toString())),
+                Map.class);
+        assertThat(inicioPlano.getStatusCode()).isEqualTo(CREATED);
+
+        ResponseEntity<Map> retomada = iniciarHabito(habitoId);
+
+        assertThat(retomada.getStatusCode()).isEqualTo(OK);
+        assertThat(retomada.getBody().get("id")).isEqualTo(inicioPlano.getBody().get("id"));
+        assertThat(retomada.getBody().get("blocoPlanoId")).isEqualTo(bloco.getId().toString());
+        assertThat(planoRepository.findByUsuarioIdAndDataAndStatus(
+                usuarioId, TERCA, StatusPlano.HABITO_AVULSO)).isEmpty();
+    }
+
+    @Test
+    void deveReiniciarHabitoAvulsoAbortadoComNovoInicio() {
+        UUID habitoId = criarHabitoCorrer();
+        ResponseEntity<Map> primeiro = iniciarHabito(habitoId);
+        String execucaoId = primeiro.getBody().get("id").toString();
+        assertThat(restTemplate.exchange(
+                "/execucoes/" + execucaoId + "/abortar",
                 HttpMethod.POST,
                 authed(null),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> reinicio = iniciarHabito(habitoId);
+
+        assertThat(reinicio.getStatusCode()).isEqualTo(OK);
+        assertThat(reinicio.getBody().get("id")).isEqualTo(execucaoId);
+        assertThat(reinicio.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
+        assertThat(reinicio.getBody().get("abortadoEm")).isNull();
+    }
+
+    @Test
+    void deveRetornar409AoIniciarHabitoJaConcluidoNoDia() {
+        UUID habitoId = criarHabitoCorrer();
+        assertThat(restTemplate.exchange(
+                "/habitos/" + habitoId + "/concluir-direto?data=" + TERCA,
+                HttpMethod.POST,
+                authed(null),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> response = iniciarHabito(habitoId);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Execução já concluída");
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from execucao", String.class)).isEqualTo("CONCLUIDO");
+    }
+
+    @Test
+    void deveRetornar409AoIniciarHabitoPausado() {
+        UUID habitoId = criarHabitoCorrer();
+        jdbcTemplate.update("update habito set status = 'PAUSADO' where id = ?", habitoId);
+
+        ResponseEntity<Map> response = iniciarHabito(habitoId);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Hábito não elegível");
+        assertThat(contar("execucao")).isZero();
+    }
+
+    @Test
+    void endpointGenericoDeveContinuarRetornando409ParaBlocoEmAndamento() {
+        UUID habitoId = criarHabitoCorrer();
+        ResponseEntity<Map> inicio = iniciarHabito(habitoId);
+        String blocoId = inicio.getBody().get("blocoPlanoId").toString();
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/execucoes/iniciar",
+                HttpMethod.POST,
+                authed(Map.of("blocoId", blocoId)),
                 Map.class);
-        assertThat(segundo.getStatusCode()).isEqualTo(CONFLICT);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Execução já em andamento");
     }
 
     @Test
@@ -473,6 +577,18 @@ class HabitoExecucaoAvulsaIT {
                 AGORA
         );
         return habitoRepository.save(habito).getId();
+    }
+
+    private ResponseEntity<Map> iniciarHabito(UUID habitoId) {
+        return restTemplate.exchange(
+                "/habitos/" + habitoId + "/iniciar?data=" + TERCA,
+                HttpMethod.POST,
+                authed(null),
+                Map.class);
+    }
+
+    private int contar(String tabela) {
+        return jdbcTemplate.queryForObject("select count(*) from " + tabela, Integer.class);
     }
 
     private HttpEntity<?> authed(Object body) {

@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, screen, waitFor } from '@testing-library/react'
 import { type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -25,7 +25,7 @@ vi.mock('./api/execucaoApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/execucaoApi')>()
   return {
     ...actual,
-    listarExecucoes: vi.fn(),
+    buscarSessaoAtiva: vi.fn(),
     concluirExecucao: vi.fn(),
     abortarExecucao: vi.fn(),
   }
@@ -58,6 +58,28 @@ const itemAndamento: ItemExecucaoResponse = {
   },
 }
 
+const itemHabitoAvulso: ItemExecucaoResponse = {
+  bloco: { id: 'b-h', duracaoMinutos: 30, ordem: 1 },
+  tarefaResumo: null,
+  habitoResumo: { id: 'h-1', titulo: 'Ler', horarioPreferencial: null, streakAtual: 0 },
+  execucao: {
+    id: 'e-h',
+    blocoPlanoId: 'b-h',
+    status: 'EM_ANDAMENTO',
+    iniciadoEm: '2026-10-20T11:00:00Z',
+    concluidoEm: null,
+    abortadoEm: null,
+  },
+}
+
+function adiada<T>() {
+  let resolver!: (valor: T) => void
+  const promessa = new Promise<T>((resolve) => {
+    resolver = resolve
+  })
+  return { promessa, resolver }
+}
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
@@ -70,23 +92,97 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('SessaoAtivaContext', () => {
   beforeEach(() => {
-    vi.mocked(execucaoApi.listarExecucoes).mockReset().mockResolvedValue({
-      planoAprovado: null,
-      itens: [],
-    })
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockReset().mockResolvedValue(null)
     vi.mocked(execucaoApi.concluirExecucao).mockReset()
     vi.mocked(execucaoApi.abortarExecucao).mockReset()
   })
 
-  it('carrega sessão em andamento do dia', async () => {
-    vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
-      planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
-      itens: [itemAndamento],
+  it('restaura sessão avulsa de hábito do servidor ao montar (F5)', async () => {
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(itemHabitoAvulso)
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+
+    await waitFor(() => expect(result.current.sessao?.execucaoId).toBe('e-h'))
+    expect(result.current.sessao).toMatchObject({
+      titulo: 'Ler',
+      habitoId: 'h-1',
+      iniciadoEm: '2026-10-20T11:00:00Z',
     })
+    expect(screen.getByText('Ler')).toBeInTheDocument()
+  })
+
+  it('restaura sessão de tarefa avulsa do servidor ao montar', async () => {
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(itemAndamento)
     const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
 
     await waitFor(() => expect(result.current.sessao?.execucaoId).toBe('e-1'))
     expect(result.current.sessao?.titulo).toBe('Estudar')
+    expect(result.current.sessao?.habitoId).toBeNull()
+  })
+
+  it('não mostra barra quando o servidor responde sem sessão (204)', async () => {
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+
+    await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+    expect(result.current.sessao).toBeNull()
+    expect(screen.queryByRole('button', { name: /concluir/i })).not.toBeInTheDocument()
+  })
+
+  it('mantém tarefa avulsa após registrarInicio seguido de refresh', async () => {
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+    await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+
+    act(() => {
+      result.current.registrarInicio('Estudar', 60, itemAndamento.execucao)
+    })
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(itemAndamento)
+    await act(async () => {
+      await result.current.refrescarDoDia()
+    })
+
+    expect(result.current.sessao?.execucaoId).toBe('e-1')
+  })
+
+  it('remove a sessão quando ela foi encerrada no servidor', async () => {
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(itemHabitoAvulso)
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+    await waitFor(() => expect(result.current.sessao?.execucaoId).toBe('e-h'))
+
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(null)
+    await act(async () => {
+      await result.current.refrescarDoDia()
+    })
+
+    expect(result.current.sessao).toBeNull()
+  })
+
+  it('não mostra barra nem quebra quando o mount recebe HTML do proxy', async () => {
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockRejectedValue(
+      new ApiError(200, 'Resposta inválida da API (não é JSON).'),
+    )
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+
+    await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+    expect(result.current.sessao).toBeNull()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('conclui pela barra e limpa a sessão restaurada', async () => {
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(itemHabitoAvulso)
+    vi.mocked(execucaoApi.concluirExecucao).mockResolvedValue({
+      ...itemHabitoAvulso.execucao,
+      status: 'CONCLUIDO',
+      concluidoEm: '2026-10-20T11:30:00Z',
+      xp: null,
+    })
+    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+    await waitFor(() => expect(result.current.sessao?.execucaoId).toBe('e-h'))
+
+    await act(async () => {
+      screen.getByRole('button', { name: /concluir/i }).click()
+    })
+
+    await waitFor(() => expect(result.current.sessao).toBeNull())
+    expect(execucaoApi.concluirExecucao).toHaveBeenCalledWith('e-h')
   })
 
   it('registra início quando a execução tem bloco', async () => {
@@ -130,32 +226,7 @@ describe('SessaoAtivaContext', () => {
     expect(result.current.sessao).toBeNull()
   })
 
-  it('preserva sessão avulsa de hábito quando a listagem do plano vem vazia', async () => {
-    vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
-      planoAprovado: null,
-      itens: [],
-    })
-    const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
-    await waitFor(() => expect(result.current.sessao).toBeNull())
-
-    act(() => {
-      result.current.registrarInicio('Correr', 30, {
-        id: 'e-h',
-        blocoPlanoId: 'b-h',
-        status: 'EM_ANDAMENTO',
-        iniciadoEm: '2026-10-20T15:00:00Z',
-        concluidoEm: null,
-        abortadoEm: null,
-      }, { habitoId: 'h-1' })
-    })
-    await act(async () => {
-      await result.current.refrescarDoDia()
-    })
-
-    expect(result.current.sessao?.habitoId).toBe('h-1')
-  })
-
-  it('mantém a sessão local quando listarExecucoes falha', async () => {
+  it('mantém a sessão local quando buscarSessaoAtiva falha (500)', async () => {
     const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
     await waitFor(() => expect(result.current.sessao).toBeNull())
     act(() => {
@@ -168,7 +239,7 @@ describe('SessaoAtivaContext', () => {
         abortadoEm: null,
       })
     })
-    vi.mocked(execucaoApi.listarExecucoes).mockRejectedValue(new ApiError(500, 'Falha'))
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockRejectedValue(new ApiError(500, 'Falha'))
 
     await act(async () => {
       await result.current.refrescarDoDia()
@@ -200,5 +271,78 @@ describe('SessaoAtivaContext', () => {
     })
 
     expect(result.current.sessao).toBeNull()
+  })
+
+  describe('respostas fora de ordem', () => {
+    it('consulta lenta iniciada antes de limpar não traz a barra de volta', async () => {
+      const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+      await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+      act(() => {
+        result.current.registrarInicio('Ler', 30, itemHabitoAvulso.execucao, { habitoId: 'h-1' })
+      })
+      const lenta = adiada<ItemExecucaoResponse | null>()
+      vi.mocked(execucaoApi.buscarSessaoAtiva).mockReturnValueOnce(lenta.promessa)
+
+      let pendente!: Promise<void>
+      act(() => {
+        pendente = result.current.refrescarDoDia()
+      })
+      act(() => {
+        result.current.limpar()
+      })
+      await act(async () => {
+        lenta.resolver(itemHabitoAvulso)
+        await pendente
+      })
+
+      expect(result.current.sessao).toBeNull()
+      expect(screen.queryByRole('region', { name: 'Agora' })).not.toBeInTheDocument()
+    })
+
+    it('consulta antiga não sobrescreve a resposta de uma consulta mais nova', async () => {
+      const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+      await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+      const antiga = adiada<ItemExecucaoResponse | null>()
+      vi.mocked(execucaoApi.buscarSessaoAtiva)
+        .mockReturnValueOnce(antiga.promessa)
+        .mockResolvedValueOnce(itemAndamento)
+
+      let primeira!: Promise<void>
+      act(() => {
+        primeira = result.current.refrescarDoDia()
+      })
+      await act(async () => {
+        await result.current.refrescarDoDia()
+      })
+      expect(result.current.sessao?.execucaoId).toBe('e-1')
+
+      await act(async () => {
+        antiga.resolver(null)
+        await primeira
+      })
+
+      expect(result.current.sessao?.execucaoId).toBe('e-1')
+    })
+
+    it('consulta lenta não desfaz um registrarInicio feito depois dela', async () => {
+      const { result } = renderHook(() => useSessaoAtiva(), { wrapper })
+      await waitFor(() => expect(execucaoApi.buscarSessaoAtiva).toHaveBeenCalled())
+      const lenta = adiada<ItemExecucaoResponse | null>()
+      vi.mocked(execucaoApi.buscarSessaoAtiva).mockReturnValueOnce(lenta.promessa)
+
+      let pendente!: Promise<void>
+      act(() => {
+        pendente = result.current.refrescarDoDia()
+      })
+      act(() => {
+        result.current.registrarInicio('Ler', 30, itemHabitoAvulso.execucao, { habitoId: 'h-1' })
+      })
+      await act(async () => {
+        lenta.resolver(null)
+        await pendente
+      })
+
+      expect(result.current.sessao?.execucaoId).toBe('e-h')
+    })
   })
 })

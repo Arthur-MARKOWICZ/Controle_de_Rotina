@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -11,13 +12,12 @@ import {
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
 import { BlocoAtivo } from '../home/BlocoAtivo'
-import { dataHojeIso } from '../planner/data'
 import { mensagensFeedbackXp } from '../xp/feedbackXp'
 import { useXpProgress } from '../xp/XpProgressContext'
 import {
   abortarExecucao,
+  buscarSessaoAtiva,
   concluirExecucao,
-  listarExecucoes,
   tituloDoItemExecucao,
   type ExecucaoResponse,
   type ItemExecucaoResponse,
@@ -52,18 +52,6 @@ type SessaoAtivaContextValue = {
 
 const SessaoAtivaContext = createContext<SessaoAtivaContextValue | null>(null)
 
-function escolherMaisRecente(itens: ItemExecucaoResponse[]): ItemExecucaoResponse | null {
-  const andamento = itens.filter((item) => item.execucao.status === 'EM_ANDAMENTO')
-  if (andamento.length === 0) {
-    return null
-  }
-  return andamento.reduce((melhor, atual) => {
-    const a = melhor.execucao.iniciadoEm ?? ''
-    const b = atual.execucao.iniciadoEm ?? ''
-    return b >= a ? atual : melhor
-  })
-}
-
 function itemParaSessao(item: ItemExecucaoResponse): SessaoAtiva | null {
   if (!item.execucao.id) {
     return null
@@ -84,23 +72,29 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
   const { progresso, aplicarProgresso } = useXpProgress()
   const [sessao, setSessao] = useState<SessaoAtiva | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  // Cada consulta e cada mudança local avança a versão; resposta de versão antiga é descartada,
+  // para uma consulta lenta não trazer de volta uma sessão já encerrada (ou apagar uma nova).
+  const versaoRef = useRef(0)
 
+  const aplicarLocal = useCallback((proxima: SessaoAtiva | null) => {
+    versaoRef.current += 1
+    setSessao(proxima)
+  }, [])
+
+  /**
+   * Reconstrói a sessão a partir do servidor (qualquer plano, sem filtro de data), para que
+   * F5 / nova aba mostrem a sessão em andamento. Falha transitória mantém o estado atual.
+   */
   const refrescarDoDia = useCallback(async () => {
+    const versao = ++versaoRef.current
     try {
-      const dia = await listarExecucoes(dataHojeIso())
-      const ativo = escolherMaisRecente(dia.itens)
-      setSessao((atual) => {
-        if (ativo) {
-          return itemParaSessao(ativo)
-        }
-        // GET /execucoes só lista o plano APROVADO; sessão avulsa de hábito não vem nessa lista.
-        if (atual?.habitoId) {
-          return atual
-        }
-        return null
-      })
+      const ativo = await buscarSessaoAtiva()
+      if (versao !== versaoRef.current) {
+        return
+      }
+      setSessao(ativo ? itemParaSessao(ativo) : null)
     } catch {
-      // Mantém sessão local se a listagem falhar (ex.: avulso ainda não listável).
+      // Mantém a sessão já exibida se a consulta falhar (rede, 5xx, HTML do proxy).
     }
   }, [])
 
@@ -108,13 +102,16 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
     void refrescarDoDia()
   }, [refrescarDoDia])
 
-  const definirSessao = useCallback((proxima: SessaoAtiva) => {
-    setSessao(proxima)
-  }, [])
+  const definirSessao = useCallback(
+    (proxima: SessaoAtiva) => {
+      aplicarLocal(proxima)
+    },
+    [aplicarLocal],
+  )
 
   const limpar = useCallback(() => {
-    setSessao(null)
-  }, [])
+    aplicarLocal(null)
+  }, [aplicarLocal])
 
   const registrarInicio = useCallback(
     (
@@ -126,7 +123,7 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
       if (!execucao.blocoPlanoId) {
         return
       }
-      setSessao({
+      aplicarLocal({
         execucaoId: execucao.id,
         blocoId: execucao.blocoPlanoId,
         titulo,
@@ -135,7 +132,7 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
         habitoId: origem?.habitoId ?? null,
       })
     },
-    [],
+    [aplicarLocal],
   )
 
   const handleConcluir = useCallback(async () => {
@@ -155,7 +152,7 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
       } else {
         toast.success('Sessão concluída')
       }
-      setSessao(null)
+      aplicarLocal(null)
       window.dispatchEvent(
         new CustomEvent('sessao-ativa:atualizada', { detail: { xp: xp ?? null } }),
       )
@@ -164,7 +161,7 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
     } finally {
       setOcupado(false)
     }
-  }, [aplicarProgresso, progresso?.nivel, sessao, toast])
+  }, [aplicarLocal, aplicarProgresso, progresso?.nivel, sessao, toast])
 
   const handleAbortar = useCallback(async () => {
     if (!sessao?.execucaoId) {
@@ -182,14 +179,14 @@ export function SessaoAtivaProvider({ children }: { children: ReactNode }) {
     try {
       await abortarExecucao(sessao.execucaoId)
       toast.success('Sessão abortada')
-      setSessao(null)
+      aplicarLocal(null)
       window.dispatchEvent(new CustomEvent('sessao-ativa:atualizada', { detail: {} }))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível abortar a sessão.')
     } finally {
       setOcupado(false)
     }
-  }, [confirm, sessao, toast])
+  }, [aplicarLocal, confirm, sessao, toast])
 
   const value = useMemo(
     () => ({

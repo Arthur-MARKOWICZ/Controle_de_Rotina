@@ -56,6 +56,7 @@ vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
   return {
     ...actual,
     listarExecucoes: vi.fn(),
+    buscarSessaoAtiva: vi.fn(),
     iniciarExecucao: vi.fn(),
     concluirExecucao: vi.fn(),
     abortarExecucao: vi.fn(),
@@ -203,6 +204,7 @@ describe('HomePage — plano do dia', () => {
     vi.mocked(capacidadeOverrideApi.atualizarCapacidadeOverride).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockReset()
     vi.mocked(execucaoApi.listarExecucoes).mockReset()
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockReset().mockResolvedValue(null)
     vi.mocked(execucaoApi.iniciarExecucao).mockReset()
     vi.mocked(execucaoApi.concluirExecucao).mockReset()
     vi.mocked(execucaoApi.abortarExecucao).mockReset()
