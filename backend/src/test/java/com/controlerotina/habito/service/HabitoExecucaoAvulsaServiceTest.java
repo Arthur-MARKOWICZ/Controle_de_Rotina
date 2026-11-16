@@ -86,7 +86,7 @@ class HabitoExecucaoAvulsaServiceTest {
         when(blocoPlanoRepository.findByPlanoIdAndHabitoId(plano.getId(), HABITO_ID)).thenReturn(Optional.of(bloco));
         when(execucaoRepository.findByBlocoPlanoId(bloco.getId())).thenReturn(Optional.empty());
         ResultadoInicio inicio = new ResultadoInicio(execucao(bloco.getId(), StatusExecucao.EM_ANDAMENTO), true);
-        when(execucaoService.iniciar(USUARIO, bloco.getId())).thenReturn(inicio);
+        when(execucaoService.iniciarOuRetomar(USUARIO, bloco.getId())).thenReturn(inicio);
 
         ResultadoInicio resultado = service.iniciar(USUARIO, HABITO_ID, TERCA);
 
@@ -104,7 +104,7 @@ class HabitoExecucaoAvulsaServiceTest {
         when(slotAvulsoService.materializar(USUARIO, HABITO_ID, TERCA))
                 .thenReturn(new HabitoSlotAvulsoService.SlotAvulso(habito, avulso, bloco, null));
         ResultadoInicio inicio = new ResultadoInicio(execucao(bloco.getId(), StatusExecucao.EM_ANDAMENTO), true);
-        when(execucaoService.iniciar(USUARIO, bloco.getId())).thenReturn(inicio);
+        when(execucaoService.iniciarOuRetomar(USUARIO, bloco.getId())).thenReturn(inicio);
 
         assertThat(service.iniciar(USUARIO, HABITO_ID, TERCA)).isSameAs(inicio);
         verify(slotAvulsoService).materializar(USUARIO, HABITO_ID, TERCA);
@@ -125,12 +125,12 @@ class HabitoExecucaoAvulsaServiceTest {
         when(slotAvulsoService.materializar(USUARIO, HABITO_ID, TERCA))
                 .thenReturn(new HabitoSlotAvulsoService.SlotAvulso(habito, avulso, blocoAvulso, null));
         ResultadoInicio inicio = new ResultadoInicio(execucao(blocoAvulso.getId(), StatusExecucao.EM_ANDAMENTO), true);
-        when(execucaoService.iniciar(USUARIO, blocoAvulso.getId())).thenReturn(inicio);
+        when(execucaoService.iniciarOuRetomar(USUARIO, blocoAvulso.getId())).thenReturn(inicio);
 
         service.iniciar(USUARIO, HABITO_ID, TERCA);
 
         verify(slotAvulsoService).materializar(USUARIO, HABITO_ID, TERCA);
-        verify(execucaoService, never()).iniciar(USUARIO, bloco.getId());
+        verify(execucaoService, never()).iniciarOuRetomar(USUARIO, bloco.getId());
     }
 
     @Test
@@ -142,7 +142,7 @@ class HabitoExecucaoAvulsaServiceTest {
         BlocoPlano bloco = bloco(avulso.getId());
         when(slotAvulsoService.materializar(eq(USUARIO), eq(HABITO_ID), eq(TERCA)))
                 .thenReturn(new HabitoSlotAvulsoService.SlotAvulso(habito, avulso, bloco, null));
-        when(execucaoService.iniciar(USUARIO, bloco.getId()))
+        when(execucaoService.iniciarOuRetomar(USUARIO, bloco.getId()))
                 .thenReturn(new ResultadoInicio(execucao(bloco.getId(), StatusExecucao.EM_ANDAMENTO), true));
 
         service.iniciar(USUARIO, HABITO_ID, null);

@@ -69,8 +69,8 @@ export default defineConfig({
       ],
       // Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 70/60.
       thresholds: {
-        lines: 86,
-        branches: 81,
+        lines: 87,
+        branches: 82,
       },
     },
   },

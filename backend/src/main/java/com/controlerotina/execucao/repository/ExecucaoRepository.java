@@ -22,6 +22,8 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
 
     boolean existsByBlocoPlanoId(UUID blocoPlanoId);
 
+    List<Execucao> findByUsuarioIdAndStatusOrderByIniciadoEmDesc(UUID usuarioId, StatusExecucao status);
+
     List<Execucao> findByUsuarioIdAndBlocoPlanoIdIn(UUID usuarioId, Collection<UUID> blocoPlanoIds);
 
     @Query("""

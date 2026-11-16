@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.controlerotina.execucao.dto.ExecucaoResponse;
 import com.controlerotina.execucao.dto.ExecucoesDoDiaResponse;
 import com.controlerotina.execucao.dto.IniciarExecucaoRequest;
+import com.controlerotina.execucao.dto.ItemExecucaoResponse;
 import com.controlerotina.execucao.dto.ResultadoConclusao;
 import com.controlerotina.execucao.dto.ResultadoInicio;
 import com.controlerotina.execucao.service.ExecucaoService;
@@ -40,6 +41,13 @@ public class ExecucaoController {
             @RequestParam(required = false) LocalDate data
     ) {
         return execucaoService.listar(usuarioId, data);
+    }
+
+    @GetMapping("/ativa")
+    public ResponseEntity<ItemExecucaoResponse> ativa(@AuthenticationPrincipal UUID usuarioId) {
+        return execucaoService.buscarAtiva(usuarioId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/iniciar")

@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -105,6 +106,19 @@ public class ExecucaoService {
 
     @Transactional
     public ResultadoInicio iniciar(UUID usuarioId, UUID blocoId) {
+        return iniciar(usuarioId, blocoId, false);
+    }
+
+    /**
+     * Igual a {@link #iniciar(UUID, UUID)}, mas devolve a execução existente (não criada)
+     * quando o bloco já está {@code EM_ANDAMENTO}, em vez de 409.
+     */
+    @Transactional
+    public ResultadoInicio iniciarOuRetomar(UUID usuarioId, UUID blocoId) {
+        return iniciar(usuarioId, blocoId, true);
+    }
+
+    private ResultadoInicio iniciar(UUID usuarioId, UUID blocoId, boolean retomarEmAndamento) {
         BlocoPlano bloco = carregarBlocoDoUsuario(usuarioId, blocoId);
         garantirPlanoExecutavel(bloco, usuarioId);
 
@@ -131,7 +145,12 @@ public class ExecucaoService {
 
         Execucao execucao = existente.get();
         return switch (execucao.getStatus()) {
-            case EM_ANDAMENTO -> throw new ExecucaoJaEmAndamentoException();
+            case EM_ANDAMENTO -> {
+                if (!retomarEmAndamento) {
+                    throw new ExecucaoJaEmAndamentoException();
+                }
+                yield new ResultadoInicio(execucao, false);
+            }
             case CONCLUIDO -> throw new ExecucaoJaConcluidaException();
             case ABORTADO, NAO_INICIADO -> {
                 execucao.reiniciar(agora);
@@ -486,6 +505,57 @@ public class ExecucaoService {
         );
     }
 
+    /**
+     * Sessão em andamento do usuário, em qualquer tipo de plano e sem filtro de data.
+     * Ignora execuções cujo plano não aceita mais concluir/abortar (ex.: aprovado substituído).
+     */
+    @Transactional(readOnly = true)
+    public Optional<ItemExecucaoResponse> buscarAtiva(UUID usuarioId) {
+        List<Execucao> emAndamento = execucaoRepository.findByUsuarioIdAndStatusOrderByIniciadoEmDesc(
+                usuarioId, StatusExecucao.EM_ANDAMENTO);
+        if (emAndamento.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<UUID, BlocoPlano> blocos = blocoPlanoRepository
+                .findAllById(emAndamento.stream().map(Execucao::getBlocoPlanoId).toList()).stream()
+                .collect(Collectors.toMap(BlocoPlano::getId, Function.identity()));
+        Map<UUID, Plano> planos = planoRepository
+                .findAllById(blocos.values().stream().map(BlocoPlano::getPlanoId).distinct().toList()).stream()
+                .filter(plano -> plano.getUsuarioId().equals(usuarioId))
+                .collect(Collectors.toMap(Plano::getId, Function.identity()));
+
+        for (Execucao execucao : emAndamento) {
+            BlocoPlano bloco = blocos.get(execucao.getBlocoPlanoId());
+            Plano plano = bloco == null ? null : planos.get(bloco.getPlanoId());
+            if (plano != null && planoExecutavel(bloco, plano)) {
+                return Optional.of(mapearItemUnico(usuarioId, bloco, execucao));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private ItemExecucaoResponse mapearItemUnico(UUID usuarioId, BlocoPlano bloco, Execucao execucao) {
+        Map<UUID, Tarefa> tarefas = bloco.getTarefaId() == null
+                ? Map.of()
+                : tarefaRepository.findById(bloco.getTarefaId())
+                        .map(t -> Map.of(t.getId(), t))
+                        .orElse(Map.of());
+        Map<UUID, Habito> habitos = bloco.getHabitoId() == null
+                ? Map.of()
+                : habitoRepository.findById(bloco.getHabitoId())
+                        .map(h -> Map.of(h.getId(), h))
+                        .orElse(Map.of());
+        Map<UUID, String> nomesProjeto = tarefas.values().stream()
+                .map(Tarefa::getProjetoId)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .flatMap(projetoRepository::findById)
+                .map(p -> Map.of(p.getId(), p.getNome()))
+                .orElse(Map.of());
+        EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, tarefas.values());
+        return mapearItem(bloco, tarefas, habitos, nomesProjeto, Map.of(bloco.getId(), execucao), esperas);
+    }
+
     private ItemExecucaoResponse mapearItem(
             BlocoPlano bloco,
             Map<UUID, Tarefa> tarefas,
@@ -596,34 +666,30 @@ public class ExecucaoService {
     private Plano garantirPlanoExecutavel(BlocoPlano bloco, UUID usuarioId) {
         Plano plano = planoRepository.findByIdAndUsuarioId(bloco.getPlanoId(), usuarioId)
                 .orElseThrow(BlocoPlanoNaoEncontradoException::new);
-
-        if (plano.getStatus() == StatusPlano.HABITO_AVULSO) {
-            if (bloco.getHabitoId() == null || bloco.getTarefaId() != null) {
-                throw new PlanoNaoExecutavelException();
-            }
-            return plano;
-        }
-
-        if (plano.getStatus() == StatusPlano.TAREFA_AVULSA) {
-            if (bloco.getTarefaId() == null || bloco.getHabitoId() != null) {
-                throw new PlanoNaoExecutavelException();
-            }
-            return plano;
-        }
-
-        if (plano.getStatus() != StatusPlano.APROVADO) {
-            throw new PlanoNaoExecutavelException();
-        }
-
-        // Corrente do dia = maior versão entre RASCUNHO/APROVADO (não o maior APROVADO isolado).
-        Plano corrente = planoRepository
-                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
-                        plano.getUsuarioId(), plano.getData(), STATUS_CORRENTE)
-                .orElseThrow(PlanoNaoExecutavelException::new);
-
-        if (!corrente.getId().equals(plano.getId())) {
+        if (!planoExecutavel(bloco, plano)) {
             throw new PlanoNaoExecutavelException();
         }
         return plano;
+    }
+
+    /**
+     * Concluir/abortar/iniciar só valem em plano avulso compatível com o bloco ou no plano
+     * {@code APROVADO} que ainda é o corrente do dia (maior versão entre RASCUNHO/APROVADO).
+     */
+    private boolean planoExecutavel(BlocoPlano bloco, Plano plano) {
+        if (plano.getStatus() == StatusPlano.HABITO_AVULSO) {
+            return bloco.getHabitoId() != null && bloco.getTarefaId() == null;
+        }
+        if (plano.getStatus() == StatusPlano.TAREFA_AVULSA) {
+            return bloco.getTarefaId() != null && bloco.getHabitoId() == null;
+        }
+        if (plano.getStatus() != StatusPlano.APROVADO) {
+            return false;
+        }
+        return planoRepository
+                .findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(
+                        plano.getUsuarioId(), plano.getData(), STATUS_CORRENTE)
+                .map(corrente -> corrente.getId().equals(plano.getId()))
+                .orElse(false);
     }
 }

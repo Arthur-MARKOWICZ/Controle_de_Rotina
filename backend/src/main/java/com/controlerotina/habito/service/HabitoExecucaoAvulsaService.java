@@ -58,11 +58,11 @@ public class HabitoExecucaoAvulsaService {
     public ResultadoInicio iniciar(UUID usuarioId, UUID habitoId, LocalDate data) {
         LocalDate dia = data != null ? data : LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
         Optional<BlocoNoPlano> noPlano = buscarBlocoNoPlanoAberto(usuarioId, habitoId, dia);
-        if (noPlano.isPresent()) {
-            return execucaoService.iniciar(usuarioId, noPlano.get().bloco().getId());
-        }
-        HabitoSlotAvulsoService.SlotAvulso slot = slotAvulsoService.materializar(usuarioId, habitoId, dia);
-        return execucaoService.iniciar(usuarioId, slot.bloco().getId());
+        UUID blocoId = noPlano.isPresent()
+                ? noPlano.get().bloco().getId()
+                : slotAvulsoService.materializar(usuarioId, habitoId, dia).bloco().getId();
+        // Front desatualizado (F5, outra aba) pode pedir para iniciar o que já está rodando.
+        return execucaoService.iniciarOuRetomar(usuarioId, blocoId);
     }
 
     @Transactional

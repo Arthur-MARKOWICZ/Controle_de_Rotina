@@ -13,12 +13,22 @@ import { ApiError } from '../auth/api/authApi'
 import { useToast } from '../feedback/ToastProvider'
 import { PRIORIDADE_LABEL } from '../home/labels'
 import { criarTarefa, type CriarTarefaRequest, type TarefaResponse } from './api/tarefaApi'
+import {
+  ERRO_TITULO_LONGO,
+  TEXTO_MAXIMO,
+  TITULO_MAXIMO,
+  type TokenQuickAdd,
+} from './quickAdd/interpretarQuickAdd'
+import { QuickAddChips } from './quickAdd/QuickAddChips'
+import { useQuickAdd } from './quickAdd/useQuickAdd'
 import type { Prioridade } from './validation/tarefaForm'
 
 const PRIORIDADES: Prioridade[] = ['ALTA', 'MEDIA', 'BAIXA']
 const PRIORIDADE_PADRAO: Prioridade = 'MEDIA'
 const DURACOES_MINUTOS = [15, 30, 45, 60, 90, 120, 180, 240]
 const DURACAO_PADRAO = 30
+
+export const PLACEHOLDER_INLINE_ADD = 'Adicionar tarefa… (ex.: Estudar 2h sex !alta #faculdade)'
 
 function formatarDuracao(minutos: number): string {
   if (minutos < 60) {
@@ -37,10 +47,12 @@ type Props = {
   /** Projeto do filtro ativo da lista, se houver. */
   projetoId?: string
   onCriada: (tarefa: TarefaResponse) => void
+  /** Instante de referência para resolver datas (testes). */
+  referencia?: Date
 }
 
 export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function InlineAddTarefa(
-  { projetoId, onCriada },
+  { projetoId, onCriada, referencia },
   ref,
 ) {
   const navigate = useNavigate()
@@ -55,6 +67,35 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
   const [duracaoMinutos, setDuracaoMinutos] = useState(DURACAO_PADRAO)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const { resultado, confirmadas, rejeitar, alternarTag, resetar, resolverTagIds } = useQuickAdd({
+    texto: titulo,
+    ativo: true,
+    referencia,
+  })
+
+  // O chip manda no select: o valor exibido é o do token, senão o escolhido no select.
+  const tokenDuracaoValido = resultado.duracao && !resultado.duracao.erro ? resultado.duracao : null
+  const prioridadeEfetiva = resultado.prioridade?.prioridade ?? prioridade
+  const duracaoEfetiva = tokenDuracaoValido?.minutos ?? duracaoMinutos
+  const opcoesDuracao = DURACOES_MINUTOS.includes(duracaoEfetiva)
+    ? DURACOES_MINUTOS
+    : [...DURACOES_MINUTOS, duracaoEfetiva].sort((a, b) => a - b)
+
+  function removerChip(token: TokenQuickAdd) {
+    rejeitar(token)
+    if (token.tipo === 'prioridade') {
+      setPrioridade(PRIORIDADE_PADRAO)
+    } else if (token.tipo === 'duracao') {
+      setDuracaoMinutos(DURACAO_PADRAO)
+    }
+  }
+
+  function limparTudo() {
+    setTitulo('')
+    setPrioridade(PRIORIDADE_PADRAO)
+    setDuracaoMinutos(DURACAO_PADRAO)
+    resetar()
+  }
 
   useImperativeHandle(ref, () => ({
     focus() {
@@ -71,31 +112,48 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
       return
     }
     event.preventDefault()
-    setTitulo('')
+    limparTudo()
     limparErro()
     inputRef.current?.blur()
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const texto = titulo.trim()
+    const texto = resultado.titulo.trim()
     if (!texto) {
       setErro('Informe um título.')
       inputRef.current?.focus()
+      return
+    }
+    if (texto.length > TITULO_MAXIMO) {
+      setErro(ERRO_TITULO_LONGO)
+      inputRef.current?.focus()
+      return
+    }
+    if (resultado.duracao?.erro) {
       return
     }
 
     setEnviando(true)
     setErro(null)
     try {
-      const body: CriarTarefaRequest = { titulo: texto, prioridade, duracaoMinutos }
+      const tagIds = await resolverTagIds()
+      const body: CriarTarefaRequest = {
+        titulo: texto,
+        prioridade: prioridadeEfetiva,
+        duracaoMinutos: duracaoEfetiva,
+      }
+      if (resultado.prazo) {
+        body.prazo = resultado.prazo.prazoIso
+      }
+      if (tagIds.length) {
+        body.tagIds = tagIds
+      }
       if (projetoId) {
         body.projetoId = projetoId
       }
       const criada = await criarTarefa(body)
-      setTitulo('')
-      setPrioridade(PRIORIDADE_PADRAO)
-      setDuracaoMinutos(DURACAO_PADRAO)
+      limparTudo()
       onCriada(criada)
       toast.success('Tarefa criada', {
         action: {
@@ -124,8 +182,8 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
         id={inputId}
         type="text"
         name="titulo"
-        maxLength={120}
-        placeholder="Adicionar tarefa…"
+        maxLength={TEXTO_MAXIMO}
+        placeholder={PLACEHOLDER_INLINE_ADD}
         value={titulo}
         disabled={enviando}
         aria-invalid={Boolean(erro)}
@@ -143,10 +201,15 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
         id={prioridadeId}
         name="prioridade"
         className="inline-add-tarefa__select"
-        data-prioridade={prioridade}
-        value={prioridade}
+        data-prioridade={prioridadeEfetiva}
+        value={prioridadeEfetiva}
         disabled={enviando}
-        onChange={(e) => setPrioridade(e.target.value as Prioridade)}
+        onChange={(e) => {
+          if (resultado.prioridade) {
+            rejeitar(resultado.prioridade)
+          }
+          setPrioridade(e.target.value as Prioridade)
+        }}
       >
         {PRIORIDADES.map((p) => (
           <option key={p} value={p}>
@@ -161,11 +224,16 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
         id={duracaoId}
         name="duracaoMinutos"
         className="inline-add-tarefa__select"
-        value={duracaoMinutos}
+        value={duracaoEfetiva}
         disabled={enviando}
-        onChange={(e) => setDuracaoMinutos(Number(e.target.value))}
+        onChange={(e) => {
+          if (tokenDuracaoValido) {
+            rejeitar(tokenDuracaoValido)
+          }
+          setDuracaoMinutos(Number(e.target.value))
+        }}
       >
-        {DURACOES_MINUTOS.map((m) => (
+        {opcoesDuracao.map((m) => (
           <option key={m} value={m}>
             {formatarDuracao(m)}
           </option>
@@ -179,6 +247,13 @@ export const InlineAddTarefa = forwardRef<InlineAddTarefaHandle, Props>(function
       >
         {enviando ? 'Adicionando…' : 'Adicionar'}
       </button>
+      <QuickAddChips
+        tokens={resultado.tokens}
+        tagsConfirmadas={confirmadas}
+        onRemover={removerChip}
+        onAlternarTag={alternarTag}
+        disabled={enviando}
+      />
       {erro ? (
         <p id={erroId} className="field-error inline-add-tarefa__erro" role="alert">
           {erro}

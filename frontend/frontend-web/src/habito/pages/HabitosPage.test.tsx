@@ -35,6 +35,7 @@ vi.mock('../../execucao/api/execucaoApi', async (importOriginal) => {
   return {
     ...actual,
     listarExecucoes: vi.fn().mockResolvedValue({ planoAprovado: null, itens: [] }),
+    buscarSessaoAtiva: vi.fn().mockResolvedValue(null),
     concluirExecucao: vi.fn(),
     abortarExecucao: vi.fn(),
   }
@@ -119,6 +120,7 @@ describe('HabitosPage', () => {
     vi.mocked(execucaoApi.concluirExecucao).mockReset()
     vi.mocked(execucaoApi.abortarExecucao).mockReset()
     vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({ planoAprovado: null, itens: [] })
+    vi.mocked(execucaoApi.buscarSessaoAtiva).mockReset().mockResolvedValue(null)
     vi.mocked(habitoApi.listarHabitos).mockResolvedValue({
       ...pagina,
       content: pagina.content.map((h) => ({ ...h, diasSemana: [...h.diasSemana] })),
@@ -181,6 +183,38 @@ describe('HabitosPage', () => {
   })
 
   describe('sessão Iniciar / Concluir', () => {
+    beforeEach(() => {
+      // Simula o servidor: depois de iniciar "Correr" (e antes de concluir/abortar),
+      // GET /execucoes/ativa devolve essa sessão.
+      vi.mocked(execucaoApi.buscarSessaoAtiva).mockImplementation(async () => {
+        const iniciou = vi.mocked(habitoApi.iniciarHabitoAvulso).mock.calls.length > 0
+        const encerrou =
+          vi.mocked(execucaoApi.concluirExecucao).mock.calls.length > 0 ||
+          vi.mocked(execucaoApi.abortarExecucao).mock.calls.length > 0
+        if (!iniciou || encerrou) {
+          return null
+        }
+        return {
+          bloco: { id: 'b-1', duracaoMinutos: 30, ordem: 1 },
+          tarefaResumo: null,
+          habitoResumo: {
+            id: 'h-correr',
+            titulo: 'Correr',
+            horarioPreferencial: '07:00:00',
+            streakAtual: 4,
+          },
+          execucao: {
+            id: 'e-1',
+            blocoPlanoId: 'b-1',
+            status: 'EM_ANDAMENTO',
+            iniciadoEm: '2026-11-11T15:00:00Z',
+            concluidoEm: null,
+            abortadoEm: null,
+          },
+        }
+      })
+    })
+
     it('card ativo do dia oferece Iniciar e Concluir', async () => {
       renderLista()
 
@@ -289,9 +323,7 @@ describe('HabitosPage', () => {
     })
 
     it('sessão já em andamento no dia mostra Finalizar e Pausar', async () => {
-      vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
-        planoAprovado: null,
-        itens: [
+      vi.mocked(execucaoApi.buscarSessaoAtiva).mockResolvedValue(
           {
             bloco: { id: 'b-1', duracaoMinutos: 30, ordem: 1 },
             tarefaResumo: null,
@@ -310,8 +342,7 @@ describe('HabitosPage', () => {
               abortadoEm: null,
             },
           },
-        ],
-      })
+      )
       renderLista()
 
       expect(await screen.findByRole('button', { name: /finalizar correr/i })).toBeInTheDocument()
