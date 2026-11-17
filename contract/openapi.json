@@ -1,0 +1,4665 @@
+{
+  "components" : {
+    "schemas" : {
+      "AccessTokenResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessToken" ],
+        "type" : "object"
+      },
+      "AdicionarBlocoRequest" : {
+        "properties" : {
+          "habitoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "tarefaId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarCapacidadeOverrideRequest" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarCapacidadeSemanalRequest" : {
+        "properties" : {
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarDecidirRequest" : {
+        "properties" : {
+          "decidirAte" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : [ "null", "string" ]
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarHabitoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "diasSemana" : {
+            "items" : {
+              "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+              "type" : "string"
+            },
+            "maxItems" : 2147483647,
+            "minItems" : 1,
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "horarioPreferencial" : {
+            "format" : "time-local",
+            "type" : [ "null", "string" ]
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarMeRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "novaSenha" : {
+            "type" : "string"
+          },
+          "senhaAtual" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "senhaAtual" ],
+        "type" : "object"
+      },
+      "AtualizarProjetoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 80,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarReservaProjetoRequest" : {
+        "properties" : {
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "minutosReservados" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarTagRequest" : {
+        "properties" : {
+          "cor" : {
+            "pattern" : "^#[0-9A-Fa-f]{6}$",
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 64,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AtualizarTarefaRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BlocoExecucaoResponse" : {
+        "properties" : {
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "duracaoMinutos", "id", "ordem" ],
+        "type" : "object"
+      },
+      "BlocoPlanoResponse" : {
+        "properties" : {
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "habito" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/HabitoResumoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "habitoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "origem" : {
+            "enum" : [ "HABITO", "TAREFA" ],
+            "type" : "string"
+          },
+          "tarefa" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/TarefaResumoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "tarefaId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          }
+        },
+        "required" : [ "duracaoMinutos", "habito", "habitoId", "id", "ordem", "origem", "tarefa", "tarefaId" ],
+        "type" : "object"
+      },
+      "CadastroUsuarioRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "senha" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "nome", "senha" ],
+        "type" : "object"
+      },
+      "CalendarioBlocoResponse" : {
+        "properties" : {
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : [ "null", "string" ]
+          },
+          "tarefaId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "duracaoMinutos", "id", "ordem", "prioridade", "tarefaId", "titulo" ],
+        "type" : "object"
+      },
+      "CalendarioDiaResponse" : {
+        "properties" : {
+          "capacidadeMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "habitosDoDia" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HabitoDoDiaResponse"
+            },
+            "type" : "array"
+          },
+          "minutosAlocados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "origemCapacidade" : {
+            "enum" : [ "OVERRIDE", "SEMANAL", "VAZIO" ],
+            "type" : "string"
+          },
+          "plano" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/CalendarioPlanoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "sobrecarga" : {
+            "type" : "boolean"
+          },
+          "statusPlano" : {
+            "enum" : [ "APROVADO", "DESCARTADO", "HABITO_AVULSO", "RASCUNHO", "TAREFA_AVULSA" ],
+            "type" : [ "null", "string" ]
+          },
+          "tarefasComPrazo" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarioTarefaPrazoResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "capacidadeMinutos", "data", "habitosDoDia", "minutosAlocados", "origemCapacidade", "plano", "sobrecarga", "statusPlano", "tarefasComPrazo" ],
+        "type" : "object"
+      },
+      "CalendarioPlanoResponse" : {
+        "properties" : {
+          "blocos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarioBlocoResponse"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "temConflito" : {
+            "type" : "boolean"
+          },
+          "versao" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "blocos", "id", "temConflito", "versao" ],
+        "type" : "object"
+      },
+      "CalendarioResponse" : {
+        "properties" : {
+          "dias" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarioDiaResponse"
+            },
+            "type" : "array"
+          },
+          "periodo" : {
+            "$ref" : "#/components/schemas/PeriodoCalendarioResponse"
+          }
+        },
+        "required" : [ "dias", "periodo" ],
+        "type" : "object"
+      },
+      "CalendarioTarefaPrazoResponse" : {
+        "properties" : {
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "duracaoMinutos", "id", "prazo", "prioridade", "status", "titulo" ],
+        "type" : "object"
+      },
+      "CalibracaoResponse" : {
+        "properties" : {
+          "geral" : {
+            "$ref" : "#/components/schemas/MetricasCalibracaoResponse"
+          },
+          "janela" : {
+            "$ref" : "#/components/schemas/Janela"
+          },
+          "minimoAmostras" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "porProjeto" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RecorteProjetoCalibracaoResponse"
+            },
+            "type" : "array"
+          },
+          "porTag" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RecorteTagCalibracaoResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "geral", "janela", "minimoAmostras", "porProjeto", "porTag" ],
+        "type" : "object"
+      },
+      "CapacidadeOverrideResponse" : {
+        "properties" : {
+          "ativo" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "ativo", "createdAt", "data", "horas", "id", "updatedAt" ],
+        "type" : "object"
+      },
+      "CapacidadeResolvidaResponse" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "origem" : {
+            "enum" : [ "OVERRIDE", "SEMANAL", "VAZIO" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "data", "horas", "origem" ],
+        "type" : "object"
+      },
+      "CapacidadeSemanalResponse" : {
+        "properties" : {
+          "ativo" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "ativo", "createdAt", "diaSemana", "horas", "id", "updatedAt" ],
+        "type" : "object"
+      },
+      "ConcluirHabitoDiretoRequest" : {
+        "properties" : {
+          "minutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CriarCapacidadeOverrideItemRequest" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "data", "horas" ],
+        "type" : "object"
+      },
+      "CriarCapacidadeOverrideRequest" : {
+        "properties" : {
+          "itens" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CriarCapacidadeOverrideItemRequest"
+            },
+            "minItems" : 1,
+            "type" : "array"
+          }
+        },
+        "required" : [ "itens" ],
+        "type" : "object"
+      },
+      "CriarCapacidadeSemanalItemRequest" : {
+        "properties" : {
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "horas" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "diaSemana", "horas" ],
+        "type" : "object"
+      },
+      "CriarCapacidadeSemanalRequest" : {
+        "properties" : {
+          "itens" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CriarCapacidadeSemanalItemRequest"
+            },
+            "minItems" : 1,
+            "type" : "array"
+          }
+        },
+        "required" : [ "itens" ],
+        "type" : "object"
+      },
+      "CriarDecidirRequest" : {
+        "properties" : {
+          "decidirAte" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "titulo" ],
+        "type" : "object"
+      },
+      "CriarEsperaRequest" : {
+        "properties" : {
+          "alvoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "alvoTipo" : {
+            "enum" : [ "PROJETO", "TAREFA" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "alvoId", "alvoTipo" ],
+        "type" : "object"
+      },
+      "CriarHabitoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "diasSemana" : {
+            "items" : {
+              "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+              "type" : "string"
+            },
+            "minItems" : 1,
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "horarioPreferencial" : {
+            "format" : "time-local",
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "diasSemana", "duracaoMinutos", "titulo" ],
+        "type" : "object"
+      },
+      "CriarProjetoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "nome" ],
+        "type" : "object"
+      },
+      "CriarReservaProjetoRequest" : {
+        "properties" : {
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "minutosReservados" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "diaSemana", "minutosReservados" ],
+        "type" : "object"
+      },
+      "CriarTagRequest" : {
+        "properties" : {
+          "cor" : {
+            "pattern" : "^#[0-9A-Fa-f]{6}$",
+            "type" : "string"
+          },
+          "nome" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "nome" ],
+        "type" : "object"
+      },
+      "CriarTarefaRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "parentId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "titulo" ],
+        "type" : "object"
+      },
+      "DecidirResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "decidirAte" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "descricao" : {
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "tagMatchScore" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "tags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TagResumoResponse"
+            },
+            "type" : "array"
+          },
+          "tarefaId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "titulo" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "decidirAte", "descricao", "id", "projetoId", "tagMatchScore", "tags", "tarefaId", "titulo", "updatedAt" ],
+        "type" : "object"
+      },
+      "EsperaResumo" : {
+        "properties" : {
+          "alvoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "alvoTipo" : {
+            "enum" : [ "PROJETO", "TAREFA" ],
+            "type" : "string"
+          },
+          "alvoTitulo" : {
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "resolvida" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "alvoId", "alvoTipo", "alvoTitulo", "id", "resolvida" ],
+        "type" : "object"
+      },
+      "ExecucaoResponse" : {
+        "properties" : {
+          "abortadoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "blocoPlanoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "concluidoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "iniciadoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ABORTADO", "CONCLUIDO", "EM_ANDAMENTO", "NAO_INICIADO" ],
+            "type" : "string"
+          },
+          "xp" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/XpConclusaoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        },
+        "required" : [ "abortadoEm", "blocoPlanoId", "concluidoEm", "id", "iniciadoEm", "status", "xp" ],
+        "type" : "object"
+      },
+      "ExecucoesDoDiaResponse" : {
+        "properties" : {
+          "itens" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ItemExecucaoResponse"
+            },
+            "type" : "array"
+          },
+          "planoAprovado" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/PlanoAprovadoResumoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        },
+        "required" : [ "itens", "planoAprovado" ],
+        "type" : "object"
+      },
+      "HabitoDoDiaResponse" : {
+        "properties" : {
+          "cumprido" : {
+            "type" : "boolean"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "execucaoAvulsa" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/SlotExecucaoHabitoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "execucaoNoPlano" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/SlotExecucaoHabitoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "horarioPreferencial" : {
+            "format" : "time-local",
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "noPlanoAprovado" : {
+            "type" : "boolean"
+          },
+          "streakAtual" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "cumprido", "duracaoMinutos", "execucaoAvulsa", "execucaoNoPlano", "horarioPreferencial", "id", "noPlanoAprovado", "streakAtual", "titulo" ],
+        "type" : "object"
+      },
+      "HabitoHistoricoDiaResponse" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "metaMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosDedicados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "origem" : {
+            "enum" : [ "INFORMADO", "MISTO", "TIMER" ],
+            "type" : "string"
+          },
+          "suficiente" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "metaMinutos", "minutosDedicados", "origem", "suficiente" ],
+        "type" : "object"
+      },
+      "HabitoResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletada" : {
+            "type" : "boolean"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "descricao" : {
+            "type" : [ "null", "string" ]
+          },
+          "diasSemana" : {
+            "items" : {
+              "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+              "type" : "string"
+            },
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "horarioPreferencial" : {
+            "format" : "time-local",
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "melhorStreak" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "ATIVO", "PAUSADO" ],
+            "type" : "string"
+          },
+          "streakAtual" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tagMatchScore" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "tags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TagResumoResponse"
+            },
+            "type" : "array"
+          },
+          "titulo" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "deletada", "deletedAt", "descricao", "diasSemana", "duracaoMinutos", "horarioPreferencial", "id", "melhorStreak", "ordem", "status", "streakAtual", "tagMatchScore", "tags", "titulo", "updatedAt" ],
+        "type" : "object"
+      },
+      "HabitoResumoResponse" : {
+        "properties" : {
+          "diasSemana" : {
+            "items" : {
+              "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+              "type" : "string"
+            },
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "horarioPreferencial" : {
+            "format" : "time-local",
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "streakAtual" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "diasSemana", "horarioPreferencial", "id", "streakAtual", "titulo" ],
+        "type" : "object"
+      },
+      "HistoricoResumoResponse" : {
+        "properties" : {
+          "blocosConcluidos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosTrabalhados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "periodo" : {
+            "$ref" : "#/components/schemas/PeriodoHistoricoResponse"
+          },
+          "tarefasFinalizadas" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpGanho" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "blocosConcluidos", "minutosTrabalhados", "periodo", "tarefasFinalizadas", "xpGanho" ],
+        "type" : "object"
+      },
+      "IniciarExecucaoRequest" : {
+        "properties" : {
+          "blocoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "blocoId" ],
+        "type" : "object"
+      },
+      "ItemExecucaoResponse" : {
+        "properties" : {
+          "bloco" : {
+            "$ref" : "#/components/schemas/BlocoExecucaoResponse"
+          },
+          "execucao" : {
+            "$ref" : "#/components/schemas/ExecucaoResponse"
+          },
+          "habitoResumo" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/HabitoResumoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "tarefaResumo" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/TarefaResumoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        },
+        "required" : [ "bloco", "execucao", "habitoResumo", "tarefaResumo" ],
+        "type" : "object"
+      },
+      "ItemNaoAlocadoResponse" : {
+        "properties" : {
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "motivo" : {
+            "enum" : [ "CAPACIDADE" ],
+            "type" : "string"
+          },
+          "tipo" : {
+            "enum" : [ "HABITO", "TAREFA" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "duracaoMinutos", "id", "motivo", "tipo", "titulo" ],
+        "type" : "object"
+      },
+      "Janela" : {
+        "properties" : {
+          "fim" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "inicio" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "fim", "inicio" ],
+        "type" : "object"
+      },
+      "LoginRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "senha" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "senha" ],
+        "type" : "object"
+      },
+      "MetricasCalibracaoResponse" : {
+        "properties" : {
+          "amostras" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "desvioMedioMinutos" : {
+            "type" : [ "null", "number" ]
+          },
+          "razao" : {
+            "type" : [ "null", "number" ]
+          },
+          "suficiente" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "amostras", "desvioMedioMinutos", "razao", "suficiente" ],
+        "type" : "object"
+      },
+      "PageMetadata" : {
+        "properties" : {
+          "number" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "number", "size", "totalElements", "totalPages" ],
+        "type" : "object"
+      },
+      "Pageable" : {
+        "properties" : {
+          "page" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sort" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "PagedModelDecidirResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DecidirResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "$ref" : "#/components/schemas/PageMetadata"
+          }
+        },
+        "required" : [ "content", "page" ],
+        "type" : "object"
+      },
+      "PagedModelHabitoResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HabitoResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "$ref" : "#/components/schemas/PageMetadata"
+          }
+        },
+        "required" : [ "content", "page" ],
+        "type" : "object"
+      },
+      "PagedModelProjetoResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProjetoResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "$ref" : "#/components/schemas/PageMetadata"
+          }
+        },
+        "required" : [ "content", "page" ],
+        "type" : "object"
+      },
+      "PagedModelTarefaResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TarefaResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "$ref" : "#/components/schemas/PageMetadata"
+          }
+        },
+        "required" : [ "content", "page" ],
+        "type" : "object"
+      },
+      "PeriodoCalendarioResponse" : {
+        "properties" : {
+          "fim" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "inicio" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "fim", "inicio" ],
+        "type" : "object"
+      },
+      "PeriodoHistoricoResponse" : {
+        "properties" : {
+          "escopo" : {
+            "type" : "string"
+          },
+          "fim" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "inicio" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "escopo", "fim", "inicio" ],
+        "type" : "object"
+      },
+      "PlanoAprovadoResumoResponse" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "versao" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "data", "id", "versao" ],
+        "type" : "object"
+      },
+      "PlanoResponse" : {
+        "properties" : {
+          "blocos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BlocoPlanoResponse"
+            },
+            "type" : "array"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "geradoEm" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "itensNaoAlocados" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ItemNaoAlocadoResponse"
+            },
+            "type" : "array"
+          },
+          "mensagem" : {
+            "type" : [ "null", "string" ]
+          },
+          "propostaId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "propostaPendente" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "enum" : [ "APROVADO", "DESCARTADO", "HABITO_AVULSO", "RASCUNHO", "TAREFA_AVULSA" ],
+            "type" : "string"
+          },
+          "temConflito" : {
+            "type" : "boolean"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "versao" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "blocos", "createdAt", "data", "geradoEm", "id", "itensNaoAlocados", "mensagem", "propostaId", "propostaPendente", "status", "temConflito", "updatedAt", "versao" ],
+        "type" : "object"
+      },
+      "ProjetoResponse" : {
+        "properties" : {
+          "bloqueada" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "descricao" : {
+            "type" : [ "null", "string" ]
+          },
+          "esperas" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EsperaResumo"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO" ],
+            "type" : "string"
+          },
+          "tagMatchScore" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "tags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TagResumoResponse"
+            },
+            "type" : "array"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "bloqueada", "createdAt", "descricao", "esperas", "id", "nome", "ordem", "status", "tagMatchScore", "tags", "updatedAt" ],
+        "type" : "object"
+      },
+      "PromoverDecidirRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "maxLength" : 120,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RecorteProjetoCalibracaoResponse" : {
+        "properties" : {
+          "amostras" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "desvioMedioMinutos" : {
+            "type" : [ "null", "number" ]
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "razao" : {
+            "type" : [ "null", "number" ]
+          },
+          "suficiente" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "amostras", "desvioMedioMinutos", "nome", "projetoId", "razao", "suficiente" ],
+        "type" : "object"
+      },
+      "RecorteTagCalibracaoResponse" : {
+        "properties" : {
+          "amostras" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "cor" : {
+            "type" : "string"
+          },
+          "desvioMedioMinutos" : {
+            "type" : [ "null", "number" ]
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "razao" : {
+            "type" : [ "null", "number" ]
+          },
+          "suficiente" : {
+            "type" : "boolean"
+          },
+          "tagId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "amostras", "cor", "desvioMedioMinutos", "nome", "razao", "suficiente", "tagId" ],
+        "type" : "object"
+      },
+      "ReordenarRequest" : {
+        "properties" : {
+          "ids" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 500,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "ids" ],
+        "type" : "object"
+      },
+      "ReservaProjetoResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "diaSemana" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "minutosReservados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "diaSemana", "id", "minutosReservados", "projetoId", "updatedAt" ],
+        "type" : "object"
+      },
+      "SessaoTarefaRequest" : {
+        "properties" : {
+          "blocoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "SlotExecucaoHabitoResponse" : {
+        "properties" : {
+          "blocoId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "execucaoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "iniciadoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ABORTADO", "CONCLUIDO", "EM_ANDAMENTO", "NAO_INICIADO" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "blocoId", "execucaoId", "iniciadoEm", "status" ],
+        "type" : "object"
+      },
+      "TagResponse" : {
+        "properties" : {
+          "cor" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "cor", "createdAt", "id", "nome", "updatedAt" ],
+        "type" : "object"
+      },
+      "TagResumoResponse" : {
+        "properties" : {
+          "cor" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nome" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "cor", "id", "nome" ],
+        "type" : "object"
+      },
+      "TarefaResponse" : {
+        "properties" : {
+          "bloqueada" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletada" : {
+            "type" : "boolean"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "descricao" : {
+            "type" : "string"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "esperas" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EsperaResumo"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ordem" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "parentId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "parentTitulo" : {
+            "type" : [ "null", "string" ]
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "projetoNome" : {
+            "type" : [ "null", "string" ]
+          },
+          "restanteMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "tagMatchScore" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "tags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TagResumoResponse"
+            },
+            "type" : "array"
+          },
+          "temFilhos" : {
+            "type" : "boolean"
+          },
+          "titulo" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "bloqueada", "createdAt", "deletada", "deletedAt", "descricao", "duracaoMinutos", "esperas", "id", "ordem", "parentId", "parentTitulo", "prazo", "prioridade", "projetoId", "projetoNome", "restanteMinutos", "status", "tagMatchScore", "tags", "temFilhos", "titulo", "updatedAt" ],
+        "type" : "object"
+      },
+      "TarefaResumoResponse" : {
+        "properties" : {
+          "bloqueada" : {
+            "type" : "boolean"
+          },
+          "duracaoMinutos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "esperas" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EsperaResumo"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "prazo" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "prioridade" : {
+            "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "projetoNome" : {
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "bloqueada", "duracaoMinutos", "esperas", "id", "prazo", "prioridade", "projetoId", "projetoNome", "status", "titulo" ],
+        "type" : "object"
+      },
+      "UsuarioResponse" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "xpNoNivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpParaProximoNivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "email", "id", "nivel", "nome", "xpNoNivel", "xpParaProximoNivel", "xpTotal" ],
+        "type" : "object"
+      },
+      "XpConclusaoResponse" : {
+        "properties" : {
+          "eventos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/XpEventoResumoResponse"
+            },
+            "type" : "array"
+          },
+          "ganhoNesteRequest" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "progresso" : {
+            "$ref" : "#/components/schemas/XpProgressoResponse"
+          }
+        },
+        "required" : [ "eventos", "ganhoNesteRequest", "progresso" ],
+        "type" : "object"
+      },
+      "XpEventoResumoResponse" : {
+        "properties" : {
+          "quantidade" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tipo" : {
+            "enum" : [ "BLOCO_CONCLUIDO", "TAREFA_FINALIZADA" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "quantidade", "tipo" ],
+        "type" : "object"
+      },
+      "XpProgressoResponse" : {
+        "properties" : {
+          "nivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpNoNivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpParaProximoNivel" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "xpTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "nivel", "xpNoNivel", "xpParaProximoNivel", "xpTotal" ],
+        "type" : "object"
+      }
+    }
+  },
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/auth/login" : {
+      "post" : {
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccessTokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/auth/logout" : {
+      "post" : {
+        "operationId" : "logout",
+        "parameters" : [ {
+          "in" : "cookie",
+          "name" : "refresh_token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Authorization",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/auth/refresh" : {
+      "post" : {
+        "operationId" : "refresh",
+        "parameters" : [ {
+          "in" : "cookie",
+          "name" : "refresh_token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccessTokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/calendario" : {
+      "get" : {
+        "operationId" : "consultar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "dataDe",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataAte",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarioResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "calendario-controller" ]
+      }
+    },
+    "/capacidades/overrides" : {
+      "get" : {
+        "operationId" : "listar_6",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "incluirDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "somenteDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CapacidadeOverrideResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_7",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarCapacidadeOverrideRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CapacidadeOverrideResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      }
+    },
+    "/capacidades/overrides/{id}" : {
+      "delete" : {
+        "operationId" : "excluir_6",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      },
+      "get" : {
+        "operationId" : "buscar_5",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeOverrideResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_8",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarCapacidadeOverrideRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeOverrideResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      }
+    },
+    "/capacidades/overrides/{id}/restore" : {
+      "post" : {
+        "operationId" : "restaurar_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeOverrideResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-override-controller" ]
+      }
+    },
+    "/capacidades/resolvida" : {
+      "get" : {
+        "operationId" : "resolver",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "dataDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CapacidadeResolvidaResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-resolvida-controller" ]
+      }
+    },
+    "/capacidades/semanal" : {
+      "get" : {
+        "operationId" : "listar_5",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "incluirDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "somenteDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CapacidadeSemanalResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_6",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarCapacidadeSemanalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CapacidadeSemanalResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      }
+    },
+    "/capacidades/semanal/{id}" : {
+      "delete" : {
+        "operationId" : "excluir_5",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      },
+      "get" : {
+        "operationId" : "buscar_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeSemanalResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_7",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarCapacidadeSemanalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeSemanalResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      }
+    },
+    "/capacidades/semanal/{id}/restore" : {
+      "post" : {
+        "operationId" : "restaurar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CapacidadeSemanalResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "capacidade-semanal-controller" ]
+      }
+    },
+    "/decidir" : {
+      "get" : {
+        "operationId" : "listar_4",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "promovidos",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tagId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedModelDecidirResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_5",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarDecidirRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecidirResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      }
+    },
+    "/decidir/{id}" : {
+      "delete" : {
+        "operationId" : "excluir_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      },
+      "get" : {
+        "operationId" : "buscar_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecidirResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_6",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarDecidirRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecidirResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      }
+    },
+    "/decidir/{id}/promover" : {
+      "post" : {
+        "operationId" : "promover",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PromoverDecidirRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecidirResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "decidir-controller" ]
+      }
+    },
+    "/execucoes" : {
+      "get" : {
+        "operationId" : "listar_7",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucoesDoDiaResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "execucao-controller" ]
+      }
+    },
+    "/execucoes/ativa" : {
+      "get" : {
+        "operationId" : "ativa",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ItemExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "execucao-controller" ]
+      }
+    },
+    "/execucoes/iniciar" : {
+      "post" : {
+        "operationId" : "iniciar_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IniciarExecucaoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "execucao-controller" ]
+      }
+    },
+    "/execucoes/{id}/abortar" : {
+      "post" : {
+        "operationId" : "abortar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "execucao-controller" ]
+      }
+    },
+    "/execucoes/{id}/concluir" : {
+      "post" : {
+        "operationId" : "concluir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "execucao-controller" ]
+      }
+    },
+    "/habitos" : {
+      "get" : {
+        "operationId" : "listar_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "ATIVO", "PAUSADO" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "incluirDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "somenteDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tagId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedModelHabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarHabitoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/do-dia" : {
+      "get" : {
+        "operationId" : "listarDoDia",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/HabitoDoDiaResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/ordem" : {
+      "put" : {
+        "operationId" : "reordenar_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReordenarRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}" : {
+      "delete" : {
+        "operationId" : "excluir_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      },
+      "get" : {
+        "operationId" : "buscar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_5",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarHabitoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/concluir-direto" : {
+      "post" : {
+        "operationId" : "concluirDireto_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "data",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConcluirHabitoDiretoRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/historico" : {
+      "get" : {
+        "operationId" : "historico",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dataAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/HabitoHistoricoDiaResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/iniciar" : {
+      "post" : {
+        "operationId" : "iniciar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "data",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/pausar" : {
+      "post" : {
+        "operationId" : "pausar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/reativar" : {
+      "post" : {
+        "operationId" : "reativar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/habitos/{id}/restore" : {
+      "post" : {
+        "operationId" : "restaurar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HabitoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "habito-controller" ]
+      }
+    },
+    "/historico/calibracao" : {
+      "get" : {
+        "operationId" : "calibracao",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalibracaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "historico-controller" ]
+      }
+    },
+    "/historico/dia" : {
+      "get" : {
+        "operationId" : "dia",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HistoricoResumoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "historico-controller" ]
+      }
+    },
+    "/historico/semana" : {
+      "get" : {
+        "operationId" : "semana",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "semanaInicio",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HistoricoResumoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "historico-controller" ]
+      }
+    },
+    "/me" : {
+      "get" : {
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsuarioResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-controller" ]
+      },
+      "put" : {
+        "operationId" : "atualizar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarMeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsuarioResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-controller" ]
+      }
+    },
+    "/planos" : {
+      "get" : {
+        "operationId" : "buscar_6",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "versao",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/gerar" : {
+      "post" : {
+        "operationId" : "gerar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/propostas/{propostaId}/aceitar" : {
+      "post" : {
+        "operationId" : "aceitarProposta",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "propostaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/propostas/{propostaId}/descartar" : {
+      "post" : {
+        "operationId" : "descartarProposta",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "propostaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/{id}" : {
+      "get" : {
+        "operationId" : "buscarPorId",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/{id}/aprovar" : {
+      "post" : {
+        "operationId" : "aprovar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/{id}/blocos" : {
+      "post" : {
+        "operationId" : "adicionarBloco",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdicionarBlocoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/planos/{id}/blocos/{blocoId}" : {
+      "delete" : {
+        "operationId" : "removerBloco",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "blocoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "plano-controller" ]
+      }
+    },
+    "/projetos" : {
+      "get" : {
+        "operationId" : "listar_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "ARQUIVADO", "ATIVO" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tagId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedModelProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarProjetoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjetoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/ordem" : {
+      "put" : {
+        "operationId" : "reordenar_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReordenarRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/reservas" : {
+      "get" : {
+        "operationId" : "listarDoUsuario",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "diaSemana",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "DOMINGO", "QUARTA", "QUINTA", "SABADO", "SEGUNDA", "SEXTA", "TERCA" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "projetoId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReservaProjetoResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "reserva-projeto-controller" ]
+      }
+    },
+    "/projetos/{id}" : {
+      "get" : {
+        "operationId" : "buscar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarProjetoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/{id}/arquivar" : {
+      "post" : {
+        "operationId" : "arquivar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/{id}/esperas" : {
+      "get" : {
+        "operationId" : "listarEsperas_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EsperaResumo"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      },
+      "post" : {
+        "operationId" : "criarEspera_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarEsperaRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EsperaResumo"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/{id}/esperas/{esperaId}" : {
+      "delete" : {
+        "operationId" : "excluirEspera_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "esperaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/{id}/reativar" : {
+      "post" : {
+        "operationId" : "reativar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "projeto-controller" ]
+      }
+    },
+    "/projetos/{projetoId}/reservas" : {
+      "get" : {
+        "operationId" : "listarDoProjeto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projetoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReservaProjetoResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "reserva-projeto-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projetoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarReservaProjetoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReservaProjetoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "reserva-projeto-controller" ]
+      }
+    },
+    "/projetos/{projetoId}/reservas/{reservaId}" : {
+      "delete" : {
+        "operationId" : "excluir_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projetoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "reservaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "reserva-projeto-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projetoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "reservaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarReservaProjetoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReservaProjetoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "reserva-projeto-controller" ]
+      }
+    },
+    "/tags" : {
+      "get" : {
+        "operationId" : "listar_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TagResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tag-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarTagRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "tag-controller" ]
+      }
+    },
+    "/tags/{id}" : {
+      "delete" : {
+        "operationId" : "excluir_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "tag-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarTagRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tag-controller" ]
+      }
+    },
+    "/tarefas" : {
+      "get" : {
+        "operationId" : "listar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "prioridade",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "ALTA", "BAIXA", "MEDIA" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "prazoDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "prazoAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "duracaoDe",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "duracaoAte",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "criadoDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "criadoAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "atualizadoDe",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "atualizadoAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "incluirDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "somenteDeletadas",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "projetoId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tagId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "parentId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "somenteRaizes",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "semPrazo",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "semProjeto",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "semTag",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "bloqueada",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedModelTarefaResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarTarefaRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TarefaResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/ordem" : {
+      "put" : {
+        "operationId" : "reordenar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReordenarRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}" : {
+      "delete" : {
+        "operationId" : "excluir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      },
+      "get" : {
+        "operationId" : "buscar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TarefaResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarTarefaRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TarefaResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}/concluir-direto" : {
+      "post" : {
+        "operationId" : "concluirDireto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SessaoTarefaRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}/esperas" : {
+      "get" : {
+        "operationId" : "listarEsperas",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EsperaResumo"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      },
+      "post" : {
+        "operationId" : "criarEspera",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarEsperaRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EsperaResumo"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}/esperas/{esperaId}" : {
+      "delete" : {
+        "operationId" : "excluirEspera",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "esperaId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}/iniciar" : {
+      "post" : {
+        "operationId" : "iniciar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SessaoTarefaRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/tarefas/{id}/restore" : {
+      "post" : {
+        "operationId" : "restaurar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TarefaResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tarefa-controller" ]
+      }
+    },
+    "/usuarios" : {
+      "post" : {
+        "operationId" : "cadastrar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CadastroUsuarioRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsuarioResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "usuario-controller" ]
+      }
+    }
+  }
+}

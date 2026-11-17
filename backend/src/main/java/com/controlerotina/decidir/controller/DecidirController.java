@@ -3,10 +3,10 @@ package com.controlerotina.decidir.controller;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -51,13 +51,13 @@ public class DecidirController {
     }
 
     @GetMapping
-    public Page<DecidirResponse> listar(
+    public PagedModel<DecidirResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
             @RequestParam(defaultValue = "false") boolean promovidos,
             @RequestParam(required = false) List<UUID> tagId,
             Pageable pageable
     ) {
-        return decidirService.listar(usuarioId, promovidos, tagId, normalizarPageable(pageable));
+        return new PagedModel<>(decidirService.listar(usuarioId, promovidos, tagId, normalizarPageable(pageable)));
     }
 
     @GetMapping("/{id}")

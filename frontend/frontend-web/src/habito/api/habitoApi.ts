@@ -1,3 +1,4 @@
+import type { Pagina } from '../../api/pagina'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { TagResumo } from '../../tag/api/tagApi'
@@ -26,13 +27,7 @@ export type HabitoResponse = {
   ordem?: number
 }
 
-export type PageHabito = {
-  content: HabitoResponse[]
-  totalElements: number
-  totalPages: number
-  number: number
-  size: number
-}
+export type PageHabito = Pagina<HabitoResponse>
 
 export type ListarHabitosParams = {
   status?: StatusHabito

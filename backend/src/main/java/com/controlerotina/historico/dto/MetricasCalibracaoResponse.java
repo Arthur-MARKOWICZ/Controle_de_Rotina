@@ -1,5 +1,7 @@
 package com.controlerotina.historico.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.math.BigDecimal;
 
 import com.controlerotina.historico.CalibracaoCalculadora;
@@ -8,8 +10,8 @@ import com.controlerotina.historico.CalibracaoCalculadora;
 public record MetricasCalibracaoResponse(
         int amostras,
         boolean suficiente,
-        BigDecimal razao,
-        BigDecimal desvioMedioMinutos
+        @Nullable BigDecimal razao,
+        @Nullable BigDecimal desvioMedioMinutos
 ) {
     public static MetricasCalibracaoResponse of(CalibracaoCalculadora.Metricas m) {
         return new MetricasCalibracaoResponse(m.amostras(), m.suficiente(), m.razao(), m.desvioMedioMinutos());

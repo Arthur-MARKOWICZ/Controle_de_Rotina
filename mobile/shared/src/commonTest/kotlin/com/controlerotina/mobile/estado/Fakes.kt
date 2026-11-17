@@ -18,6 +18,7 @@ import com.controlerotina.mobile.api.HabitoDoDia
 import com.controlerotina.mobile.api.ItemExecucao
 import com.controlerotina.mobile.api.MeResponse
 import com.controlerotina.mobile.api.OrigemBloco
+import com.controlerotina.mobile.api.MetadadosPagina
 import com.controlerotina.mobile.api.PaginaTarefas
 import com.controlerotina.mobile.api.Plano
 import com.controlerotina.mobile.api.ProblemDetail
@@ -127,11 +128,11 @@ class FakeRotinaApi : RotinaApi {
 
     override suspend fun tarefas(pagina: Int, tamanho: Int, filtro: FiltroTarefas): PaginaTarefas {
         filtros += filtro
-        filtro.parentId?.let { registrar("filhos:$it"); return PaginaTarefas(filhosDe[it].orEmpty(), 0, 1) }
-        filtro.projetoId?.let { registrar("tarefasProjeto:$it"); return PaginaTarefas(tarefasDoProjeto[it].orEmpty(), 0, 1) }
+        filtro.parentId?.let { registrar("filhos:$it"); return PaginaTarefas(filhosDe[it].orEmpty(), MetadadosPagina(number = 0, totalPages = 1)) }
+        filtro.projetoId?.let { registrar("tarefasProjeto:$it"); return PaginaTarefas(tarefasDoProjeto[it].orEmpty(), MetadadosPagina(number = 0, totalPages = 1)) }
         registrar("tarefas:$pagina")
         val conteudo = paginas.getOrElse(pagina) { emptyList() }
-        return PaginaTarefas(conteudo, pagina, paginas.size)
+        return PaginaTarefas(conteudo, MetadadosPagina(number = pagina, totalPages = paginas.size))
     }
 
     val patches = mutableListOf<Pair<String, JsonObject>>()

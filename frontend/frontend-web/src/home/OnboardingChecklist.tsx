@@ -56,7 +56,7 @@ export function OnboardingChecklist({ temPlano, onGerarPlano }: Props) {
         }
         const status: PassosOnboarding = {
           capacidade: capacidadeConfigurada(capacidades),
-          tarefa: tarefas.totalElements > 0 || tarefas.content.length > 0,
+          tarefa: tarefas.page.totalElements > 0 || tarefas.content.length > 0,
           plano: temPlano,
         }
         setUsuarioId(me.id)

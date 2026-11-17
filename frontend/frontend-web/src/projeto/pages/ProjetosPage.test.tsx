@@ -38,10 +38,7 @@ const pagina = {
       updatedAt: '2026-01-01T10:00:00Z',
     },
   ],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
 }
 
 function renderLista(path = '/projetos') {
@@ -80,7 +77,7 @@ describe('ProjetosPage', () => {
     })
     vi.mocked(projetoApi.listarProjetos)
       .mockResolvedValueOnce(pagina)
-      .mockResolvedValueOnce({ ...pagina, content: [], totalElements: 0, totalPages: 0 })
+      .mockResolvedValueOnce({ ...pagina, content: [], page: { ...pagina.page, totalElements: 0, totalPages: 0 } })
 
     const user = userEvent.setup()
     renderLista()
@@ -106,10 +103,7 @@ describe('ProjetosPage', () => {
   it('empty state ativo oferece CTA Criar primeiro projeto', async () => {
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
     renderLista()
 
@@ -197,10 +191,7 @@ describe('ProjetosPage', () => {
   it('T5: empty arquivados oferece voltar a Ativos', async () => {
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
 
     const user = userEvent.setup()
@@ -225,16 +216,12 @@ describe('ProjetosPage', () => {
     const pagina0 = {
       ...pagina,
       content: [{ ...pagina.content[0], id: 'p-1', nome: 'Projeto A' }],
-      totalElements: 25,
-      totalPages: 2,
-      number: 0,
+      page: { size: 20, number: 0, totalElements: 25, totalPages: 2 },
     }
     const pagina1 = {
       ...pagina,
       content: [{ ...pagina.content[0], id: 'p-2', nome: 'Projeto B' }],
-      totalElements: 25,
-      totalPages: 2,
-      number: 1,
+      page: { size: 20, number: 1, totalElements: 25, totalPages: 2 },
     }
     vi.mocked(projetoApi.listarProjetos)
       .mockResolvedValueOnce(pagina0)
@@ -317,7 +304,7 @@ describe('ProjetosPage', () => {
   it('reordena projetos com seta no handle', async () => {
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       ...pagina,
-      totalElements: 2,
+      page: { size: 20, number: 0, totalElements: 2, totalPages: 1 },
       content: [
         { ...pagina.content[0], id: 'p-a', nome: 'Alpha', ordem: 0 },
         { ...pagina.content[0], id: 'p-b', nome: 'Beta', ordem: 1 },

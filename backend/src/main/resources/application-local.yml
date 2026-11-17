@@ -6,3 +6,7 @@ app:
       secret: controle-rotina-dev-secret-key-min-32-chars!!
     refresh-cookie:
       secure: false
+
+springdoc:
+  api-docs:
+    enabled: true

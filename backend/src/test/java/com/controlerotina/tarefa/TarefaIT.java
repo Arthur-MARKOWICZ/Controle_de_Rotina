@@ -470,7 +470,7 @@ class TarefaIT {
                 Map.class);
         assertThat(page0.getStatusCode()).isEqualTo(OK);
         assertThat(content(page0)).hasSize(20);
-        assertThat(((Number) page0.getBody().get("totalElements")).intValue()).isEqualTo(21);
+        assertThat(((Number) ((Map<?, ?>) page0.getBody().get("page")).get("totalElements")).intValue()).isEqualTo(21);
 
         ResponseEntity<Map> page1 = restTemplate.exchange(
                 "/tarefas?page=1&size=20",

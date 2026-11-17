@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 private fun MockRequestHandleScope.json(
     corpo: String,
@@ -80,9 +81,10 @@ class FiltroPrazoApiTest {
     }
 
     @Test
-    fun deveTratarTotalElementsAusenteComoNulo() = runTest {
+    fun deveLerTotalZeroEUltimaPaginaQuandoListaVazia() = runTest {
         val pagina = api { json(PAGINA_VAZIA) }.tarefas(0, 50, filtroAmanha)
-        assertNull(pagina.totalElements)
+        assertEquals(0L, pagina.totalElements)
+        assertTrue(pagina.ultima)
         assertEquals(emptyList(), pagina.content)
     }
 
@@ -149,10 +151,10 @@ class FiltroPrazoApiTest {
     }
 }
 
-private val PAGINA_VAZIA = """{"content":[],"number":0,"totalPages":0,"last":true}"""
+private val PAGINA_VAZIA = """{"content":[],"page":{"size":50,"number":0,"totalElements":0,"totalPages":0}}"""
 
 private val PAGINA_COM_TOTAL = """
 {"content":[{"id":"t1","titulo":"Relatório","prioridade":"ALTA","prazo":"2026-11-15T02:59:00Z","status":"PENDENTE",
  "duracaoMinutos":30,"restanteMinutos":30,"temFilhos":false,"bloqueada":false}],
- "number":0,"totalPages":1,"last":true,"totalElements":5,"size":50}
+ "page":{"size":50,"number":0,"totalElements":5,"totalPages":1}}
 """.trimIndent()

@@ -103,7 +103,7 @@ function removerDaPagina(pagina: PageTarefa, id: string): PageTarefa {
   return {
     ...pagina,
     content: pagina.content.filter((t) => t.id !== id),
-    totalElements: Math.max(0, pagina.totalElements - 1),
+    page: { ...pagina.page, totalElements: Math.max(0, pagina.page.totalElements - 1) },
   }
 }
 
@@ -113,7 +113,7 @@ function inserirNaPagina(pagina: PageTarefa, tarefa: TarefaResponse, indice: num
   }
   const content = [...pagina.content]
   content.splice(Math.min(indice, content.length), 0, tarefa)
-  return { ...pagina, content, totalElements: pagina.totalElements + 1 }
+  return { ...pagina, content, page: { ...pagina.page, totalElements: pagina.page.totalElements + 1 } }
 }
 
 function inserirNosFilhos(
@@ -395,7 +395,7 @@ export function TarefasPage() {
 
   const carregandoPrimeira = chaveCarregada === null
   const recarregando = resultado != null && chaveCarregada !== chaveAtual
-  const totalPages = resultado?.totalPages ?? 0
+  const totalPages = resultado?.page.totalPages ?? 0
   const visaoArvore = ehVisaoArvore(filtrosUrl)
   const visaoPlana = ehVisaoPlana(filtrosUrl)
   const tarefasTopo =
@@ -417,7 +417,7 @@ export function TarefasPage() {
   const listaVazia = resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && ehFiltroBasicoTodas(filtrosUrl)
   const temChips = chipsAtivos(filtrosUrl, projetosAtivos, catalogoTags).length > 0
-  const total = resultado?.totalElements ?? 0
+  const total = resultado?.page.totalElements ?? 0
 
   return (
     <main className={naFicha ? 'tarefas-page tarefas-page--ficha' : 'tarefas-page'}>

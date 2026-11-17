@@ -5,10 +5,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -78,7 +78,7 @@ public class TarefaController {
     }
 
     @GetMapping
-    public Page<TarefaResponse> listar(
+    public PagedModel<TarefaResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
             @RequestParam(required = false) List<StatusTarefa> status,
             @RequestParam(required = false) List<Prioridade> prioridade,
@@ -124,7 +124,7 @@ public class TarefaController {
                 semTag,
                 bloqueada
         );
-        return tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable));
+        return new PagedModel<>(tarefaService.listar(usuarioId, filtro, normalizarPageable(pageable)));
     }
 
     @PostMapping("/{id}/iniciar")

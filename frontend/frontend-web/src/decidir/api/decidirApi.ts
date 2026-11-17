@@ -1,3 +1,4 @@
+import type { Pagina } from '../../api/pagina'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { TagResumo } from '../../tag/api/tagApi'
@@ -16,13 +17,7 @@ export type DecidirResponse = {
   updatedAt: string
 }
 
-export type PageDecidir = {
-  content: DecidirResponse[]
-  totalElements: number
-  totalPages: number
-  number: number
-  size: number
-}
+export type PageDecidir = Pagina<DecidirResponse>
 
 export type ListarDecidirParams = {
   promovidos?: boolean

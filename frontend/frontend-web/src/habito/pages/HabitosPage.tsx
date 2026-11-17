@@ -285,7 +285,7 @@ export function HabitosPage() {
 
   const listaVazia = !carregando && resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && visao === 'ATIVO'
-  const totalPages = resultado?.totalPages ?? 0
+  const totalPages = resultado?.page.totalPages ?? 0
   const novoHabito = { pathname: '/habitos/nova', search: location.search }
 
   return (
@@ -331,7 +331,7 @@ export function HabitosPage() {
       {!carregando && resultado ? (
         <>
           <p className="habitos-meta">
-            {resultado.totalElements} hábito{resultado.totalElements === 1 ? '' : 's'}
+            {resultado.page.totalElements} hábito{resultado.page.totalElements === 1 ? '' : 's'}
           </p>
 
           {listaVazia ? (

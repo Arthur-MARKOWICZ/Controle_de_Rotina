@@ -5,6 +5,7 @@ import { ApiError } from '../../auth/api/authApi'
 import * as tagApi from '../../tag/api/tagApi'
 import { interpretarQuickAdd, type TokenTag } from './interpretarQuickAdd'
 import { camposDoResultado, useQuickAdd } from './useQuickAdd'
+import { tag as tagFake } from '../../test/revisaoFixtures'
 
 vi.mock('../../tag/api/tagApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../tag/api/tagApi')>()),
@@ -14,7 +15,7 @@ vi.mock('../../tag/api/tagApi', async (importOriginal) => ({
 
 /** Quarta-feira 18/11/2026 10:00 BRT. */
 const REF = new Date('2026-11-18T13:00:00.000Z')
-const FACULDADE = { id: 'tag-fac', nome: 'Faculdade', cor: '#123456' }
+const FACULDADE = tagFake({ id: 'tag-fac', nome: 'Faculdade', cor: '#123456' })
 
 type Props = { texto: string; ativo: boolean }
 
@@ -76,7 +77,7 @@ describe('useQuickAdd', () => {
   })
 
   it('naoDeveCriarATagDuasVezesQuandoReenviaDepoisDeCriar', async () => {
-    vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' })
+    vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' }))
     const { result } = renderUseQuickAdd({ texto: 'Treino #academia', ativo: false })
     act(() => result.current.alternarTag(tagPendente(result, 'academia')))
 

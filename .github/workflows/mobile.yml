@@ -5,11 +5,13 @@ on:
   pull_request:
     paths:
       - "mobile/**"
+      - "contract/**"
       - ".github/workflows/mobile.yml"
   push:
     branches: [main]
     paths:
       - "mobile/**"
+      - "contract/**"
       - ".github/workflows/mobile.yml"
   workflow_dispatch:
 

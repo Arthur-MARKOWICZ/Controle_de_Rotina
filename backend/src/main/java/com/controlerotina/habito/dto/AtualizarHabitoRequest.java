@@ -1,5 +1,9 @@
 package com.controlerotina.habito.dto;
 
+import org.jspecify.annotations.Nullable;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,12 +36,16 @@ public record AtualizarHabitoRequest(
         @Size(min = 1)
         Set<DiaSemana> diasSemana,
 
+        @Nullable
         LocalTime horarioPreferencial,
 
+        @Schema(hidden = true)
         boolean horarioPreferencialPresente,
 
+        @Nullable
         List<UUID> tagIds,
 
+        @Schema(hidden = true)
         boolean tagIdsPresente
 ) {
     public AtualizarHabitoRequest {

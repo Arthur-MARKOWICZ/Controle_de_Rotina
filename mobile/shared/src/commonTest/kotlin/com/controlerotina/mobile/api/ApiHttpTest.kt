@@ -316,8 +316,7 @@ private val PAGINA_REAL = """
  "status":"PENDENTE","duracaoMinutos":60,"restanteMinutos":45,"ordem":0,"projetoId":null,"projetoNome":null,"tags":[],
  "tagMatchScore":null,"createdAt":"2026-11-01T00:00:00Z","updatedAt":"2026-11-01T00:00:00Z","deletedAt":null,
  "deletada":false,"parentId":null,"parentTitulo":null,"temFilhos":false,"esperas":[],"bloqueada":false}],
- "pageable":{"pageNumber":0,"pageSize":20},"last":true,"totalElements":1,"totalPages":1,"size":20,"number":0,
- "first":true,"numberOfElements":1,"empty":false}
+ "page":{"size":20,"number":0,"totalElements":1,"totalPages":1}}
 """.trimIndent()
 
 private val HABITOS_REAIS = """

@@ -44,10 +44,7 @@ const habito: HabitoResponse = {
 
 const pagina = {
   content: [habito],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
 }
 
 function jsonRes(body: unknown, status = 200) {

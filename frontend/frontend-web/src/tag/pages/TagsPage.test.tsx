@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as tagApi from '../api/tagApi'
 import { TagsPage } from './TagsPage'
+import { tag as tagFake } from '../../test/revisaoFixtures'
 
 const toastSuccess = vi.fn()
 
@@ -38,13 +39,13 @@ describe('TagsPage', () => {
   beforeEach(() => {
     toastSuccess.mockReset()
     vi.mocked(tagApi.listarTags).mockResolvedValue([
-      { id: 't1', nome: 'Foco', cor: '#6B7280' },
+      tagFake({ id: 't1', nome: 'Foco', cor: '#6B7280' }),
     ])
-    vi.mocked(tagApi.atualizarTag).mockResolvedValue({
+    vi.mocked(tagApi.atualizarTag).mockResolvedValue(tagFake({
       id: 't1',
       nome: 'Foco',
       cor: '#112233',
-    })
+    }))
     vi.mocked(tagApi.criarTag).mockReset()
     vi.mocked(tagApi.excluirTag).mockReset()
   })
@@ -87,7 +88,7 @@ describe('TagsPage', () => {
   })
 
   it('não cria tag com nome vazio', async () => {
-    vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 't2', nome: 'Nova', cor: '#6B7280' })
+    vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({ id: 't2', nome: 'Nova', cor: '#6B7280' }))
     renderPage()
     await screen.findByDisplayValue('Foco')
     expect(screen.getByRole('button', { name: /criar/i })).toBeDisabled()
@@ -95,7 +96,7 @@ describe('TagsPage', () => {
   })
 
   it('cria tag válida e notifica', async () => {
-    vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 't2', nome: 'Nova', cor: '#6B7280' })
+    vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({ id: 't2', nome: 'Nova', cor: '#6B7280' }))
     renderPage()
     const nome = await screen.findByLabelText(/nova tag/i)
     fireEvent.change(nome, { target: { value: 'Nova' } })

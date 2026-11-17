@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { TarefaResponse } from '../tarefa/api/tarefaApi'
 import { AdicionarTarefaForm } from './AdicionarTarefaForm'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 const elegiveis: TarefaResponse[] = [
-  {
+  tarefaFake({
     id: 't-2',
     titulo: 'Ler docs',
     descricao: '',
@@ -18,8 +19,8 @@ const elegiveis: TarefaResponse[] = [
     updatedAt: '2026-01-01T10:00:00Z',
     deletedAt: null,
     deletada: false,
-  },
-  {
+  }),
+  tarefaFake({
     id: 't-3',
     titulo: 'Correr no parque',
     descricao: '',
@@ -31,7 +32,7 @@ const elegiveis: TarefaResponse[] = [
     updatedAt: '2026-01-01T10:00:00Z',
     deletedAt: null,
     deletada: false,
-  },
+  }),
 ]
 
 describe('AdicionarTarefaForm', () => {

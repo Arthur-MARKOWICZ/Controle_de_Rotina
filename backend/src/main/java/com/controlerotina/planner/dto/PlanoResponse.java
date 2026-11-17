@@ -1,5 +1,7 @@
 package com.controlerotina.planner.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,8 +16,8 @@ public record PlanoResponse(
         int versao,
         StatusPlano status,
         boolean temConflito,
-        String mensagem,
-        UUID propostaId,
+        @Nullable String mensagem,
+        @Nullable UUID propostaId,
         boolean propostaPendente,
         Instant geradoEm,
         Instant createdAt,

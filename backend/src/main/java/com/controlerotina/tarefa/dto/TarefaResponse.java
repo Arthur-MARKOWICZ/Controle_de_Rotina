@@ -1,5 +1,7 @@
 package com.controlerotina.tarefa.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,21 +17,21 @@ public record TarefaResponse(
         String titulo,
         String descricao,
         Prioridade prioridade,
-        Instant prazo,
+        @Nullable Instant prazo,
         StatusTarefa status,
         int duracaoMinutos,
         int restanteMinutos,
         int ordem,
-        UUID projetoId,
-        String projetoNome,
+        @Nullable UUID projetoId,
+        @Nullable String projetoNome,
         List<TagResumoResponse> tags,
-        Integer tagMatchScore,
+        @Nullable Integer tagMatchScore,
         Instant createdAt,
         Instant updatedAt,
-        Instant deletedAt,
+        @Nullable Instant deletedAt,
         boolean deletada,
-        UUID parentId,
-        String parentTitulo,
+        @Nullable UUID parentId,
+        @Nullable String parentTitulo,
         boolean temFilhos,
         List<EsperaResumo> esperas,
         boolean bloqueada

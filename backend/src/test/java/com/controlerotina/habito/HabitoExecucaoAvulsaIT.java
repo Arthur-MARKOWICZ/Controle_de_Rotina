@@ -2,6 +2,7 @@ package com.controlerotina.habito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
@@ -118,9 +119,10 @@ class HabitoExecucaoAvulsaIT {
         ResponseEntity<Map> segundo = iniciarHabito(habitoId);
         assertThat(segundo.getStatusCode()).isEqualTo(OK);
         assertThat(segundo.getBody().get("id")).isEqualTo(primeiro.getBody().get("id"));
+        // A 1ª resposta traz o instante em nanos; o Postgres guarda em micros arredondando (não truncando).
         assertThat(Instant.parse(segundo.getBody().get("iniciadoEm").toString()))
-                .isEqualTo(Instant.parse(primeiro.getBody().get("iniciadoEm").toString())
-                        .truncatedTo(ChronoUnit.MICROS));
+                .isCloseTo(Instant.parse(primeiro.getBody().get("iniciadoEm").toString()),
+                        within(1, ChronoUnit.MICROS));
         assertThat(segundo.getBody().get("status")).isEqualTo("EM_ANDAMENTO");
     }
 

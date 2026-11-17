@@ -10,6 +10,7 @@ import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
 import { fimDoDiaBrtIso } from './dataCivilBrt'
 import { InlineAddTarefa, PLACEHOLDER_INLINE_ADD } from './InlineAddTarefa'
+import { tarefa as tarefaFake, tag as tagFake } from '../test/revisaoFixtures'
 
 vi.mock('../tag/api/tagApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../tag/api/tagApi')>()),
@@ -28,7 +29,7 @@ vi.mock('./api/tarefaApi', async (importOriginal) => {
   }
 })
 
-const criada: TarefaResponse = {
+const criada: TarefaResponse = tarefaFake({
   id: 't-1',
   titulo: 'Estudar',
   descricao: '',
@@ -40,7 +41,7 @@ const criada: TarefaResponse = {
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 const onCriada = vi.fn()
 
@@ -288,7 +289,7 @@ describe('InlineAddTarefa', () => {
     })
 
     it('deveCriarTagConfirmadaEVincular', async () => {
-      vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' })
+      vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' }))
       const user = userEvent.setup()
       renderAdd()
       await user.type(campo(), 'Treino #academia')

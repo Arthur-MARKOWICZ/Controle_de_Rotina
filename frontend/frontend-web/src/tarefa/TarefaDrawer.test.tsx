@@ -15,6 +15,7 @@ import type { TarefaResponse } from './api/tarefaApi'
 import { adicionarDiasCivil, fimDoDiaBrtIso, partesCivisBrt } from './dataCivilBrt'
 import { TarefasPage } from './pages/TarefasPage'
 import { TarefaDrawer } from './TarefaDrawer'
+import { tarefa as tarefaFake, tag as tagFake } from '../test/revisaoFixtures'
 
 vi.mock('./api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
@@ -73,13 +74,10 @@ const projetosAtivos = {
       updatedAt: '2026-01-01T10:00:00Z',
     },
   ],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
 }
 
-const tarefa: TarefaResponse = {
+const tarefa: TarefaResponse = tarefaFake({
   id: 't-1',
   titulo: 'Estudar',
   descricao: 'Spring',
@@ -91,10 +89,10 @@ const tarefa: TarefaResponse = {
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 function pagina(content: TarefaResponse[]) {
-  return { content, totalElements: content.length, totalPages: content.length ? 1 : 0, number: 0, size: 20 }
+  return { content, page: { size: 20, number: 0, totalElements: content.length, totalPages: content.length ? 1 : 0 } }
 }
 
 function prazoFuturoLocal(): string {
@@ -370,11 +368,12 @@ describe('TarefaDrawer', () => {
           expect.objectContaining({
             titulo: 'Sem prazo',
             prioridade: 'MEDIA',
-            prazo: null,
             duracaoMinutos: 60,
           }),
         )
       })
+      // Sem prazo o campo vai ausente no JSON (o contrato não aceita prazo nulo na criação).
+      expect(vi.mocked(tarefaApi.criarTarefa).mock.calls[0][0].prazo).toBeUndefined()
     })
 
     it('mostra erro de validação quando título está vazio', async () => {
@@ -441,7 +440,7 @@ describe('TarefaDrawer', () => {
     })
 
     it('quick-add "Mais detalhes" pré-preenche os valores interpretados e só leva tags existentes (#74)', async () => {
-      const faculdade = { id: 'tag-fac', nome: 'Faculdade', cor: '#123456' }
+      const faculdade = tagFake({ id: 'tag-fac', nome: 'Faculdade', cor: '#123456' })
       vi.mocked(tagApi.listarTags).mockResolvedValue([faculdade])
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue(pagina([]))
       vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefa)

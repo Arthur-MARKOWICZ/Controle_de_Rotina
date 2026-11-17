@@ -61,7 +61,7 @@ function inserirNaPagina(pagina: PageDecidir, item: DecidirResponse): PageDecidi
   return {
     ...pagina,
     content: [item, ...pagina.content],
-    totalElements: pagina.totalElements + 1,
+    page: { ...pagina.page, totalElements: pagina.page.totalElements + 1 },
   }
 }
 
@@ -242,7 +242,7 @@ export function DecidirPage() {
       {!carregando && resultado ? (
         <>
           <p className="decidir-meta">
-            {resultado.totalElements} item{resultado.totalElements === 1 ? '' : 's'}
+            {resultado.page.totalElements} item{resultado.page.totalElements === 1 ? '' : 's'}
           </p>
 
           {listaVazia ? (

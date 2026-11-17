@@ -82,10 +82,7 @@ vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({
     content: [],
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 100,
+    page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
   }),
 }))
 
@@ -157,10 +154,7 @@ const itemExecucao: ItemExecucaoResponse = {
 
 const paginaVazia = {
   content: [],
-  totalElements: 0,
-  totalPages: 0,
-  number: 0,
-  size: 100,
+  page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
 }
 
 async function hookCarregado() {

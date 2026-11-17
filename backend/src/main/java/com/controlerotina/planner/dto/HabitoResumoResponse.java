@@ -1,5 +1,7 @@
 package com.controlerotina.planner.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.LocalTime;
 import java.util.Set;
 import java.util.UUID;
@@ -10,7 +12,7 @@ import com.controlerotina.habito.entity.Habito;
 public record HabitoResumoResponse(
         UUID id,
         String titulo,
-        LocalTime horarioPreferencial,
+        @Nullable LocalTime horarioPreferencial,
         int streakAtual,
         Set<DiaSemana> diasSemana
 ) {

@@ -1,5 +1,7 @@
 package com.controlerotina.pendencia.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.UUID;
 
 import com.controlerotina.pendencia.entity.Espera;
@@ -9,7 +11,7 @@ public record EsperaResumo(
         UUID id,
         TipoRecursoEspera alvoTipo,
         UUID alvoId,
-        String alvoTitulo,
+        @Nullable String alvoTitulo,
         boolean resolvida
 ) {
     public static EsperaResumo from(Espera espera, String alvoTitulo, boolean resolvida) {

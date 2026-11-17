@@ -285,7 +285,8 @@ export function TarefaDrawer() {
       titulo: values.titulo.trim(),
       descricao: values.descricao.trim(),
       prioridade: values.prioridade as Prioridade,
-      prazo: datetimeLocalParaInstant(values.prazo),
+      // PATCH: o backend trata prazo nulo como "não alterar"; ausente e nulo têm o mesmo efeito.
+      prazo: datetimeLocalParaInstant(values.prazo) ?? undefined,
       ...(tarefa?.temFilhos ? {} : { duracaoMinutos: values.duracaoMinutos as number }),
     }
 
@@ -294,7 +295,7 @@ export function TarefaDrawer() {
       if (modo === 'criar') {
         const criada = await criarTarefa({
           ...corpo,
-          projetoId: projetoId || null,
+          projetoId: projetoId || undefined,
           tagIds,
         })
         toast.success('Tarefa criada', {

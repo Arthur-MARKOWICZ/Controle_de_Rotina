@@ -13,6 +13,7 @@ import * as tarefaApi from '../api/tarefaApi'
 import type { PageTarefa, TarefaResponse } from '../api/tarefaApi'
 import { DEBOUNCE_FILTRO_MS } from '../FiltrosBarra'
 import { TarefasPage } from './TarefasPage'
+import { tarefa as tarefaFake } from '../../test/revisaoFixtures'
 
 vi.mock('../api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
@@ -57,7 +58,7 @@ const refIso = '2026-10-28T15:00:00.000Z'
 
 const paginaVariada = {
   content: [
-    {
+    tarefaFake({
       id: 't-atrasada',
       titulo: 'Atrasada',
       descricao: '',
@@ -69,8 +70,8 @@ const paginaVariada = {
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
       deletada: false,
-    },
-    {
+    }),
+    tarefaFake({
       id: 't-hoje',
       titulo: 'Hoje item',
       descricao: '',
@@ -82,8 +83,8 @@ const paginaVariada = {
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
       deletada: false,
-    },
-    {
+    }),
+    tarefaFake({
       id: 't-semana',
       titulo: 'Semana item',
       descricao: '',
@@ -95,8 +96,8 @@ const paginaVariada = {
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
       deletada: false,
-    },
-    {
+    }),
+    tarefaFake({
       id: 't-depois',
       titulo: 'Depois item',
       descricao: '',
@@ -108,26 +109,20 @@ const paginaVariada = {
       updatedAt: '2026-01-01T10:00:00Z',
       deletedAt: null,
       deletada: false,
-    },
+    }),
   ],
-  totalElements: 4,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 4, totalPages: 1 },
 }
 
 const pagina = {
   content: [paginaVariada.content[1]],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
 }
 
 function tarefaLista(
   parcial: Partial<TarefaResponse> & { id: string; titulo: string },
 ): TarefaResponse {
-  return {
+  return tarefaFake({
     descricao: '',
     prioridade: 'MEDIA',
     prazo: '2026-10-28T20:00:00Z',
@@ -139,16 +134,13 @@ function tarefaLista(
     deletedAt: null,
     deletada: false,
     ...parcial,
-  }
+  })
 }
 
 function paginaDe(content: TarefaResponse[], size = 20): PageTarefa {
   return {
     content,
-    totalElements: content.length,
-    totalPages: content.length ? 1 : 0,
-    number: 0,
-    size,
+    page: { size, number: 0, totalElements: content.length, totalPages: content.length ? 1 : 0 },
   }
 }
 
@@ -211,10 +203,7 @@ describe('TarefasPage', () => {
           updatedAt: '2026-01-01T10:00:00Z',
         },
       ],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
     })
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(refIso))
@@ -280,8 +269,7 @@ describe('TarefasPage', () => {
     it('paginação mostra página, total e avança', async () => {
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
         ...pagina,
-        totalElements: 25,
-        totalPages: 2,
+        page: { size: 20, number: 0, totalElements: 25, totalPages: 2 },
       })
       const user = setupUser()
       renderLista()
@@ -301,10 +289,7 @@ describe('TarefasPage', () => {
     it('empty state da primeira vez: CTA Nova tarefa foca o inline', async () => {
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
         content: [],
-        totalElements: 0,
-        totalPages: 0,
-        number: 0,
-        size: 20,
+        page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
       })
       const user = setupUser()
       renderLista()
@@ -326,7 +311,7 @@ describe('TarefasPage', () => {
     })
 
     it('T1: Enter no inline com título chama criarTarefa com prioridade e duração padrão e limpa o campo', async () => {
-      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefaFake({
         id: 't-nova',
         titulo: 'Comprar leite',
         descricao: '',
@@ -338,7 +323,7 @@ describe('TarefasPage', () => {
         updatedAt: '2026-10-28T12:00:00Z',
         deletedAt: null,
         deletada: false,
-      })
+      }))
       const user = setupUser()
       renderLista()
       await screen.findByText('Hoje item')
@@ -359,7 +344,7 @@ describe('TarefasPage', () => {
     })
 
     it('T2: com projetoId na URL o body inclui projetoId', async () => {
-      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefaFake({
         id: 't-proj',
         titulo: 'Item do TCC',
         descricao: '',
@@ -372,7 +357,7 @@ describe('TarefasPage', () => {
         updatedAt: '2026-10-28T12:00:00Z',
         deletedAt: null,
         deletada: false,
-      })
+      }))
       const user = setupUser()
       renderLista('/tarefas?projetoId=proj-tcc')
       await screen.findByText('Hoje item')
@@ -390,7 +375,7 @@ describe('TarefasPage', () => {
     })
 
     it('inline permite escolher prioridade e duração antes de criar', async () => {
-      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefaFake({
         id: 't-alta',
         titulo: 'Relatório',
         descricao: '',
@@ -402,7 +387,7 @@ describe('TarefasPage', () => {
         updatedAt: '2026-10-28T12:00:00Z',
         deletedAt: null,
         deletada: false,
-      })
+      }))
       const user = setupUser()
       renderLista()
       await screen.findByText('Hoje item')
@@ -438,10 +423,7 @@ describe('TarefasPage', () => {
     it('empty state com filtros oferece Limpar filtros', async () => {
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
         content: [],
-        totalElements: 0,
-        totalPages: 0,
-        number: 0,
-        size: 20,
+        page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
       })
       const user = setupUser()
       renderLista('/tarefas?prioridade=ALTA')

@@ -1,5 +1,7 @@
 package com.controlerotina.habito.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
@@ -14,19 +16,19 @@ import com.controlerotina.tag.dto.TagResumoResponse;
 public record HabitoResponse(
         UUID id,
         String titulo,
-        String descricao,
+        @Nullable String descricao,
         int duracaoMinutos,
         Set<DiaSemana> diasSemana,
-        LocalTime horarioPreferencial,
+        @Nullable LocalTime horarioPreferencial,
         StatusHabito status,
         int streakAtual,
         int melhorStreak,
         int ordem,
         List<TagResumoResponse> tags,
-        Integer tagMatchScore,
+        @Nullable Integer tagMatchScore,
         Instant createdAt,
         Instant updatedAt,
-        Instant deletedAt,
+        @Nullable Instant deletedAt,
         boolean deletada
 ) {
     public static HabitoResponse from(Habito habito) {

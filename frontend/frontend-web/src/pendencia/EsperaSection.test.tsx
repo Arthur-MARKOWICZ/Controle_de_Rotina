@@ -7,6 +7,7 @@ import * as projetoApi from '../projeto/api/projetoApi'
 import * as tarefaApi from '../tarefa/api/tarefaApi'
 import type { EsperaResumo } from './api/espera'
 import { EsperaSection } from './EsperaSection'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 vi.mock('../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
@@ -46,7 +47,7 @@ describe('EsperaSection', () => {
     onRemover.mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockReset().mockResolvedValue({
       content: [
-        {
+        tarefaFake({
           id: 't-2',
           titulo: 'Revisar API',
           descricao: '',
@@ -58,8 +59,8 @@ describe('EsperaSection', () => {
           updatedAt: '',
           deletedAt: null,
           deletada: false,
-        },
-        {
+        }),
+        tarefaFake({
           id: 't-1',
           titulo: 'Origem',
           descricao: '',
@@ -71,12 +72,9 @@ describe('EsperaSection', () => {
           updatedAt: '',
           deletedAt: null,
           deletada: false,
-        },
+        }),
       ],
-      totalElements: 2,
-      totalPages: 1,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 2, totalPages: 1 },
     })
     vi.mocked(projetoApi.listarProjetos).mockReset().mockResolvedValue({
       content: [
@@ -89,10 +87,7 @@ describe('EsperaSection', () => {
           updatedAt: '',
         },
       ],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 1, totalPages: 1 },
     })
   })
 

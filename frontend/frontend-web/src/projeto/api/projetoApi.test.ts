@@ -43,10 +43,7 @@ describe('projetoApi', () => {
       new Response(
         JSON.stringify({
           content: [projeto],
-          totalElements: 1,
-          totalPages: 1,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),

@@ -1,5 +1,7 @@
 package com.controlerotina.planner.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,9 +17,9 @@ public record TarefaResumoResponse(
         Prioridade prioridade,
         StatusTarefa status,
         int duracaoMinutos,
-        Instant prazo,
-        UUID projetoId,
-        String projetoNome,
+        @Nullable Instant prazo,
+        @Nullable UUID projetoId,
+        @Nullable String projetoNome,
         List<EsperaResumo> esperas,
         boolean bloqueada
 ) {

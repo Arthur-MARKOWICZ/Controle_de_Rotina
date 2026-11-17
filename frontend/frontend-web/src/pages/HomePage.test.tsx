@@ -21,6 +21,7 @@ import type { TarefaResponse } from '../tarefa/api/tarefaApi'
 import { QuickAddProvider } from '../layout/QuickAddContext'
 import { XpProgressProvider } from '../xp/XpProgressContext'
 import { HomePage } from './HomePage'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 vi.mock('../planner/api/planoApi', () => ({
   buscarPlano: vi.fn(),
@@ -66,10 +67,7 @@ vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({
     content: [],
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 20,
+    page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
   }),
 }))
 
@@ -102,7 +100,7 @@ vi.mock('../planner/data', async (importOriginal) => {
   }
 })
 
-const tarefaExtra: TarefaResponse = {
+const tarefaExtra: TarefaResponse = tarefaFake({
   id: 't-2',
   titulo: 'Ler docs',
   descricao: '',
@@ -114,7 +112,7 @@ const tarefaExtra: TarefaResponse = {
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 const planoBase: PlanoResponse = {
   id: 'p-1',
@@ -234,10 +232,7 @@ describe('HomePage — plano do dia', () => {
     ])
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [tarefaExtra],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 1, totalPages: 1 },
     })
     vi.mocked(execucaoApi.listarExecucoes).mockResolvedValue({
       planoAprovado: { id: 'p-1', data: '2026-10-20', versao: 1 },
@@ -747,10 +742,7 @@ describe('HomePage — plano do dia', () => {
             prazo: '2026-10-21T12:00:00Z',
           },
         ],
-        totalElements: 2,
-        totalPages: 1,
-        number: 0,
-        size: 100,
+        page: { size: 100, number: 0, totalElements: 2, totalPages: 1 },
       })
 
       const user = userEvent.setup()

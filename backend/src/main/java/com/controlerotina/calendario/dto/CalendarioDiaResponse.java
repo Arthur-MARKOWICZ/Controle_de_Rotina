@@ -1,5 +1,7 @@
 package com.controlerotina.calendario.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -14,8 +16,8 @@ public record CalendarioDiaResponse(
         OrigemCapacidade origemCapacidade,
         int minutosAlocados,
         boolean sobrecarga,
-        StatusPlano statusPlano,
-        CalendarioPlanoResponse plano,
+        @Nullable StatusPlano statusPlano,
+        @Nullable CalendarioPlanoResponse plano,
         List<CalendarioTarefaPrazoResponse> tarefasComPrazo,
         List<HabitoDoDiaResponse> habitosDoDia
 ) {

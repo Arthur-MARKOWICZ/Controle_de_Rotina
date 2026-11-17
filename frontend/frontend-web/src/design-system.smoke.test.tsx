@@ -88,10 +88,7 @@ vi.mock('./execucao/api/execucaoApi', () => ({
 vi.mock('./projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({
     content: [],
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 20,
+    page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
   }),
 }))
 
@@ -210,10 +207,7 @@ describe('design system smoke (T1)', () => {
   it('Tarefas monta e CTAs principais permanecem clicáveis', async () => {
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
     const user = userEvent.setup()
 

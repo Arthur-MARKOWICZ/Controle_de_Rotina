@@ -80,17 +80,11 @@ describe('DecidirPage', () => {
     vi.mocked(projetoApi.listarProjetos).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
     })
     vi.mocked(decidirApi.listarDecidir).mockResolvedValue({
       content: [itemAberto],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 50,
+      page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
     })
   })
 
@@ -104,10 +98,7 @@ describe('DecidirPage', () => {
     })
     vi.mocked(decidirApi.listarDecidir).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 50,
+      page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
     })
 
     renderPage()
@@ -128,10 +119,7 @@ describe('DecidirPage', () => {
     const user = userEvent.setup()
     vi.mocked(decidirApi.listarDecidir).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 50,
+      page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
     })
     renderPage()
     const empty = await screen.findByText(/nada para decidir/i)
@@ -144,10 +132,7 @@ describe('DecidirPage', () => {
   it('destaca item com decidirAte vencido', async () => {
     vi.mocked(decidirApi.listarDecidir).mockResolvedValue({
       content: [itemVencido],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 50,
+      page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
     })
     renderPage()
     const card = await screen.findByText('Prazo ontem')
@@ -163,17 +148,11 @@ describe('DecidirPage', () => {
     vi.mocked(decidirApi.listarDecidir)
       .mockResolvedValueOnce({
         content: [itemAberto],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 50,
+        page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
       })
       .mockResolvedValueOnce({
         content: [],
-        totalElements: 0,
-        totalPages: 0,
-        number: 0,
-        size: 50,
+        page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
       })
 
     renderPage()
@@ -194,17 +173,11 @@ describe('DecidirPage', () => {
     vi.mocked(decidirApi.listarDecidir)
       .mockResolvedValueOnce({
         content: [itemAberto],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 50,
+        page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
       })
       .mockResolvedValueOnce({
         content: [],
-        totalElements: 0,
-        totalPages: 0,
-        number: 0,
-        size: 50,
+        page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
       })
 
     renderPage()
@@ -223,10 +196,7 @@ describe('DecidirPage', () => {
     const user = userEvent.setup()
     vi.mocked(decidirApi.listarDecidir).mockResolvedValue({
       content: [itemPromovido],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 50,
+      page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
     })
 
     renderPage('/decidir?promovidos=true')

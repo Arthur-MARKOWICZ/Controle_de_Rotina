@@ -4,10 +4,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -76,7 +76,7 @@ public class HabitoController {
     }
 
     @GetMapping
-    public Page<HabitoResponse> listar(
+    public PagedModel<HabitoResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
             @RequestParam(required = false) StatusHabito status,
             @RequestParam(defaultValue = "false") boolean incluirDeletadas,
@@ -84,14 +84,14 @@ public class HabitoController {
             @RequestParam(required = false) List<UUID> tagId,
             Pageable pageable
     ) {
-        return habitoService.listar(
+        return new PagedModel<>(habitoService.listar(
                 usuarioId,
                 status,
                 incluirDeletadas,
                 somenteDeletadas,
                 tagId,
                 normalizarPageable(pageable)
-        );
+        ));
     }
 
     @GetMapping("/do-dia")

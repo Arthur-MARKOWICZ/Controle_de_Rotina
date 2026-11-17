@@ -176,15 +176,24 @@ data class FiltroTarefas(
     val prazoAte: String? = null,
 )
 
+/** Metadados de paginação (`PageMetadata` do contrato): sempre presentes nas listagens. */
+@Serializable
+data class MetadadosPagina(
+    val size: Int = 0,
+    val number: Int = 0,
+    val totalElements: Long = 0,
+    val totalPages: Int = 0,
+) {
+    val ultima: Boolean get() = number + 1 >= totalPages
+}
+
 @Serializable
 data class PaginaTarefas(
     val content: List<Tarefa> = emptyList(),
-    val number: Int = 0,
-    val totalPages: Int = 0,
-    val last: Boolean? = null,
-    val totalElements: Long? = null,
+    val page: MetadadosPagina = MetadadosPagina(),
 ) {
-    val ultima: Boolean get() = last ?: (number + 1 >= totalPages)
+    val ultima: Boolean get() = page.ultima
+    val totalElements: Long get() = page.totalElements
 }
 
 @Serializable
@@ -230,10 +239,10 @@ data class HabitoDoDia(
 @Serializable
 data class Pagina<T>(
     val content: List<T> = emptyList(),
-    val number: Int = 0,
-    val totalPages: Int = 0,
-    val last: Boolean? = null,
-)
+    val page: MetadadosPagina = MetadadosPagina(),
+) {
+    val ultima: Boolean get() = page.ultima
+}
 
 // ---- Projetos ----
 

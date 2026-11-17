@@ -151,10 +151,7 @@ describe('CapacidadePage', () => {
           updatedAt: '2026-01-01T10:00:00Z',
         },
       ],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
     })
     vi.mocked(reservaApi.listarReservas).mockResolvedValue([
       {

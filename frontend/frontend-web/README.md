@@ -24,6 +24,13 @@ docker compose up -d --build frontend
 - `npm run test` — Vitest
 - `npm run test:coverage` — Vitest com cobertura (v8) em `coverage/`; falha abaixo de `test.coverage.thresholds` (`vite.config.ts`). Regra mínima de cenários e catraca: `AGENTS.md` → Testes
 - `npm run build` — build de produção
+- `npm run gerar:contrato` — regenera `src/api/schema.d.ts` a partir de `../../contract/openapi.json` (commitar o resultado; o CI confere)
+
+## Tipos gerados do contrato
+
+`src/api/schema.d.ts` é gerado pelo `openapi-typescript` e **não deve ser editado à mão**. Os `*Api.ts` de tag e tarefa expõem aliases com os nomes de sempre (`export type TarefaResponse = Schemas['TarefaResponse']`), então quem importa não muda nada. Os demais domínios continuam tipados à mão, mas a página usa `Pagina<T>` (`src/api/pagina.ts`): `{ content, page: { size, number, totalElements, totalPages } }`.
+
+Em teste, monte respostas completas com `tarefa()` / `tag()` de `src/test/revisaoFixtures.ts`: os tipos gerados exigem todos os campos.
 
 ## TypeScript: `null` da API ≠ `undefined`
 

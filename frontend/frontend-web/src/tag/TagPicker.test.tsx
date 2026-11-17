@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as tagApi from './api/tagApi'
 import { TagPicker } from './TagPicker'
+import { tag as tagFake } from '../test/revisaoFixtures'
 
 vi.mock('./api/tagApi', () => ({
   TAG_COR_PADRAO: '#6B7280',
@@ -13,8 +14,8 @@ vi.mock('./api/tagApi', () => ({
 }))
 
 const catalogo = [
-  { id: 't1', nome: 'Trabalho', cor: '#6B7280' },
-  { id: 't2', nome: 'Casa', cor: '#2563EB' },
+  tagFake({ id: 't1', nome: 'Trabalho', cor: '#6B7280' }),
+  tagFake({ id: 't2', nome: 'Casa', cor: '#2563EB' }),
 ]
 
 describe('TagPicker', () => {
@@ -41,11 +42,11 @@ describe('TagPicker', () => {
   })
 
   it('cria tag inline com cor padrão', async () => {
-    vi.mocked(tagApi.criarTag).mockResolvedValue({
+    vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({
       id: 't3',
       nome: 'Nova',
       cor: '#6B7280',
-    })
+    }))
     const onChange = vi.fn()
     const user = userEvent.setup()
     render(
@@ -62,7 +63,7 @@ describe('TagPicker', () => {
     expect(tagApi.criarTag).toHaveBeenCalledWith({ nome: 'Nova', cor: '#6B7280' })
     expect(onChange).toHaveBeenCalledWith(
       ['t3'],
-      [{ id: 't3', nome: 'Nova', cor: '#6B7280' }],
+      [tagFake({ id: 't3', nome: 'Nova', cor: '#6B7280' })],
     )
   })
 

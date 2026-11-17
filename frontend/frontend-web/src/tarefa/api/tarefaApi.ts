@@ -1,52 +1,17 @@
+import type { components } from '../../api/schema'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 import type { ExecucaoResponse } from '../../execucao/api/execucaoApi'
 import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
-import type { TagResumo } from '../../tag/api/tagApi'
 import type { Prioridade, StatusTarefa } from '../validation/tarefaForm'
 
-export type TarefaResponse = {
-  id: string
-  titulo: string
-  descricao: string
-  prioridade: Prioridade
-  prazo: string | null
-  status: StatusTarefa
-  duracaoMinutos: number
-  /** Minutos ainda não cobertos por blocos CONCLUIDO. Ausente em payloads antigos. */
-  restanteMinutos?: number
-  projetoId?: string | null
-  projetoNome?: string | null
-  tags?: TagResumo[]
-  tagMatchScore?: number | null
-  createdAt: string
-  updatedAt: string
-  deletedAt: string | null
-  deletada: boolean
-  parentId?: string | null
-  parentTitulo?: string | null
-  temFilhos?: boolean
-  /** Esperas da própria tarefa. Ausente em payloads antigos. */
-  esperas?: EsperaResumo[]
-  /** Bloqueada por espera própria, de pai ou do projeto de origem. */
-  bloqueada?: boolean
-  /** Posição manual na lista de irmãos. Ausente em payloads antigos. */
-  ordem?: number
-}
+type Schemas = components['schemas']
 
-export type SessaoTarefaRequest = {
-  duracaoMinutos?: number | null
-  data?: string | null
-  blocoId?: string | null
-}
+export type TarefaResponse = Schemas['TarefaResponse']
 
-export type PageTarefa = {
-  content: TarefaResponse[]
-  totalElements: number
-  totalPages: number
-  number: number
-  size: number
-}
+export type SessaoTarefaRequest = Schemas['SessaoTarefaRequest']
+
+export type PageTarefa = Schemas['PagedModelTarefaResponse']
 
 export type SortCampo = 'prazo' | 'duracao' | 'prioridade' | 'ordem'
 export type SortDirection = 'asc' | 'desc'
@@ -80,27 +45,10 @@ export type ListarTarefasParams = {
 }
 
 /** Create mínimo: só `titulo` (+ `projetoId` opcional). Defaults no servidor. */
-export type CriarTarefaRequest = {
-  titulo: string
-  descricao?: string | null
-  prioridade?: Prioridade | null
-  prazo?: string | null
-  duracaoMinutos?: number | null
-  projetoId?: string | null
-  tagIds?: string[]
-  parentId?: string | null
-}
+export type CriarTarefaRequest = Schemas['CriarTarefaRequest']
 
-export type AtualizarTarefaRequest = {
-  titulo?: string
-  descricao?: string
-  prioridade?: Prioridade
-  prazo?: string | null
-  status?: StatusTarefa
-  duracaoMinutos?: number
-  projetoId?: string | null
-  tagIds?: string[]
-}
+/** `projetoId: null` desvincula o projeto; campos ausentes não mudam. */
+export type AtualizarTarefaRequest = Schemas['AtualizarTarefaRequest']
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {
   if (!values?.length) {

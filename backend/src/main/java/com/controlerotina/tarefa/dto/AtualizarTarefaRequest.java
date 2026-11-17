@@ -1,5 +1,9 @@
 package com.controlerotina.tarefa.dto;
 
+import org.jspecify.annotations.Nullable;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +38,16 @@ public record AtualizarTarefaRequest(
         @DuracaoMinutosValida
         Integer duracaoMinutos,
 
+        @Nullable
         UUID projetoId,
 
+        @Schema(hidden = true)
         boolean projetoIdPresente,
 
+        @Nullable
         List<UUID> tagIds,
 
+        @Schema(hidden = true)
         boolean tagIdsPresente
 ) {
     public AtualizarTarefaRequest {
