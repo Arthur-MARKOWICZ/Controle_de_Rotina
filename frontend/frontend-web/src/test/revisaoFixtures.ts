@@ -27,6 +27,7 @@ export function tarefa(parcial: Partial<TarefaResponse> & { id: string }): Taref
     temFilhos: false,
     esperas: [],
     bloqueada: false,
+    objetivos: [],
     ...parcial,
   }
 }

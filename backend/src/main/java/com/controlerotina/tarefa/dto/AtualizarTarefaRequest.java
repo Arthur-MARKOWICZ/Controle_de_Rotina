@@ -48,7 +48,13 @@ public record AtualizarTarefaRequest(
         List<UUID> tagIds,
 
         @Schema(hidden = true)
-        boolean tagIdsPresente
+        boolean tagIdsPresente,
+
+        @Nullable
+        List<UUID> objetivoIds,
+
+        @Schema(hidden = true)
+        boolean objetivoIdsPresente
 ) {
     public AtualizarTarefaRequest {
         if (titulo != null) {
@@ -75,6 +81,11 @@ public record AtualizarTarefaRequest(
             if (tagIdsPresente) {
                 tagIds = uuids(node.get("tagIds"));
             }
+            boolean objetivoIdsPresente = node.has("objetivoIds");
+            List<UUID> objetivoIds = null;
+            if (objetivoIdsPresente) {
+                objetivoIds = uuids(node.get("objetivoIds"));
+            }
             return new AtualizarTarefaRequest(
                     texto(node, "titulo"),
                     texto(node, "descricao"),
@@ -85,7 +96,9 @@ public record AtualizarTarefaRequest(
                     projetoId,
                     projetoIdPresente,
                     tagIds,
-                    tagIdsPresente
+                    tagIdsPresente,
+                    objetivoIds,
+                    objetivoIdsPresente
             );
         }
 

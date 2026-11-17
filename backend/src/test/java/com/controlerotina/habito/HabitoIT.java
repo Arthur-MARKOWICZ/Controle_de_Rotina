@@ -454,6 +454,39 @@ class HabitoIT {
                 .containsExactly(c.toString(), b.toString(), a.toString());
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void patchObjetivoIdsVazioLimpaVinculos() {
+        UUID objetivo = criarObjetivo("Habito meta");
+        Map<String, Object> body = bodyValido();
+        body.put("objetivoIds", List.of(objetivo.toString()));
+        UUID habitoId = UUID.fromString(restTemplate.exchange(
+                "/habitos", HttpMethod.POST, autenticadoJson(body), Map.class)
+                .getBody().get("id").toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/habitos/" + habitoId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("objetivoIds", List.of())),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat((List<?>) response.getBody().get("objetivos")).isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from objetivo_habito where habito_id = ?", Integer.class, habitoId))
+                .isEqualTo(0);
+    }
+
+    private UUID criarObjetivo(String titulo) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/objetivos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("titulo", titulo)),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return UUID.fromString(response.getBody().get("id").toString());
+    }
+
     private UUID criarHabitoComHorario(
             String titulo,
             List<String> dias,

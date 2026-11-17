@@ -37,6 +37,7 @@ import com.controlerotina.pendencia.dto.EsperasDeOrigem;
 import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.projeto.repository.ProjetoRepository;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.tag.service.TagVinculoService;
 import com.controlerotina.tarefa.dto.TarefaFiltro;
 import com.controlerotina.tarefa.dto.TarefaResponse;
@@ -64,6 +65,8 @@ class TarefaServiceListarBloqueadaTest {
     @Mock
     TagVinculoService tagVinculoService;
     @Mock
+    ObjetivoVinculoService objetivoVinculoService;
+    @Mock
     ItemDecidirRepository itemDecidirRepository;
     @Mock
     EsperaService esperaService;
@@ -78,11 +81,13 @@ class TarefaServiceListarBloqueadaTest {
                 propostaGeracaoService,
                 execucaoRepository,
                 tagVinculoService,
+                objetivoVinculoService,
                 itemDecidirRepository,
                 esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
         when(tagVinculoService.mapearTagsPorTarefa(any())).thenReturn(Map.of());
+        when(objetivoVinculoService.mapearObjetivosPorTarefa(any())).thenReturn(Map.of());
         when(esperaService.enriquecerTarefas(eq(USUARIO), anyCollection()))
                 .thenReturn(EsperasDeOrigem.vazio());
     }

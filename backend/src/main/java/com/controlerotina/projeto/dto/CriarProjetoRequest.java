@@ -14,7 +14,9 @@ public record CriarProjetoRequest(
         @Size(max = 500)
         String descricao,
 
-        List<UUID> tagIds
+        List<UUID> tagIds,
+
+        List<UUID> objetivoIds
 ) {
     public CriarProjetoRequest {
         if (nome != null) {

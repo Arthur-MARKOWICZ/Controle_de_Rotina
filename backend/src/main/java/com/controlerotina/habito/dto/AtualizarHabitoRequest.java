@@ -46,7 +46,13 @@ public record AtualizarHabitoRequest(
         List<UUID> tagIds,
 
         @Schema(hidden = true)
-        boolean tagIdsPresente
+        boolean tagIdsPresente,
+
+        @Nullable
+        List<UUID> objetivoIds,
+
+        @Schema(hidden = true)
+        boolean objetivoIdsPresente
 ) {
     public AtualizarHabitoRequest {
         if (titulo != null) {
@@ -75,6 +81,11 @@ public record AtualizarHabitoRequest(
             if (tagIdsPresente) {
                 tagIds = uuids(node.get("tagIds"));
             }
+            boolean objetivoIdsPresente = node.has("objetivoIds");
+            List<UUID> objetivoIds = null;
+            if (objetivoIdsPresente) {
+                objetivoIds = uuids(node.get("objetivoIds"));
+            }
             return new AtualizarHabitoRequest(
                     texto(node, "titulo"),
                     texto(node, "descricao"),
@@ -83,7 +94,9 @@ public record AtualizarHabitoRequest(
                     horarioPreferencial,
                     horarioPreferencialPresente,
                     tagIds,
-                    tagIdsPresente
+                    tagIdsPresente,
+                    objetivoIds,
+                    objetivoIdsPresente
             );
         }
 

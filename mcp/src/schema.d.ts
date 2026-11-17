@@ -596,6 +596,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objetivos/{id}/itens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listarItens"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/objetivos/{id}/reabrir": {
         parameters: {
             query?: never;
@@ -1117,6 +1133,7 @@ export interface components {
             duracaoMinutos?: number;
             /** Format: time-local */
             horarioPreferencial?: null | string;
+            objetivoIds?: string[] | null;
             tagIds?: string[] | null;
             titulo?: string;
         };
@@ -1136,6 +1153,7 @@ export interface components {
         AtualizarProjetoRequest: {
             descricao?: string;
             nome?: string;
+            objetivoIds?: string[] | null;
             tagIds?: string[] | null;
         };
         AtualizarReservaProjetoRequest: {
@@ -1152,6 +1170,7 @@ export interface components {
             descricao?: string;
             /** Format: int32 */
             duracaoMinutos?: number;
+            objetivoIds?: string[] | null;
             /** Format: date-time */
             prazo?: string;
             /** @enum {string} */
@@ -1333,6 +1352,7 @@ export interface components {
             duracaoMinutos: number;
             /** Format: time-local */
             horarioPreferencial?: string;
+            objetivoIds?: string[];
             tagIds?: string[];
             titulo: string;
         };
@@ -1345,6 +1365,7 @@ export interface components {
         CriarProjetoRequest: {
             descricao?: string;
             nome: string;
+            objetivoIds?: string[];
             tagIds?: string[];
         };
         CriarReservaProjetoRequest: {
@@ -1361,6 +1382,7 @@ export interface components {
             descricao?: string;
             /** Format: int32 */
             duracaoMinutos?: number;
+            objetivoIds?: string[];
             /** Format: uuid */
             parentId?: string;
             /** Format: date-time */
@@ -1462,6 +1484,7 @@ export interface components {
             id: string;
             /** Format: int32 */
             melhorStreak: number;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** @enum {string} */
@@ -1535,6 +1558,41 @@ export interface components {
             razao: null | number;
             suficiente: boolean;
         };
+        ObjetivoItemHabitoResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** @enum {string} */
+            status: "ATIVO" | "PAUSADO";
+            titulo: string;
+        };
+        ObjetivoItemProjetoResponse: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO";
+        };
+        ObjetivoItemTarefaResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** Format: uuid */
+            projetoId: null | string;
+            projetoNome: null | string;
+            /** @enum {string} */
+            status: "ATRASADA" | "CANCELADA" | "EM_PROGRESSO" | "FINALIZADA" | "PENDENTE";
+            titulo: string;
+        };
+        ObjetivoItensResponse: {
+            habitos: components["schemas"]["ObjetivoItemHabitoResponse"][];
+            projetos: components["schemas"]["ObjetivoItemProjetoResponse"][];
+            tarefas: components["schemas"]["ObjetivoItemTarefaResponse"][];
+        };
         ObjetivoResponse: {
             /** Format: date-time */
             arquivadoEm: null | string;
@@ -1552,6 +1610,13 @@ export interface components {
             titulo: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        ObjetivoResumoResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
+            titulo: string;
         };
         PageMetadata: {
             /** Format: int64 */
@@ -1643,6 +1708,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             nome: string;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** @enum {string} */
@@ -1748,6 +1814,7 @@ export interface components {
             esperas: components["schemas"]["EsperaResumo"][];
             /** Format: uuid */
             id: string;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** Format: uuid */
@@ -3025,6 +3092,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    listarItens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoItensResponse"];
                 };
             };
         };

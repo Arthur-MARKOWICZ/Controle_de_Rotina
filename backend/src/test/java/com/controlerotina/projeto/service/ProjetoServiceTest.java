@@ -37,6 +37,7 @@ import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.shared.exception.ProjetoJaArquivadoException;
 import com.controlerotina.shared.exception.ProjetoJaAtivoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.tag.service.TagVinculoService;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +53,8 @@ class ProjetoServiceTest {
     @Mock
     TagVinculoService tagVinculoService;
     @Mock
+    ObjetivoVinculoService objetivoVinculoService;
+    @Mock
     ItemDecidirRepository itemDecidirRepository;
     @Mock
     EsperaService esperaService;
@@ -63,6 +66,7 @@ class ProjetoServiceTest {
         service = new ProjetoService(
                 projetoRepository,
                 tagVinculoService,
+                objetivoVinculoService,
                 itemDecidirRepository,
                 esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
@@ -76,7 +80,7 @@ class ProjetoServiceTest {
         when(tagVinculoService.substituirTagsProjeto(eq(USUARIO), any(), any())).thenReturn(List.of());
         when(esperaService.enriquecerProjetos(eq(USUARIO), any())).thenReturn(EsperasDeOrigem.vazio());
 
-        var criado = service.criar(USUARIO, new CriarProjetoRequest("Casa", "obras", List.of()));
+        var criado = service.criar(USUARIO, new CriarProjetoRequest("Casa", "obras", List.of(), List.of()));
 
         assertThat(criado.nome()).isEqualTo("Casa");
         assertThat(criado.status()).isEqualTo(StatusProjeto.ATIVO);
@@ -118,7 +122,7 @@ class ProjetoServiceTest {
         when(projetoRepository.findByIdAndUsuarioId(PROJETO_ID, USUARIO)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.atualizar(
-                USUARIO, PROJETO_ID, new AtualizarProjetoRequest("Novo", null, null, false)))
+                USUARIO, PROJETO_ID, new AtualizarProjetoRequest("Novo", null, null, false, null, false)))
                 .isInstanceOf(ProjetoNaoEncontradoException.class)
                 .satisfies(ex -> {
                     ProjetoNaoEncontradoException erro = (ProjetoNaoEncontradoException) ex;

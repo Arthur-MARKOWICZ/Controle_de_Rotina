@@ -29,6 +29,8 @@ public record CriarTarefaRequest(
 
         List<UUID> tagIds,
 
+        List<UUID> objetivoIds,
+
         UUID parentId
 ) {
     public CriarTarefaRequest {

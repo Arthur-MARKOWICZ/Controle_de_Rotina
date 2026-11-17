@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.controlerotina.objetivo.dto.AtualizarObjetivoRequest;
 import com.controlerotina.objetivo.dto.CriarObjetivoRequest;
+import com.controlerotina.objetivo.dto.ObjetivoItensResponse;
 import com.controlerotina.objetivo.dto.ObjetivoResponse;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
 import com.controlerotina.objetivo.service.ObjetivoService;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 
 import jakarta.validation.Valid;
 
@@ -33,9 +35,11 @@ public class ObjetivoController {
     private static final int SIZE_DEFAULT = 20;
 
     private final ObjetivoService objetivoService;
+    private final ObjetivoVinculoService objetivoVinculoService;
 
-    public ObjetivoController(ObjetivoService objetivoService) {
+    public ObjetivoController(ObjetivoService objetivoService, ObjetivoVinculoService objetivoVinculoService) {
         this.objetivoService = objetivoService;
+        this.objetivoVinculoService = objetivoVinculoService;
     }
 
     @PostMapping
@@ -62,6 +66,14 @@ public class ObjetivoController {
             @PathVariable UUID id
     ) {
         return objetivoService.buscarPorId(usuarioId, id);
+    }
+
+    @GetMapping("/{id}/itens")
+    public ObjetivoItensResponse listarItens(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id
+    ) {
+        return objetivoVinculoService.listarItens(usuarioId, id);
     }
 
     @PatchMapping("/{id}")

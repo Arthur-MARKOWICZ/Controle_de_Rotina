@@ -39,7 +39,10 @@ import com.controlerotina.shared.exception.PrazoNoPassadoException;
 import com.controlerotina.shared.exception.ProjetoArquivadoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
 import com.controlerotina.shared.exception.ReordenacaoInvalidaException;
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.shared.exception.SubtarefaNivelInvalidoException;
+import com.controlerotina.shared.exception.SubtarefaObjetivoException;
 import com.controlerotina.shared.exception.TarefaNaoEncontradaException;
 import com.controlerotina.shared.ordem.Reordenacao;
 import com.controlerotina.tag.dto.TagResumoResponse;
@@ -65,6 +68,7 @@ public class TarefaService {
     private final PropostaGeracaoService propostaGeracaoService;
     private final ExecucaoRepository execucaoRepository;
     private final TagVinculoService tagVinculoService;
+    private final ObjetivoVinculoService objetivoVinculoService;
     private final ItemDecidirRepository itemDecidirRepository;
     private final EsperaService esperaService;
     private final Clock clock;
@@ -75,6 +79,7 @@ public class TarefaService {
             PropostaGeracaoService propostaGeracaoService,
             ExecucaoRepository execucaoRepository,
             TagVinculoService tagVinculoService,
+            ObjetivoVinculoService objetivoVinculoService,
             ItemDecidirRepository itemDecidirRepository,
             EsperaService esperaService,
             Clock clock
@@ -84,6 +89,7 @@ public class TarefaService {
         this.propostaGeracaoService = propostaGeracaoService;
         this.execucaoRepository = execucaoRepository;
         this.tagVinculoService = tagVinculoService;
+        this.objetivoVinculoService = objetivoVinculoService;
         this.itemDecidirRepository = itemDecidirRepository;
         this.esperaService = esperaService;
         this.clock = clock;
@@ -145,10 +151,16 @@ public class TarefaService {
         if (pai != null) {
             recomputarDuracaoPai(pai);
         }
+        recusarObjetivosEmSubtarefa(salva.getParentId(), request.objetivoIds());
         List<TagResumoResponse> tags = tagVinculoService.substituirTagsTarefa(
                 usuarioId,
                 salva.getId(),
                 request.tagIds()
+        );
+        List<ObjetivoResumoResponse> objetivos = objetivoVinculoService.substituirObjetivosTarefa(
+                usuarioId,
+                salva.getId(),
+                request.objetivoIds()
         );
         propostaGeracaoService.gerarSeTarefaNaJanelaAprovada(usuarioId, salva.getPrazo());
         EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, List.of(salva));
@@ -161,7 +173,8 @@ public class TarefaService {
                 pai == null ? null : pai.getTitulo(),
                 false,
                 esperas.de(salva.getId()),
-                esperas.bloqueada(salva.getId())
+                esperas.bloqueada(salva.getId()),
+                objetivos
         );
     }
 
@@ -198,9 +211,10 @@ public class TarefaService {
         Page<Tarefa> page = tarefaRepository.findAll(spec, pageable);
         Map<UUID, String> nomes = carregarNomesProjetos(page.getContent());
         Map<UUID, Integer> restantes = carregarRestantes(usuarioId, page.getContent());
-        Map<UUID, List<TagResumoResponse>> tagsPorTarefa = tagVinculoService.mapearTagsPorTarefa(
-                page.getContent().stream().map(Tarefa::getId).toList()
-        );
+        List<UUID> idsDaPagina = page.getContent().stream().map(Tarefa::getId).toList();
+        Map<UUID, List<TagResumoResponse>> tagsPorTarefa = tagVinculoService.mapearTagsPorTarefa(idsDaPagina);
+        Map<UUID, List<ObjetivoResumoResponse>> objetivosPorTarefa =
+                objetivoVinculoService.mapearObjetivosPorTarefa(idsDaPagina);
         Map<UUID, String> titulosPais = carregarTitulosPais(page.getContent());
         Set<UUID> idsComFilhos = carregarIdsComFilhos(page.getContent());
         EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, page.getContent());
@@ -223,7 +237,8 @@ public class TarefaService {
                     t.getParentId() == null ? null : titulosPais.get(t.getParentId()),
                     idsComFilhos.contains(t.getId()),
                     esperas.de(t.getId()),
-                    esperas.bloqueada(t.getId())
+                    esperas.bloqueada(t.getId()),
+                    objetivosPorTarefa.getOrDefault(t.getId(), List.of())
             ));
         }
 
@@ -258,13 +273,18 @@ public class TarefaService {
         return toResponse(
                 usuarioId,
                 tarefa,
-                tagVinculoService.listarTagsTarefa(tarefa.getId())
+                tagVinculoService.listarTagsTarefa(tarefa.getId()),
+                objetivoVinculoService.listarObjetivosTarefa(tarefa.getId())
         );
     }
 
     @Transactional
     public TarefaResponse atualizar(UUID usuarioId, UUID id, AtualizarTarefaRequest request) {
         Tarefa tarefa = buscarDoUsuario(usuarioId, id);
+        recusarObjetivosEmSubtarefa(
+                tarefa.getParentId(),
+                request.objetivoIdsPresente() ? request.objetivoIds() : null
+        );
         Instant agora = clock.instant();
 
         validarCamposTexto(request);
@@ -318,13 +338,17 @@ public class TarefaService {
         List<TagResumoResponse> tags = request.tagIdsPresente()
                 ? tagVinculoService.substituirTagsTarefa(usuarioId, tarefa.getId(), request.tagIds())
                 : tagVinculoService.listarTagsTarefa(tarefa.getId());
+        List<ObjetivoResumoResponse> objetivos = request.objetivoIdsPresente()
+                ? objetivoVinculoService.substituirObjetivosTarefa(
+                        usuarioId, tarefa.getId(), request.objetivoIds())
+                : objetivoVinculoService.listarObjetivosTarefa(tarefa.getId());
 
         if (request.duracaoMinutos() != null && tarefa.getParentId() != null) {
             tarefaRepository.flush();
             recomputarDuracaoPaiPorId(tarefa.getParentId());
         }
 
-        return toResponse(usuarioId, tarefa, tags);
+        return toResponse(usuarioId, tarefa, tags, objetivos);
     }
 
     private void aplicarVinculoProjeto(UUID usuarioId, Tarefa tarefa, UUID novoProjetoId, Instant agora) {
@@ -348,7 +372,12 @@ public class TarefaService {
         return projeto;
     }
 
-    private TarefaResponse toResponse(UUID usuarioId, Tarefa tarefa, List<TagResumoResponse> tags) {
+    private TarefaResponse toResponse(
+            UUID usuarioId,
+            Tarefa tarefa,
+            List<TagResumoResponse> tags,
+            List<ObjetivoResumoResponse> objetivos
+    ) {
         EsperasDeOrigem esperas = esperaService.enriquecerTarefas(usuarioId, List.of(tarefa));
         return TarefaResponse.from(
                 tarefa,
@@ -359,8 +388,15 @@ public class TarefaService {
                 tituloDoPai(tarefa.getParentId()),
                 tarefaRepository.existsByParentIdAndDeletedAtIsNull(tarefa.getId()),
                 esperas.de(tarefa.getId()),
-                esperas.bloqueada(tarefa.getId())
+                esperas.bloqueada(tarefa.getId()),
+                objetivos
         );
+    }
+
+    private static void recusarObjetivosEmSubtarefa(UUID parentId, List<UUID> objetivoIds) {
+        if (parentId != null && objetivoIds != null && !objetivoIds.isEmpty()) {
+            throw new SubtarefaObjetivoException();
+        }
     }
 
     private void recomputarDuracaoPaiPorId(UUID parentId) {
@@ -540,7 +576,8 @@ public class TarefaService {
         return toResponse(
                 usuarioId,
                 tarefa,
-                tagVinculoService.listarTagsTarefa(tarefa.getId())
+                tagVinculoService.listarTagsTarefa(tarefa.getId()),
+                objetivoVinculoService.listarObjetivosTarefa(tarefa.getId())
         );
     }
 

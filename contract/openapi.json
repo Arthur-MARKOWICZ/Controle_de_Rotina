@@ -106,6 +106,13 @@
             "format" : "time-local",
             "type" : [ "null", "string" ]
           },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
           "tagIds" : {
             "items" : {
               "format" : "uuid",
@@ -176,6 +183,13 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
           "tagIds" : {
             "items" : {
               "format" : "uuid",
@@ -223,6 +237,13 @@
           "duracaoMinutos" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
           },
           "prazo" : {
             "format" : "date-time",
@@ -720,6 +741,13 @@
             "format" : "time-local",
             "type" : "string"
           },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "tagIds" : {
             "items" : {
               "format" : "uuid",
@@ -767,6 +795,13 @@
             "maxLength" : 80,
             "minLength" : 0,
             "type" : "string"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "tagIds" : {
             "items" : {
@@ -818,6 +853,13 @@
           "duracaoMinutos" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "parentId" : {
             "format" : "uuid",
@@ -1087,6 +1129,12 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1117,7 +1165,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "createdAt", "deletada", "deletedAt", "descricao", "diasSemana", "duracaoMinutos", "horarioPreferencial", "id", "melhorStreak", "ordem", "status", "streakAtual", "tagMatchScore", "tags", "titulo", "updatedAt" ],
+        "required" : [ "createdAt", "deletada", "deletedAt", "descricao", "diasSemana", "duracaoMinutos", "horarioPreferencial", "id", "melhorStreak", "objetivos", "ordem", "status", "streakAtual", "tagMatchScore", "tags", "titulo", "updatedAt" ],
         "type" : "object"
       },
       "HabitoResumoResponse" : {
@@ -1284,6 +1332,100 @@
         "required" : [ "amostras", "desvioMedioMinutos", "razao", "suficiente" ],
         "type" : "object"
       },
+      "ObjetivoItemHabitoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ATIVO", "PAUSADO" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "origem", "status", "titulo" ],
+        "type" : "object"
+      },
+      "ObjetivoItemProjetoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "nome", "origem", "status" ],
+        "type" : "object"
+      },
+      "ObjetivoItemTarefaResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "projetoNome" : {
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "origem", "projetoId", "projetoNome", "status", "titulo" ],
+        "type" : "object"
+      },
+      "ObjetivoItensResponse" : {
+        "properties" : {
+          "habitos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemHabitoResponse"
+            },
+            "type" : "array"
+          },
+          "projetos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemProjetoResponse"
+            },
+            "type" : "array"
+          },
+          "tarefas" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemTarefaResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "habitos", "projetos", "tarefas" ],
+        "type" : "object"
+      },
       "ObjetivoResponse" : {
         "properties" : {
           "arquivadoEm" : {
@@ -1322,6 +1464,23 @@
           }
         },
         "required" : [ "arquivadoEm", "concluidoEm", "createdAt", "descricao", "id", "prazo", "status", "titulo", "updatedAt" ],
+        "type" : "object"
+      },
+      "ObjetivoResumoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "status", "titulo" ],
         "type" : "object"
       },
       "PageMetadata" : {
@@ -1575,6 +1734,12 @@
           "nome" : {
             "type" : "string"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1598,7 +1763,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "bloqueada", "createdAt", "descricao", "esperas", "id", "nome", "ordem", "status", "tagMatchScore", "tags", "updatedAt" ],
+        "required" : [ "bloqueada", "createdAt", "descricao", "esperas", "id", "nome", "objetivos", "ordem", "status", "tagMatchScore", "tags", "updatedAt" ],
         "type" : "object"
       },
       "PromoverDecidirRequest" : {
@@ -1840,6 +2005,12 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1895,7 +2066,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "bloqueada", "createdAt", "deletada", "deletedAt", "descricao", "duracaoMinutos", "esperas", "id", "ordem", "parentId", "parentTitulo", "prazo", "prioridade", "projetoId", "projetoNome", "restanteMinutos", "status", "tagMatchScore", "tags", "temFilhos", "titulo", "updatedAt" ],
+        "required" : [ "bloqueada", "createdAt", "deletada", "deletedAt", "descricao", "duracaoMinutos", "esperas", "id", "objetivos", "ordem", "parentId", "parentTitulo", "prazo", "prioridade", "projetoId", "projetoNome", "restanteMinutos", "status", "tagMatchScore", "tags", "temFilhos", "titulo", "updatedAt" ],
         "type" : "object"
       },
       "TarefaResumoResponse" : {
@@ -3576,6 +3747,33 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/itens" : {
+      "get" : {
+        "operationId" : "listarItens",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoItensResponse"
                 }
               }
             },

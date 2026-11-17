@@ -1,5 +1,6 @@
 package com.controlerotina.habito.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,8 @@ import com.controlerotina.habito.entity.StatusHabito;
 public interface HabitoRepository extends JpaRepository<Habito, UUID>, JpaSpecificationExecutor<Habito> {
 
     Optional<Habito> findByIdAndUsuarioId(UUID id, UUID usuarioId);
+
+    List<Habito> findByIdInAndDeletedAtIsNull(Collection<UUID> ids);
 
     List<Habito> findByUsuarioIdAndStatusAndDeletedAtIsNull(UUID usuarioId, StatusHabito status);
 

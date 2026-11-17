@@ -860,6 +860,66 @@ class ProjetoIT {
                 "select count(*) from reserva_projeto_semanal where id = ?", Integer.class, reservaId)).isEqualTo(1);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void criarProjetoComIdsRepetidosPersisteUmVinculo() {
+        UUID objetivo = criarObjetivo("Duplicado");
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/projetos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of(
+                        "nome", "Com duplicata",
+                        "objetivoIds", List.of(objetivo.toString(), objetivo.toString()))),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) response.getBody().get("objetivos");
+        assertThat(objetivos).extracting(o -> o.get("id")).containsExactly(objetivo.toString());
+        UUID projetoId = UUID.fromString(response.getBody().get("id").toString());
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from objetivo_projeto where projeto_id = ?", Integer.class, projetoId))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void desvincularDeObjetivoArquivadoRetorna200() {
+        UUID objetivo = criarObjetivo("Arquivar depois");
+        UUID projetoId = UUID.fromString(restTemplate.exchange(
+                "/projetos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of(
+                        "nome", "Ligado",
+                        "objetivoIds", List.of(objetivo.toString()))),
+                Map.class).getBody().get("id").toString());
+
+        assertThat(restTemplate.exchange(
+                "/objetivos/" + objetivo + "/arquivar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class).getStatusCode()).isEqualTo(OK);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/projetos/" + projetoId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("objetivoIds", List.of())),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat((List<?>) response.getBody().get("objetivos")).isEmpty();
+    }
+
+    private UUID criarObjetivo(String titulo) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/objetivos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("titulo", titulo)),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return UUID.fromString(response.getBody().get("id").toString());
+    }
+
     private void criarCapacidade(Map<String, Integer> horasPorDia) {
         List<Map<String, Object>> itens = horasPorDia.entrySet().stream()
                 .map(e -> Map.<String, Object>of("diaSemana", e.getKey(), "horas", e.getValue()))

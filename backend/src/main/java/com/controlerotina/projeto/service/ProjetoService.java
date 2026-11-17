@@ -27,6 +27,8 @@ import com.controlerotina.projeto.entity.Projeto;
 import com.controlerotina.projeto.entity.StatusProjeto;
 import com.controlerotina.projeto.repository.ProjetoRepository;
 import com.controlerotina.projeto.repository.ProjetoSpecs;
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.shared.exception.ProjetoJaArquivadoException;
 import com.controlerotina.shared.exception.ProjetoJaAtivoException;
 import com.controlerotina.shared.exception.ProjetoNaoEncontradoException;
@@ -39,6 +41,7 @@ public class ProjetoService {
 
     private final ProjetoRepository projetoRepository;
     private final TagVinculoService tagVinculoService;
+    private final ObjetivoVinculoService objetivoVinculoService;
     private final ItemDecidirRepository itemDecidirRepository;
     private final EsperaService esperaService;
     private final Clock clock;
@@ -46,12 +49,14 @@ public class ProjetoService {
     public ProjetoService(
             ProjetoRepository projetoRepository,
             TagVinculoService tagVinculoService,
+            ObjetivoVinculoService objetivoVinculoService,
             ItemDecidirRepository itemDecidirRepository,
             EsperaService esperaService,
             Clock clock
     ) {
         this.projetoRepository = projetoRepository;
         this.tagVinculoService = tagVinculoService;
+        this.objetivoVinculoService = objetivoVinculoService;
         this.itemDecidirRepository = itemDecidirRepository;
         this.esperaService = esperaService;
         this.clock = clock;
@@ -77,7 +82,12 @@ public class ProjetoService {
                 salvo.getId(),
                 request.tagIds()
         );
-        return toResponse(usuarioId, salvo, tags, null);
+        List<ObjetivoResumoResponse> objetivos = objetivoVinculoService.substituirObjetivosProjeto(
+                usuarioId,
+                salvo.getId(),
+                request.objetivoIds()
+        );
+        return toResponse(usuarioId, salvo, tags, null, objetivos);
     }
 
     @Transactional(readOnly = true)
@@ -101,6 +111,8 @@ public class ProjetoService {
         Page<Projeto> page = projetoRepository.findAll(spec, pageable);
         List<UUID> ids = page.getContent().stream().map(Projeto::getId).toList();
         Map<UUID, List<TagResumoResponse>> tagsPorProjeto = tagVinculoService.mapearTagsPorProjeto(ids);
+        Map<UUID, List<ObjetivoResumoResponse>> objetivosPorProjeto =
+                objetivoVinculoService.mapearObjetivosPorProjeto(ids);
         EsperasDeOrigem esperas = esperaService.enriquecerProjetos(usuarioId, ids);
 
         List<ProjetoResponse> conteudo = new ArrayList<>();
@@ -117,7 +129,8 @@ public class ProjetoService {
                     tags,
                     score,
                     esperas.de(p.getId()),
-                    esperas.bloqueada(p.getId())
+                    esperas.bloqueada(p.getId()),
+                    objetivosPorProjeto.getOrDefault(p.getId(), List.of())
             ));
         }
 
@@ -133,7 +146,13 @@ public class ProjetoService {
     @Transactional(readOnly = true)
     public ProjetoResponse buscarPorId(UUID usuarioId, UUID id) {
         Projeto projeto = buscarDoUsuario(usuarioId, id);
-        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
+        return toResponse(
+                usuarioId,
+                projeto,
+                tagVinculoService.listarTagsProjeto(projeto.getId()),
+                null,
+                objetivoVinculoService.listarObjetivosProjeto(projeto.getId())
+        );
     }
 
     @Transactional
@@ -143,7 +162,11 @@ public class ProjetoService {
         List<TagResumoResponse> tags = request.tagIdsPresente()
                 ? tagVinculoService.substituirTagsProjeto(usuarioId, projeto.getId(), request.tagIds())
                 : tagVinculoService.listarTagsProjeto(projeto.getId());
-        return toResponse(usuarioId, projeto, tags, null);
+        List<ObjetivoResumoResponse> objetivos = request.objetivoIdsPresente()
+                ? objetivoVinculoService.substituirObjetivosProjeto(
+                        usuarioId, projeto.getId(), request.objetivoIds())
+                : objetivoVinculoService.listarObjetivosProjeto(projeto.getId());
+        return toResponse(usuarioId, projeto, tags, null, objetivos);
     }
 
     @Transactional
@@ -156,7 +179,13 @@ public class ProjetoService {
         projeto.arquivar(agora);
         esperaService.apagarPorRecurso(usuarioId, TipoRecursoEspera.PROJETO, projeto.getId());
         itemDecidirRepository.zerarProjetoId(projeto.getId(), agora);
-        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
+        return toResponse(
+                usuarioId,
+                projeto,
+                tagVinculoService.listarTagsProjeto(projeto.getId()),
+                null,
+                objetivoVinculoService.listarObjetivosProjeto(projeto.getId())
+        );
     }
 
     @Transactional
@@ -166,7 +195,13 @@ public class ProjetoService {
             throw new ProjetoJaAtivoException();
         }
         projeto.reativar(clock.instant());
-        return toResponse(usuarioId, projeto, tagVinculoService.listarTagsProjeto(projeto.getId()), null);
+        return toResponse(
+                usuarioId,
+                projeto,
+                tagVinculoService.listarTagsProjeto(projeto.getId()),
+                null,
+                objetivoVinculoService.listarObjetivosProjeto(projeto.getId())
+        );
     }
 
     @Transactional
@@ -188,7 +223,8 @@ public class ProjetoService {
             UUID usuarioId,
             Projeto projeto,
             List<TagResumoResponse> tags,
-            Integer tagMatchScore
+            Integer tagMatchScore,
+            List<ObjetivoResumoResponse> objetivos
     ) {
         EsperasDeOrigem esperas = esperaService.enriquecerProjetos(usuarioId, List.of(projeto.getId()));
         return ProjetoResponse.from(
@@ -196,7 +232,8 @@ public class ProjetoService {
                 tags,
                 tagMatchScore,
                 esperas.de(projeto.getId()),
-                esperas.bloqueada(projeto.getId())
+                esperas.bloqueada(projeto.getId()),
+                objetivos
         );
     }
 

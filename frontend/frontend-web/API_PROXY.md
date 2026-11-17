@@ -127,7 +127,7 @@ Use a UI logada (`/tarefas`, `/capacidade`, `/plano`) ou o DevTools → Network 
 | `/tarefas` (navegação HTML) | Tela React (SPA) |
 | `/tarefas`, `/tarefas/{id}`, … (Accept JSON) | API (proxy → backend) |
 | `/objetivos` (navegação HTML) | Tela React (SPA) |
-| `/objetivos`, `/objetivos/{id}`, … (Accept JSON) | API (proxy → backend) |
+| `/objetivos`, `/objetivos/{id}`, `/objetivos/{id}/itens`, … (Accept JSON) | API (proxy → backend) |
 
 ## Erro “API devolveu a página do front (SPA)”
 
