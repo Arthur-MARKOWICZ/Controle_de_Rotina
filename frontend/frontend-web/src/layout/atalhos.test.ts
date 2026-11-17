@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { focoEmCampoEditavel, rotaPorAtalhoGo } from './atalhos'
+import { LISTA_ATALHOS_AJUDA, focoEmCampoEditavel, rotaPorAtalhoGo } from './atalhos'
 
 describe('atalhos helpers', () => {
   it('mapeia G+letra para rotas principais', () => {
     expect(rotaPorAtalhoGo('h')).toBe('/plano')
     expect(rotaPorAtalhoGo('T')).toBe('/tarefas')
     expect(rotaPorAtalhoGo('p')).toBe('/projetos')
+    expect(rotaPorAtalhoGo('o')).toBe('/objetivos')
+    expect(rotaPorAtalhoGo('O')).toBe('/objetivos')
     expect(rotaPorAtalhoGo('c')).toBe('/capacidade')
     expect(rotaPorAtalhoGo('i')).toBe('/historico')
     expect(rotaPorAtalhoGo('x')).toBeNull()
@@ -42,6 +44,10 @@ describe('atalhos helpers', () => {
   it('aceita maiúsculas e minúsculas para o mesmo destino', () => {
     expect(rotaPorAtalhoGo('I')).toBe('/historico')
     expect(rotaPorAtalhoGo('i')).toBe('/historico')
+  })
+
+  it('ajuda lista G O para Objetivos', () => {
+    expect(LISTA_ATALHOS_AJUDA).toContainEqual({ teclas: 'G O', descricao: 'Ir para Objetivos' })
   })
 
   it('string vazia não navega', () => {

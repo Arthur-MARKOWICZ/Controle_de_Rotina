@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
-import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as meApi from '../auth/api/meApi'
@@ -66,6 +66,16 @@ function PaginaPlano() {
   )
 }
 
+function PaginaObjetivos() {
+  return (
+    <div>
+      <h1>página objetivos</h1>
+      <Link to="/objetivos/nova">Novo objetivo</Link>
+      <Outlet />
+    </div>
+  )
+}
+
 function renderShell(path: string) {
   return render(
     <ThemeProvider>
@@ -79,6 +89,9 @@ function renderShell(path: string) {
             <Route path="/decidir" element={<h1>página decidir</h1>} />
             <Route path="/habitos" element={<p>página hábitos</p>} />
             <Route path="/projetos" element={<p>página projetos</p>} />
+            <Route path="/objetivos" element={<PaginaObjetivos />}>
+              <Route path="nova" element={<input aria-label="Campo do drawer" autoFocus />} />
+            </Route>
             <Route path="/calendario" element={<p>página calendário</p>} />
             <Route path="/capacidade" element={<p>página capacidade</p>} />
             <Route path="/historico" element={<p>página histórico</p>} />
@@ -139,7 +152,7 @@ describe('AppShell', () => {
     expect(plano.every((link) => link.getAttribute('aria-current') !== 'page')).toBe(true)
   })
 
-  it('T1: sidebar ordena Tarefas/Decidir/Projetos antes de Plano/Hábitos; terciários presentes', () => {
+  it('T1: sidebar ordena Tarefas/Decidir/Projetos/Objetivos antes de Plano/Hábitos; terciários presentes', () => {
     renderShell('/tarefas')
 
     const navs = screen.getAllByRole('navigation', { name: 'Principal' })
@@ -156,6 +169,7 @@ describe('AppShell', () => {
       'Tarefas',
       'Decidir',
       'Projetos',
+      'Objetivos',
       'Plano',
       'Hábitos',
       'Capacidade',
@@ -173,15 +187,19 @@ describe('AppShell', () => {
     expect(within(bottom).getByRole('button', { name: 'Mais' })).toBeInTheDocument()
   })
 
-  it('T2: bottom tem Tarefas/Decidir/Projetos/Plano/Hábitos + Mais; Mais tem Capacidade/Calendário/Histórico sem Projetos', async () => {
+  it('T2: bottom tem Tarefas/Decidir/Projetos/Plano/Hábitos + Mais; Mais tem Objetivos/Capacidade/Calendário/Histórico sem Projetos', async () => {
     const user = userEvent.setup()
     renderShell('/tarefas')
+
+    const [, bottom] = screen.getAllByRole('navigation', { name: 'Principal' })
+    expect(within(bottom).queryByRole('link', { name: 'Objetivos' })).not.toBeInTheDocument()
 
     const mais = screen.getByRole('button', { name: 'Mais' })
     await user.click(mais)
 
     const sheet = screen.getByRole('dialog', { name: 'Mais opções' })
     expect(within(sheet).queryByRole('link', { name: 'Projetos' })).not.toBeInTheDocument()
+    expect(within(sheet).getAllByRole('link')[0]).toHaveTextContent('Objetivos')
     const capacidade = within(sheet).getByRole('link', { name: 'Capacidade' })
     expect(within(sheet).getByRole('link', { name: 'Calendário' })).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Histórico' })).toBeInTheDocument()
@@ -365,6 +383,40 @@ describe('AppShell', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'página plano' })).toBeInTheDocument()
     })
+  })
+
+  it('sequência G O navega para Objetivos', async () => {
+    const user = userEvent.setup()
+    renderShell('/tarefas')
+
+    await user.keyboard('go')
+
+    expect(await screen.findByRole('heading', { name: 'página objetivos' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.title).toBe('Objetivos · Controle de Rotina')
+    })
+  })
+
+  it('G O com foco em campo editável não navega', async () => {
+    const user = userEvent.setup()
+    renderShell('/plano')
+
+    await user.click(screen.getByLabelText('Campo título'))
+    await user.keyboard('go')
+
+    expect(screen.getByRole('heading', { name: 'página plano' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'página objetivos' })).not.toBeInTheDocument()
+  })
+
+  it('abrir /objetivos/nova a partir da lista não leva o foco ao h1', async () => {
+    const user = userEvent.setup()
+    renderShell('/objetivos')
+
+    await user.click(screen.getByRole('link', { name: 'Novo objetivo' }))
+
+    const campo = await screen.findByLabelText('Campo do drawer')
+    expect(campo).toHaveFocus()
+    expect(screen.getByRole('heading', { level: 1, name: 'página objetivos' })).not.toHaveFocus()
   })
 
   it('T5: ? abre dialog de ajuda descrevendo Ir para Plano', async () => {

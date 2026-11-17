@@ -14,6 +14,8 @@ import { HabitosPage } from './habito/pages/HabitosPage'
 import { HistoricoPage } from './historico/pages/HistoricoPage'
 import { AppShell } from './layout/AppShell'
 import { DocumentTitle } from './layout/DocumentTitle'
+import { ObjetivoDrawer } from './objetivo/ObjetivoDrawer'
+import { ObjetivosPage } from './objetivo/pages/ObjetivosPage'
 import { HomePage } from './pages/HomePage'
 import { ProjetoFormPage } from './projeto/pages/ProjetoFormPage'
 import { ProjetoDrawer } from './projeto/ProjetoDrawer'
@@ -55,6 +57,10 @@ export default function App() {
                 <Route path="nova" element={<ProjetoDrawer />} />
               </Route>
               <Route path="/projetos/:id" element={<ProjetoFormPage />} />
+              <Route path="/objetivos" element={<ObjetivosPage />}>
+                <Route path="nova" element={<ObjetivoDrawer />} />
+                <Route path=":id" element={<ObjetivoDrawer />} />
+              </Route>
               <Route path="/habitos" element={<HabitosPage />}>
                 <Route path="nova" element={<HabitoDrawer />} />
                 <Route path=":id" element={<HabitoDrawer />} />

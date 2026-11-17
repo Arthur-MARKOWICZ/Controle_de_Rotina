@@ -2,6 +2,7 @@ import {
   CalendarBlankIcon,
   ChartLineUpIcon,
   CheckSquareIcon,
+  FlagIcon,
   FolderSimpleIcon,
   GaugeIcon,
   PlusIcon,
@@ -31,6 +32,7 @@ type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
 const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
 const DECIDIR: ItemNav = { to: '/decidir', label: 'Decidir', Icon: ScalesIcon }
 const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
+const OBJETIVOS: ItemNav = { to: '/objetivos', label: 'Objetivos', Icon: FlagIcon }
 const PLANO: ItemNav = { to: '/plano', label: 'Plano', Icon: SunHorizonIcon, end: true }
 const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
@@ -39,7 +41,7 @@ const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartL
 const TAGS: ItemNav = { to: '/tags', label: 'Tags', Icon: TagIcon }
 
 /** Primário → secundário → terciário (sidebar). */
-const NAV_SIDEBAR_PRIMARIO = [TAREFAS, DECIDIR, PROJETOS]
+const NAV_SIDEBAR_PRIMARIO = [TAREFAS, DECIDIR, PROJETOS, OBJETIVOS]
 const NAV_SIDEBAR_SECUNDARIO = [PLANO, HABITOS]
 const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO, TAGS]
 const NAV_BOTTOM = [TAREFAS, DECIDIR, PROJETOS, PLANO, HABITOS]
@@ -104,6 +106,7 @@ const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
   // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
   { base: '/projetos', drawer: /^\/projetos\/nova$/ },
   { base: '/habitos', drawer: /^\/habitos\/[^/]+$/ },
+  { base: '/objetivos', drawer: /^\/objetivos\/[^/]+$/ },
 ]
 
 function naPagina(pathname: string, pagina: { base: string; drawer: RegExp }): boolean {
