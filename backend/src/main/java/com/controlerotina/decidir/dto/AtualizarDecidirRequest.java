@@ -1,5 +1,9 @@
 package com.controlerotina.decidir.dto;
 
+import org.jspecify.annotations.Nullable;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,20 +23,28 @@ public record AtualizarDecidirRequest(
         String titulo,
 
         @Size(max = 2000)
+        @Nullable
         String descricao,
 
+        @Schema(hidden = true)
         boolean descricaoPresente,
 
+        @Nullable
         Instant decidirAte,
 
+        @Schema(hidden = true)
         boolean decidirAtePresente,
 
+        @Nullable
         UUID projetoId,
 
+        @Schema(hidden = true)
         boolean projetoIdPresente,
 
+        @Nullable
         List<UUID> tagIds,
 
+        @Schema(hidden = true)
         boolean tagIdsPresente
 ) {
     public AtualizarDecidirRequest {

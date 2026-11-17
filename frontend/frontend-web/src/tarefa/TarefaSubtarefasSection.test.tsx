@@ -8,6 +8,7 @@ import { ToastProvider } from '../feedback/ToastProvider'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
 import { TarefaSubtarefasSection } from './TarefaSubtarefasSection'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 vi.mock('./api/tarefaApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/tarefaApi')>()
@@ -20,7 +21,7 @@ vi.mock('./api/tarefaApi', async (importOriginal) => {
   }
 })
 
-const pai: TarefaResponse = {
+const pai: TarefaResponse = tarefaFake({
   id: 't-pai',
   titulo: 'TCC',
   descricao: '',
@@ -33,7 +34,7 @@ const pai: TarefaResponse = {
   deletedAt: null,
   deletada: false,
   temFilhos: true,
-}
+})
 
 const filho: TarefaResponse = {
   ...pai,
@@ -61,10 +62,7 @@ describe('TarefaSubtarefasSection', () => {
     onPaiAtualizado.mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockReset().mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
     })
     vi.mocked(tarefaApi.criarTarefa).mockReset()
     vi.mocked(tarefaApi.buscarTarefa).mockReset()
@@ -80,10 +78,7 @@ describe('TarefaSubtarefasSection', () => {
   it('lista subtarefas carregadas da API', async () => {
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [filho],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 100,
+      page: { size: 100, number: 0, totalElements: 1, totalPages: 1 },
     })
     renderSecao()
 

@@ -41,7 +41,7 @@ describe('decidirApi', () => {
 
   it('lista Decidir via GET', async () => {
     vi.mocked(apiClient.apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ content: [item], totalElements: 1, totalPages: 1, number: 0, size: 20 }), {
+      new Response(JSON.stringify({ content: [item], page: { size: 20, number: 0, totalElements: 1, totalPages: 1 } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),

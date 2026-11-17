@@ -1,3 +1,4 @@
+import type { Pagina } from '../../api/pagina'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch } from '../../auth/session/apiClient'
 import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
@@ -22,13 +23,7 @@ export type ProjetoResponse = {
   ordem?: number
 }
 
-export type PageProjeto = {
-  content: ProjetoResponse[]
-  totalElements: number
-  totalPages: number
-  number: number
-  size: number
-}
+export type PageProjeto = Pagina<ProjetoResponse>
 
 export type ListarProjetosParams = {
   status?: StatusProjeto

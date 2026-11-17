@@ -18,6 +18,7 @@ import {
   reordenarTarefas,
   type TarefaResponse,
 } from './tarefaApi'
+import { tarefa as tarefaFake } from '../../test/revisaoFixtures'
 
 vi.mock('../../auth/session/apiClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../auth/session/apiClient')>()
@@ -27,7 +28,7 @@ vi.mock('../../auth/session/apiClient', async (importOriginal) => {
   }
 })
 
-const tarefa: TarefaResponse = {
+const tarefa: TarefaResponse = tarefaFake({
   id: 't-1',
   titulo: 'Estudar',
   descricao: 'Spring',
@@ -40,7 +41,7 @@ const tarefa: TarefaResponse = {
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 describe('tarefaApi', () => {
   beforeEach(() => {
@@ -52,10 +53,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [tarefa],
-          totalElements: 1,
-          totalPages: 1,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -82,7 +80,7 @@ describe('tarefaApi', () => {
     expect(url).toContain('size=10')
     expect(url).toContain('sort=duracao%2Cdesc')
     expect(page.content).toHaveLength(1)
-    expect(page.totalElements).toBe(1)
+    expect(page.page.totalElements).toBe(1)
   })
 
   it('cria tarefa com POST /tarefas', async () => {
@@ -220,10 +218,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [],
-          totalElements: 0,
-          totalPages: 0,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -242,10 +237,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [],
-          totalElements: 0,
-          totalPages: 0,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -262,10 +254,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [],
-          totalElements: 0,
-          totalPages: 0,
-          number: 0,
-          size: 100,
+          page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -283,10 +272,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [{ ...tarefa, parentId: null, parentTitulo: null, temFilhos: true }],
-          totalElements: 1,
-          totalPages: 1,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -306,10 +292,7 @@ describe('tarefaApi', () => {
       new Response(
         JSON.stringify({
           content: [],
-          totalElements: 0,
-          totalPages: 0,
-          number: 0,
-          size: 20,
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),

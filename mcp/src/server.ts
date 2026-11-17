@@ -242,9 +242,10 @@ export function createMcpServer(client: ControleRotinaApiClient): McpServer {
             titulo: input.titulo,
             descricao: input.descricao,
             prioridade: input.prioridade as Prioridade,
-            prazo: input.prazo,
+            // Prazo/projeto nulos na criação equivalem a ausentes (o contrato não aceita null aqui).
+            prazo: input.prazo ?? undefined,
             duracaoMinutos: input.duracaoMinutos,
-            projetoId: input.projetoId,
+            projetoId: input.projetoId ?? undefined,
           }),
         );
       } catch (error) {
@@ -277,7 +278,8 @@ export function createMcpServer(client: ControleRotinaApiClient): McpServer {
             titulo: body.titulo,
             descricao: body.descricao,
             prioridade: body.prioridade as Prioridade | undefined,
-            prazo: body.prazo,
+            // A API trata prazo nulo no PATCH como "não alterar".
+            prazo: body.prazo ?? undefined,
             status: body.status as StatusTarefa | undefined,
             duracaoMinutos: body.duracaoMinutos,
             projetoId: body.projetoId,

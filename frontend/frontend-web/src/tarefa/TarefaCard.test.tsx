@@ -11,6 +11,7 @@ import { XpProgressProvider } from '../xp/XpProgressContext'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
 import { TarefaCard } from './TarefaCard'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 vi.mock('../auth/api/meApi', () => ({
   buscarMe: vi.fn().mockResolvedValue({
@@ -49,7 +50,7 @@ vi.mock('../planner/data', async (importOriginal) => {
   }
 })
 
-const pendente: TarefaResponse = {
+const pendente: TarefaResponse = tarefaFake({
   id: 't-1',
   titulo: 'Estudar',
   descricao: '',
@@ -62,7 +63,7 @@ const pendente: TarefaResponse = {
   updatedAt: '2026-01-01T10:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 const onExcluir = vi.fn()
 const onRestaurar = vi.fn()

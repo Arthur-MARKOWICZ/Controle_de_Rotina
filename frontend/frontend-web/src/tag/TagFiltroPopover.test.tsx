@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../auth/api/authApi'
 import * as tagApi from './api/tagApi'
 import { TagFiltroPopover } from './TagFiltroPopover'
+import { tag as tagFake } from '../test/revisaoFixtures'
 
 vi.mock('./api/tagApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/tagApi')>()
@@ -15,8 +16,8 @@ vi.mock('./api/tagApi', async (importOriginal) => {
 })
 
 const tags = [
-  { id: 'tag-1', nome: 'Casa', cor: '#6B7280' },
-  { id: 'tag-2', nome: 'Trabalho', cor: '#2563EB' },
+  tagFake({ id: 'tag-1', nome: 'Casa', cor: '#6B7280' }),
+  tagFake({ id: 'tag-2', nome: 'Trabalho', cor: '#2563EB' }),
 ]
 
 describe('TagFiltroPopover', () => {

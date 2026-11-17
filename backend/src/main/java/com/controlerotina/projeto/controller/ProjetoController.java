@@ -3,10 +3,10 @@ package com.controlerotina.projeto.controller;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -59,13 +59,13 @@ public class ProjetoController {
     }
 
     @GetMapping
-    public Page<ProjetoResponse> listar(
+    public PagedModel<ProjetoResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
             @RequestParam(required = false) StatusProjeto status,
             @RequestParam(required = false) List<UUID> tagId,
             Pageable pageable
     ) {
-        return projetoService.listar(usuarioId, status, tagId, normalizarPageable(pageable));
+        return new PagedModel<>(projetoService.listar(usuarioId, status, tagId, normalizarPageable(pageable)));
     }
 
     @PostMapping("/{id}/esperas")

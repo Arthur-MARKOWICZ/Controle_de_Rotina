@@ -1,5 +1,7 @@
 package com.controlerotina.execucao.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -8,13 +10,13 @@ import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.xp.dto.XpConclusaoResponse;
 
 public record ExecucaoResponse(
-        UUID id,
-        UUID blocoPlanoId,
+        @Nullable UUID id,
+        @Nullable UUID blocoPlanoId,
         StatusExecucao status,
-        Instant iniciadoEm,
-        Instant concluidoEm,
-        Instant abortadoEm,
-        XpConclusaoResponse xp
+        @Nullable Instant iniciadoEm,
+        @Nullable Instant concluidoEm,
+        @Nullable Instant abortadoEm,
+        @Nullable XpConclusaoResponse xp
 ) {
     public static ExecucaoResponse from(Execucao execucao) {
         return from(execucao, null);

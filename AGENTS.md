@@ -25,6 +25,19 @@ Todo **prefixo novo** de controller (`@RequestMapping("/…")`) precisa entrar n
 Sem isso, o front recebe `index.html` e aparece erro `Unexpected token '<', "<!doctype…"`.  
 Detalhes e checklist: `frontend/frontend-web/API_PROXY.md`.
 
+## Contrato OpenAPI (mudou DTO? regenere)
+
+`contract/openapi.json` é a fonte única dos formatos da API. Os tipos TS de tag, tarefa e páginas no front e os tipos do MCP são **gerados** dele, e os modelos Kotlin são **validados** contra ele.
+
+Mudou um record de request/response, um endpoint ou um enum:
+
+1. `cd backend && mvn test -Dtest=ContratoOpenApiIT -Dcontrato.atualizar=true` (regenera `contract/openapi.json`)
+2. `cd frontend/frontend-web && npm run gerar:contrato` e `cd mcp && pnpm gerar:contrato`
+3. Commite o `openapi.json` e os `schema.d.ts`. O CI falha se algum deles estiver desatualizado.
+
+Campo de **resposta** que pode vir `null`: anote o componente do record com `@org.jspecify.annotations.Nullable`. Sem isso o contrato diz "nunca nulo". Em **request**, só é obrigatório o que a validação exige (`@NotNull`/`@NotBlank`). Listagens paginadas devolvem `PagedModel<T>` (`{ content, page }`), nunca `Page<T>`.  
+Endpoint `/v3/api-docs` só existe no perfil `local` e nos testes. Detalhes: `openspec/changes/archive/2026-11-17-contrato-openapi-tipos-gerados/design.md`.
+
 ## Typecheck do front (Docker `npm run build`)
 
 `npm run build` no frontend é `tsc -b && vite build`. O `tsc -b` typechecka **testes** (`src/**/*.test.ts(x)`).

@@ -115,8 +115,8 @@ export function TarefaCard({
     try {
       const body = {
         data: dataHojeIso(),
-        duracaoMinutos: duracaoMinutos ?? null,
-        blocoId: blocoId ?? null,
+        duracaoMinutos: duracaoMinutos ?? undefined,
+        blocoId: blocoId ?? undefined,
       }
       if (acao === 'iniciar') {
         const execucao = await iniciarTarefaSessao(tarefa.id, body)

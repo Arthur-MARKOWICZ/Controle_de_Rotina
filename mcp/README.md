@@ -90,3 +90,7 @@ cd mcp && pnpm test:coverage   # cobertura em coverage/; gate em vitest.config.t
 ```
 
 Roda no CI (`deploy.yml`, job `validate`). Regra mínima de cenários (1 feliz + 3 anomalias + 3 erros) e catraca de cobertura: `AGENTS.md` → Testes.
+
+## Tipos do contrato
+
+`src/schema.d.ts` é gerado de `../contract/openapi.json` (`pnpm gerar:contrato`, commitar o resultado). `api-client.ts` usa aliases (`CreateTarefaInput`, `UpdateTarefaInput`, `Prioridade`, `StatusTarefa`). As listagens chegam como `{ content, page: { size, number, totalElements, totalPages } }`.

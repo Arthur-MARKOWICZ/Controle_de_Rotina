@@ -1,12 +1,14 @@
 package com.controlerotina.capacidade.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.LocalDate;
 
 import com.controlerotina.capacidade.entity.OrigemCapacidade;
 
 public record CapacidadeResolvidaResponse(
         LocalDate data,
-        Integer horas,
+        @Nullable Integer horas,
         OrigemCapacidade origem
 ) {
 }

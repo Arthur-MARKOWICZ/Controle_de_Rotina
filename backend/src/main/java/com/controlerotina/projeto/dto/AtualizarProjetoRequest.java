@@ -1,5 +1,9 @@
 package com.controlerotina.projeto.dto;
 
+import org.jspecify.annotations.Nullable;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,8 +24,10 @@ public record AtualizarProjetoRequest(
         @Size(max = 500)
         String descricao,
 
+        @Nullable
         List<UUID> tagIds,
 
+        @Schema(hidden = true)
         boolean tagIdsPresente
 ) {
     public AtualizarProjetoRequest {

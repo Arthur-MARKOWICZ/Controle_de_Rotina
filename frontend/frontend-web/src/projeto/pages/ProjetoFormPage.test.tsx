@@ -7,6 +7,7 @@ import { ToastProvider } from '../../feedback/ToastProvider'
 import * as tarefaApi from '../../tarefa/api/tarefaApi'
 import * as projetoApi from '../api/projetoApi'
 import { ProjetoFormPage } from './ProjetoFormPage'
+import { tarefa as tarefaFake } from '../../test/revisaoFixtures'
 
 vi.mock('../../tag/api/tagApi', () => ({
   listarTags: vi.fn().mockResolvedValue([]),
@@ -65,17 +66,11 @@ describe('ProjetoFormPage (F1)', () => {
     vi.mocked(projetoApi.excluirEsperaProjeto).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
   })
 
@@ -236,7 +231,7 @@ describe('ProjetoFormPage (F4 hub)', () => {
       vi.mocked(projetoApi.criarEsperaProjeto).mockResolvedValue(criada)
       vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
         content: [
-          {
+          tarefaFake({
             id: 't-1',
             titulo: 'Revisar API',
             descricao: '',
@@ -248,12 +243,9 @@ describe('ProjetoFormPage (F4 hub)', () => {
             updatedAt: '2026-01-01T10:00:00Z',
             deletedAt: null,
             deletada: false,
-          },
+          }),
         ],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
+        page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
       })
 
       const user = userEvent.setup()

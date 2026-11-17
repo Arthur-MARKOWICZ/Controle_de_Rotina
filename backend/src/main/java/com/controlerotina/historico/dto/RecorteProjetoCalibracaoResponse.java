@@ -1,5 +1,7 @@
 package com.controlerotina.historico.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -10,8 +12,8 @@ public record RecorteProjetoCalibracaoResponse(
         String nome,
         int amostras,
         boolean suficiente,
-        BigDecimal razao,
-        BigDecimal desvioMedioMinutos
+        @Nullable BigDecimal razao,
+        @Nullable BigDecimal desvioMedioMinutos
 ) {
     public static RecorteProjetoCalibracaoResponse of(CalibracaoCalculadora.RecorteProjeto r) {
         var m = r.metricas();

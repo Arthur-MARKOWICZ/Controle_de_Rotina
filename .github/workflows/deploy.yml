@@ -61,6 +61,18 @@ jobs:
           pnpm typecheck
           pnpm test:coverage
 
+      # O backend (ContratoOpenApiIT) já garante que contract/openapi.json está atualizado;
+      # aqui garantimos que os tipos TS commitados foram regenerados a partir dele.
+      - name: Verificar tipos gerados do contrato
+        run: |
+          set -Eeuo pipefail
+          (cd frontend/frontend-web && npm run gerar:contrato)
+          (cd mcp && pnpm gerar:contrato)
+          if ! git diff --exit-code -- frontend/frontend-web/src/api/schema.d.ts mcp/src/schema.d.ts; then
+            echo "::error::Tipos gerados desatualizados. Rode 'npm run gerar:contrato' (frontend) e 'pnpm gerar:contrato' (mcp) e commite."
+            exit 1
+          fi
+
       - name: Publicar relatórios de cobertura
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

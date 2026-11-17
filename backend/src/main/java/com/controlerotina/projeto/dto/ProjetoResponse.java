@@ -1,5 +1,7 @@
 package com.controlerotina.projeto.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -12,11 +14,11 @@ import com.controlerotina.tag.dto.TagResumoResponse;
 public record ProjetoResponse(
         UUID id,
         String nome,
-        String descricao,
+        @Nullable String descricao,
         StatusProjeto status,
         int ordem,
         List<TagResumoResponse> tags,
-        Integer tagMatchScore,
+        @Nullable Integer tagMatchScore,
         Instant createdAt,
         Instant updatedAt,
         List<EsperaResumo> esperas,

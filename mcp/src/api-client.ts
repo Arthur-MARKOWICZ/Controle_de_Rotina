@@ -1,34 +1,17 @@
+import type { components } from "./schema.js";
 import { parseRefreshCookie, readSetCookieHeaders } from "./cookies.js";
 import type { SessionStore } from "./session-store.js";
 
-export type Prioridade = "BAIXA" | "MEDIA" | "ALTA";
+type Schemas = components["schemas"];
 
-export type StatusTarefa =
-  | "PENDENTE"
-  | "EM_PROGRESSO"
-  | "FINALIZADA"
-  | "CANCELADA"
-  | "ATRASADA";
+export type Prioridade = NonNullable<Schemas["CriarTarefaRequest"]["prioridade"]>;
 
-export type CreateTarefaInput = {
-  titulo: string;
-  descricao?: string;
-  prioridade: Prioridade;
-  prazo?: string | null;
-  duracaoMinutos: number;
-  projetoId?: string | null;
-};
+export type StatusTarefa = Schemas["TarefaResponse"]["status"];
 
-export type UpdateTarefaInput = {
-  titulo?: string;
-  descricao?: string;
-  prioridade?: Prioridade;
-  prazo?: string | null;
-  status?: StatusTarefa;
-  duracaoMinutos?: number;
-  /** Se a chave estiver presente (mesmo null), a API trata desvínculo/vínculo. */
-  projetoId?: string | null;
-};
+export type CreateTarefaInput = Schemas["CriarTarefaRequest"];
+
+/** `projetoId: null` desvincula o projeto; campos ausentes não mudam. */
+export type UpdateTarefaInput = Schemas["AtualizarTarefaRequest"];
 
 export type CapacidadeOverrideItem = {
   data: string;

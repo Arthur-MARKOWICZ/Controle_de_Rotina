@@ -81,10 +81,7 @@ const pagina = {
       deletada: false,
     },
   ],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
 }
 
 function renderLista(path = '/habitos') {
@@ -138,7 +135,7 @@ describe('HabitosPage', () => {
         ...pagina,
         content: pagina.content.map((h) => ({ ...h, diasSemana: [...h.diasSemana] })),
       })
-      .mockResolvedValueOnce({ ...pagina, content: [], totalElements: 0, totalPages: 0 })
+      .mockResolvedValueOnce({ ...pagina, content: [], page: { ...pagina.page, totalElements: 0, totalPages: 0 } })
 
     const user = userEvent.setup()
     renderLista()
@@ -390,7 +387,7 @@ describe('HabitosPage', () => {
       vi.mocked(habitoApi.listarHabitos)
         .mockResolvedValueOnce({
           ...pagina,
-          totalElements: 2,
+          page: { size: 20, number: 0, totalElements: 2, totalPages: 1 },
           content: [correr, { ...meditar, diasSemana: [...meditar.diasSemana] }],
         })
         .mockImplementation(
@@ -440,7 +437,7 @@ describe('HabitosPage', () => {
     it('não oferece sessão em hábito pausado, excluído ou fora do dia', async () => {
       vi.mocked(habitoApi.listarHabitos).mockResolvedValue({
         ...pagina,
-        totalElements: 3,
+        page: { size: 20, number: 0, totalElements: 3, totalPages: 1 },
         content: [
           {
             ...pagina.content[0],
@@ -477,7 +474,7 @@ describe('HabitosPage', () => {
   it('reordena hábitos com seta no handle', async () => {
     vi.mocked(habitoApi.listarHabitos).mockResolvedValue({
       ...pagina,
-      totalElements: 2,
+      page: { size: 20, number: 0, totalElements: 2, totalPages: 1 },
       content: [
         { ...pagina.content[0], id: 'h-a', titulo: 'Alfa', ordem: 0, diasSemana: ['SEGUNDA'] },
         { ...pagina.content[0], id: 'h-b', titulo: 'Beta', ordem: 1, diasSemana: ['TERCA'] },

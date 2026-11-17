@@ -83,3 +83,10 @@ kover {
         }
     }
 }
+
+// Teste de contrato (ContratoModelosTest): lê o spec versionado na raiz do repositório.
+tasks.named<Test>("jvmTest") {
+    val contrato = rootProject.file("../contract/openapi.json")
+    inputs.file(contrato).withPropertyName("contratoOpenApi")
+    systemProperty("contrato.arquivo", contrato.absolutePath)
+}

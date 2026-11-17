@@ -7,9 +7,10 @@ import {
   fimDaSemanaBrt,
   formatarPrazoLista,
 } from './listaGrupos'
+import { tarefa as tarefaFake, tag as tagFake } from '../test/revisaoFixtures'
 
 function tarefa(parcial: Partial<TarefaResponse> & { id: string; prazo: string }): TarefaResponse {
-  return {
+  return tarefaFake({
     titulo: parcial.titulo ?? parcial.id,
     descricao: '',
     prioridade: 'MEDIA',
@@ -20,7 +21,7 @@ function tarefa(parcial: Partial<TarefaResponse> & { id: string; prazo: string }
     deletedAt: null,
     deletada: false,
     ...parcial,
-  }
+  })
 }
 
 describe('listaGrupos (T3)', () => {
@@ -76,15 +77,15 @@ describe('listaGrupos (T3)', () => {
         tarefa({
           id: 'ou',
           prazo: '2026-10-28T18:00:00Z',
-          tags: [{ id: 't1', nome: 'A', cor: '#000' }],
+          tags: [tagFake({ id: 't1', nome: 'A', cor: '#000' })],
           tagMatchScore: 1,
         }),
         tarefa({
           id: 'e',
           prazo: '2026-10-28T20:00:00Z',
           tags: [
-            { id: 't1', nome: 'A', cor: '#000' },
-            { id: 't2', nome: 'B', cor: '#111' },
+            tagFake({ id: 't1', nome: 'A', cor: '#000' }),
+            tagFake({ id: 't2', nome: 'B', cor: '#111' }),
           ],
           tagMatchScore: 2,
         }),

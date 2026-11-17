@@ -1,28 +1,18 @@
+import type { components } from '../../api/schema'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
 
 export const TAG_COR_PADRAO = '#6B7280'
 
-export type TagResumo = {
-  id: string
-  nome: string
-  cor: string
-}
+type Schemas = components['schemas']
 
-export type TagResponse = TagResumo & {
-  createdAt?: string
-  updatedAt?: string
-}
+export type TagResumo = Schemas['TagResumoResponse']
 
-export type CriarTagRequest = {
-  nome: string
-  cor?: string
-}
+export type TagResponse = Schemas['TagResponse']
 
-export type AtualizarTagRequest = {
-  nome?: string
-  cor?: string
-}
+export type CriarTagRequest = Schemas['CriarTagRequest']
+
+export type AtualizarTagRequest = Schemas['AtualizarTagRequest']
 
 export async function listarTags(): Promise<TagResponse[]> {
   const response = await apiFetch('/tags')

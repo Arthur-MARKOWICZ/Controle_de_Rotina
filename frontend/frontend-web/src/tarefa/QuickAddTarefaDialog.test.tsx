@@ -10,6 +10,7 @@ import * as tarefaApi from './api/tarefaApi'
 import { fimDoDiaBrtIso } from './dataCivilBrt'
 import { QuickAddTarefaDialog } from './QuickAddTarefaDialog'
 import type { TarefaDrawerState } from './TarefaDrawer'
+import { tarefa as tarefaFake, tag as tagFake } from '../test/revisaoFixtures'
 
 vi.mock('./api/tarefaApi', () => ({
   criarTarefa: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock('../tag/api/tagApi', async (importOriginal) => ({
 
 /** Quarta-feira 18/11/2026 10:00 BRT. */
 const REF = new Date('2026-11-18T13:00:00.000Z')
-const FACULDADE = { id: 'tag-fac', nome: 'Faculdade', cor: '#123456' }
+const FACULDADE = tagFake({ id: 'tag-fac', nome: 'Faculdade', cor: '#123456' })
 
 let ultimoState: unknown = null
 
@@ -61,7 +62,7 @@ function renderDialog(open = true) {
   )
 }
 
-const TAREFA_CRIADA = {
+const TAREFA_CRIADA = tarefaFake({
   id: 't-1',
   titulo: 'x',
   descricao: '',
@@ -73,7 +74,7 @@ const TAREFA_CRIADA = {
   updatedAt: '2026-11-18T12:00:00Z',
   deletedAt: null,
   deletada: false,
-}
+})
 
 describe('QuickAddTarefaDialog', () => {
   beforeEach(() => {
@@ -86,7 +87,7 @@ describe('QuickAddTarefaDialog', () => {
   })
 
   it('T4: submit só com título chama API sem prioridade/duração; Mais detalhes leva ao drawer com título', async () => {
-    vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+    vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefaFake({
       id: 't-99',
       titulo: 'Ler docs',
       descricao: '',
@@ -98,7 +99,7 @@ describe('QuickAddTarefaDialog', () => {
       updatedAt: '2026-10-28T12:00:00Z',
       deletedAt: null,
       deletada: false,
-    })
+    }))
     const user = userEvent.setup()
     renderDialog()
 
@@ -221,7 +222,7 @@ describe('QuickAddTarefaDialog', () => {
     })
 
     it('deveCriarTagConfirmadaAntesDaTarefa', async () => {
-      vi.mocked(tagApi.criarTag).mockResolvedValue({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' })
+      vi.mocked(tagApi.criarTag).mockResolvedValue(tagFake({ id: 'tag-nova', nome: 'academia', cor: '#6B7280' }))
       const user = await digitar('Treino #academia')
       await user.click(screen.getByRole('button', { name: 'Criar tag academia' }))
       await user.click(screen.getByRole('button', { name: /criar tarefa/i }))

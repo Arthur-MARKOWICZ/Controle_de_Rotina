@@ -1,5 +1,7 @@
 package com.controlerotina.habito.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -9,9 +11,9 @@ import com.controlerotina.planner.entity.BlocoPlano;
 
 public record SlotExecucaoHabitoResponse(
         UUID blocoId,
-        UUID execucaoId,
+        @Nullable UUID execucaoId,
         StatusExecucao status,
-        Instant iniciadoEm
+        @Nullable Instant iniciadoEm
 ) {
     public static SlotExecucaoHabitoResponse de(BlocoPlano bloco, Execucao execucao) {
         if (execucao == null) {

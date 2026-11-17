@@ -39,10 +39,7 @@ describe('OnboardingChecklist (T4)', () => {
     vi.mocked(capacidadeApi.listarCapacidadesSemanais).mockResolvedValue([])
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 1,
+      page: { size: 1, number: 0, totalElements: 0, totalPages: 0 },
     })
   })
 
@@ -137,10 +134,7 @@ describe('OnboardingChecklist (T4)', () => {
     ])
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [{ id: 't-1' } as never],
-      totalElements: 1,
-      totalPages: 1,
-      number: 0,
-      size: 1,
+      page: { size: 1, number: 0, totalElements: 1, totalPages: 1 },
     })
     render(
       <MemoryRouter>

@@ -1,5 +1,7 @@
 package com.controlerotina.decidir.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -10,12 +12,12 @@ import com.controlerotina.tag.dto.TagResumoResponse;
 public record DecidirResponse(
         UUID id,
         String titulo,
-        String descricao,
-        Instant decidirAte,
-        UUID projetoId,
-        UUID tarefaId,
+        @Nullable String descricao,
+        @Nullable Instant decidirAte,
+        @Nullable UUID projetoId,
+        @Nullable UUID tarefaId,
         List<TagResumoResponse> tags,
-        Integer tagMatchScore,
+        @Nullable Integer tagMatchScore,
         Instant createdAt,
         Instant updatedAt
 ) {

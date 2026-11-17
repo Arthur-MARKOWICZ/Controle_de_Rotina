@@ -1,5 +1,7 @@
 package com.controlerotina.planner.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.UUID;
 
 import com.controlerotina.habito.entity.Habito;
@@ -11,10 +13,10 @@ public record BlocoPlanoResponse(
         int duracaoMinutos,
         int ordem,
         OrigemBloco origem,
-        UUID tarefaId,
-        UUID habitoId,
-        TarefaResumoResponse tarefa,
-        HabitoResumoResponse habito
+        @Nullable UUID tarefaId,
+        @Nullable UUID habitoId,
+        @Nullable TarefaResumoResponse tarefa,
+        @Nullable HabitoResumoResponse habito
 ) {
     public static BlocoPlanoResponse from(BlocoPlano bloco, Tarefa tarefa) {
         return from(bloco, tarefa, null);

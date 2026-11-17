@@ -308,3 +308,108 @@ describe("createMcpServer tool errors", () => {
     expect(JSON.stringify(result)).not.toContain("secret");
   });
 });
+
+describe("tools de tarefa com o contrato OpenAPI", () => {
+  const pagina = {
+    content: [{ id: TAREFA_ID, titulo: "Estudar" }],
+    page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
+  };
+
+  it("deveRepassarPaginaNoFormatoPagedModelAoListar", async () => {
+    const client = fakeClient({ listTarefas: vi.fn().mockResolvedValue(pagina) });
+    const handler = registeredHandler(createMcpServer(client), "list_tarefas");
+
+    const result = await handler({});
+
+    expect(payloadOf(result)).toEqual(pagina);
+    expect(payloadOf(result)).not.toHaveProperty("totalElements");
+  });
+
+  it("deveRepassarListaVaziaComTotaisZero", async () => {
+    const vazia = { content: [], page: { size: 20, number: 0, totalElements: 0, totalPages: 0 } };
+    const client = fakeClient({ listTarefas: vi.fn().mockResolvedValue(vazia) });
+    const handler = registeredHandler(createMcpServer(client), "list_tarefas");
+
+    const result = await handler({});
+
+    expect(result.isError).toBeUndefined();
+    expect(payloadOf(result)).toEqual(vazia);
+  });
+
+  it("deveOmitirPrazoEProjetoNulosAoCriar", async () => {
+    const client = fakeClient({ createTarefa: vi.fn().mockResolvedValue({ id: TAREFA_ID }) });
+    const handler = registeredHandler(createMcpServer(client), "create_tarefa");
+
+    await handler({ titulo: "Sem prazo", prioridade: "MEDIA", duracaoMinutos: 30, prazo: null, projetoId: null });
+
+    const body = vi.mocked(client.createTarefa).mock.calls[0][0];
+    expect(body.prazo).toBeUndefined();
+    expect(body.projetoId).toBeUndefined();
+    expect(body.titulo).toBe("Sem prazo");
+  });
+
+  it("deveRepassarPrazoEProjetoInformadosAoCriar", async () => {
+    const client = fakeClient({ createTarefa: vi.fn().mockResolvedValue({ id: TAREFA_ID }) });
+    const handler = registeredHandler(createMcpServer(client), "create_tarefa");
+    const prazo = "2026-11-20T12:00:00Z";
+
+    await handler({ titulo: "Com prazo", prioridade: "ALTA", duracaoMinutos: 30, prazo, projetoId: PLANO_ID });
+
+    expect(client.createTarefa).toHaveBeenCalledWith(expect.objectContaining({ prazo, projetoId: PLANO_ID }));
+  });
+
+  it("deveOmitirPrazoNuloMasManterProjetoNuloAoAtualizar", async () => {
+    const client = fakeClient({ updateTarefa: vi.fn().mockResolvedValue({ id: TAREFA_ID }) });
+    const handler = registeredHandler(createMcpServer(client), "update_tarefa");
+
+    await handler({ id: TAREFA_ID, prazo: null, projetoId: null });
+
+    const body = vi.mocked(client.updateTarefa).mock.calls[0][1];
+    expect(body.prazo).toBeUndefined();
+    expect(body.projetoId).toBeNull();
+  });
+
+  it("deveRepassarPrazoInformadoAoAtualizar", async () => {
+    const client = fakeClient({ updateTarefa: vi.fn().mockResolvedValue({ id: TAREFA_ID }) });
+    const handler = registeredHandler(createMcpServer(client), "update_tarefa");
+    const prazo = "2026-11-21T12:00:00Z";
+
+    await handler({ id: TAREFA_ID, prazo });
+
+    expect(client.updateTarefa).toHaveBeenCalledWith(TAREFA_ID, expect.objectContaining({ prazo }));
+  });
+
+  it("devePropagar409ComTitleAoAtualizarSemPerderOBody", async () => {
+    const client = fakeClient({
+      updateTarefa: vi.fn().mockRejectedValue(new ApiError(409, JSON.stringify({ title: "Conflito" }))),
+    });
+    const handler = registeredHandler(createMcpServer(client), "update_tarefa");
+
+    const result = await handler({ id: TAREFA_ID, titulo: "X" });
+
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(payloadOf(result))).toContain("Conflito");
+  });
+
+  it("devePropagar400ComTitleAoCriar", async () => {
+    const client = fakeClient({
+      createTarefa: vi.fn().mockRejectedValue(new ApiError(400, JSON.stringify({ title: "Requisição inválida" }))),
+    });
+    const handler = registeredHandler(createMcpServer(client), "create_tarefa");
+
+    const result = await handler({ titulo: "X", prioridade: "MEDIA", duracaoMinutos: 30 });
+
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(payloadOf(result))).toContain("Requisição inválida");
+  });
+
+  it("devePropagarAUTH_REQUIREDAoListarComSessaoExpirada", async () => {
+    const client = fakeClient({ listTarefas: vi.fn().mockRejectedValue(new AuthRequiredError()) });
+    const handler = registeredHandler(createMcpServer(client), "list_tarefas");
+
+    const result = await handler({});
+
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(payloadOf(result))).toContain(AUTH_REQUIRED_ACTION);
+  });
+});

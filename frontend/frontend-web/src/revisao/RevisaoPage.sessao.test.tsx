@@ -48,7 +48,7 @@ describe('RevisaoPage — sessão expirada', () => {
       }
       if (url.startsWith('/historico/semana')) return json(200, RESUMO)
       if (url.startsWith('/tarefas')) {
-        return json(200, { content: [], totalElements: 0, totalPages: 0, number: 0, size: 50 })
+        return json(200, { content: [], page: { size: 50, number: 0, totalElements: 0, totalPages: 0 } })
       }
       if (url.endsWith('/promover')) {
         if (auth === 'Bearer token-velho') return json(401, { title: 'Não autorizado' })

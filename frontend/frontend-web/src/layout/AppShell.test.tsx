@@ -11,6 +11,7 @@ import { ThemeProvider } from '../theme/ThemeProvider'
 import { AppShell } from './AppShell'
 import { DocumentTitle } from './DocumentTitle'
 import { useQuickAdd } from './QuickAddContext'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 const { logoutMock } = vi.hoisted(() => ({ logoutMock: vi.fn() }))
 
@@ -45,10 +46,7 @@ vi.mock('../execucao/api/execucaoApi', async (importOriginal) => {
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn().mockResolvedValue({
     content: [],
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 20,
+    page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
   }),
 }))
 
@@ -100,10 +98,7 @@ describe('AppShell', () => {
     vi.mocked(tarefaApi.listarTarefas).mockReset()
     vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
       content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size: 20,
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
     })
     vi.mocked(meApi.buscarMe).mockReset()
     vi.mocked(meApi.buscarMe).mockResolvedValue({
@@ -259,7 +254,7 @@ describe('AppShell', () => {
   })
 
   it('criar tarefa pelo shell notifica a página inscrita', async () => {
-    vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({
+    vi.mocked(tarefaApi.criarTarefa).mockResolvedValue(tarefaFake({
       id: 't-1',
       titulo: 'Ler docs',
       descricao: '',
@@ -271,7 +266,7 @@ describe('AppShell', () => {
       updatedAt: '2026-10-28T12:00:00Z',
       deletedAt: null,
       deletada: false,
-    })
+    }))
     const user = userEvent.setup()
     renderShell('/plano')
 

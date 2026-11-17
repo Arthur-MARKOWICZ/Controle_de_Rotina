@@ -114,7 +114,7 @@ class RotasEdicaoTest {
     }
 }
 
-private val PAGINA_VAZIA = """{"content":[],"number":0,"totalPages":0,"last":true}"""
+private val PAGINA_VAZIA = """{"content":[],"page":{"size":20,"number":0,"totalElements":0,"totalPages":0}}"""
 
 private val TAREFA_REAL = """
 {"id":"t2","titulo":"Novo","descricao":"Detalhes","prioridade":"ALTA","prazo":null,"status":"PENDENTE",
@@ -126,11 +126,11 @@ private val TAREFA_REAL = """
 private val PROJETOS_REAIS = """
 {"content":[{"id":"p1","nome":"Casa","descricao":null,"status":"ATIVO","ordem":0,"tags":[],"tagMatchScore":null,
  "createdAt":"2026-11-01T00:00:00Z","updatedAt":"2026-11-01T00:00:00Z","esperas":[],"bloqueada":false}],
- "number":0,"totalPages":1,"last":true,"size":100}
+ "page":{"size":100,"number":0,"totalElements":1,"totalPages":1}}
 """.trimIndent()
 
 private val DECIDIR_REAL = """
 {"content":[{"id":"d1","titulo":"Trocar de plano de celular?","descricao":null,"decidirAte":"2026-11-20T02:59:00Z",
  "projetoId":null,"tarefaId":null,"tags":[],"tagMatchScore":null,"createdAt":"2026-11-01T00:00:00Z",
- "updatedAt":"2026-11-01T00:00:00Z"}],"number":0,"totalPages":1,"last":true}
+ "updatedAt":"2026-11-01T00:00:00Z"}],"page":{"size":20,"number":0,"totalElements":1,"totalPages":1}}
 """.trimIndent()

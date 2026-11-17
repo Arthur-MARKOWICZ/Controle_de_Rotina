@@ -9,9 +9,10 @@ import {
   temFiltroIsolador,
 } from './listaArvore'
 import { FILTROS_LISTA_INICIAIS } from './listaUrl'
+import { tarefa as tarefaFake } from '../test/revisaoFixtures'
 
 function tarefa(parcial: Partial<TarefaResponse> & { id: string }): TarefaResponse {
-  return {
+  return tarefaFake({
     titulo: parcial.titulo ?? parcial.id,
     descricao: '',
     prioridade: 'MEDIA',
@@ -23,7 +24,7 @@ function tarefa(parcial: Partial<TarefaResponse> & { id: string }): TarefaRespon
     deletedAt: null,
     deletada: false,
     ...parcial,
-  }
+  })
 }
 
 describe('listaArvore', () => {

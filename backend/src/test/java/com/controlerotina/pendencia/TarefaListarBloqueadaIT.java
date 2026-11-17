@@ -151,11 +151,7 @@ class TarefaListarBloqueadaIT {
     // ---------- helpers ----------
 
     private static Object totalElements(ResponseEntity<Map> response) {
-        Object total = response.getBody().get("totalElements");
-        if (total == null && response.getBody().get("page") instanceof Map<?, ?> page) {
-            total = page.get("totalElements");
-        }
-        return total;
+        return ((Map<?, ?>) response.getBody().get("page")).get("totalElements");
     }
 
     private static List<String> ids(List<Map<String, Object>> conteudo) {

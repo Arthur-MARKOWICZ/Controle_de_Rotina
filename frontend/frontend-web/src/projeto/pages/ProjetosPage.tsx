@@ -280,7 +280,7 @@ export function ProjetosPage() {
 
   const listaVazia = !carregando && resultado != null && resultado.content.length === 0
   const emptyPrimeira = listaVazia && status === 'ATIVO'
-  const totalPages = resultado?.totalPages ?? 0
+  const totalPages = resultado?.page.totalPages ?? 0
   const novoProjeto = { pathname: '/projetos/nova', search: location.search }
 
   return (
@@ -329,7 +329,7 @@ export function ProjetosPage() {
       {!carregando && resultado ? (
         <>
           <p className="projetos-meta">
-            {resultado.totalElements} projeto{resultado.totalElements === 1 ? '' : 's'}
+            {resultado.page.totalElements} projeto{resultado.page.totalElements === 1 ? '' : 's'}
           </p>
 
           {listaVazia ? (
