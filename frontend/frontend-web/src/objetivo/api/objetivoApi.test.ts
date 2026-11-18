@@ -29,6 +29,7 @@ const objetivo: ObjetivoResponse = {
   arquivadoEm: null,
   createdAt: '2026-11-17T12:00:00Z',
   updatedAt: '2026-11-17T12:00:00Z',
+  progresso: null,
 }
 
 function json(body: unknown, status = 200): Response {

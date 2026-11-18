@@ -19,7 +19,16 @@ public interface ObjetivoHabitoRepository extends JpaRepository<ObjetivoHabito, 
 
     List<ObjetivoHabito> findByObjetivoId(UUID objetivoId);
 
+    List<ObjetivoHabito> findByObjetivoIdIn(Collection<UUID> objetivoIds);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ObjetivoHabito oh where oh.habitoId = :habitoId")
     void deleteAllByHabitoId(@Param("habitoId") UUID habitoId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ObjetivoHabito oh where oh.habitoId = :habitoId and oh.objetivoId in :objetivoIds")
+    void deleteByHabitoIdAndObjetivoIdIn(
+            @Param("habitoId") UUID habitoId,
+            @Param("objetivoIds") Collection<UUID> objetivoIds
+    );
 }

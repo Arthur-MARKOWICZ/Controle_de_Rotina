@@ -35,6 +35,7 @@ function objetivo(parcial: Partial<ObjetivoResponse> = {}): ObjetivoResponse {
     arquivadoEm: null,
     createdAt: '2026-11-01T12:00:00Z',
     updatedAt: '2026-11-01T12:00:00Z',
+    progresso: null,
     ...parcial,
   }
 }

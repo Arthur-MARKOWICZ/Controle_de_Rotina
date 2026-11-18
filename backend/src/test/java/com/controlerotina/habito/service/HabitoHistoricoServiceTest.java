@@ -97,7 +97,7 @@ class HabitoHistoricoServiceTest {
 
     @Test
     void concluirDiretoAntigoSemMinutosDeveAparecerComZeroMinutosPeloTimer() {
-        CumprimentoHabitoLinha antigo = new CumprimentoHabitoLinha(DIA, 30, DEZ_HORAS, DEZ_HORAS, null);
+        CumprimentoHabitoLinha antigo = new CumprimentoHabitoLinha(HABITO, DIA, 30, DEZ_HORAS, DEZ_HORAS, null);
 
         assertThat(HabitoHistoricoService.agrupar(List.of(antigo))).containsExactly(
                 new HabitoHistoricoDiaResponse(DIA, 0, 30, false, OrigemTempo.TIMER));
@@ -126,9 +126,9 @@ class HabitoHistoricoServiceTest {
     @Test
     void deveArredondarSegundosDoTimerParaMinutos() {
         CumprimentoHabitoLinha linha = new CumprimentoHabitoLinha(
-                DIA, 30, DEZ_HORAS, DEZ_HORAS.plusSeconds(29 * 60 + 40), null);
+                HABITO, DIA, 30, DEZ_HORAS, DEZ_HORAS.plusSeconds(29 * 60 + 40), null);
 
-        assertThat(HabitoHistoricoService.minutosDedicados(linha)).isEqualTo(30);
+        assertThat(linha.minutosDedicados()).isEqualTo(30);
     }
 
     @Test
@@ -156,10 +156,10 @@ class HabitoHistoricoServiceTest {
     }
 
     private static CumprimentoHabitoLinha timer(LocalDate data, int meta, int minutos) {
-        return new CumprimentoHabitoLinha(data, meta, DEZ_HORAS, DEZ_HORAS.plusSeconds(minutos * 60L), null);
+        return new CumprimentoHabitoLinha(HABITO, data, meta, DEZ_HORAS, DEZ_HORAS.plusSeconds(minutos * 60L), null);
     }
 
     private static CumprimentoHabitoLinha informado(LocalDate data, int meta, int minutos) {
-        return new CumprimentoHabitoLinha(data, meta, DEZ_HORAS, DEZ_HORAS, minutos);
+        return new CumprimentoHabitoLinha(HABITO, data, meta, DEZ_HORAS, DEZ_HORAS, minutos);
     }
 }

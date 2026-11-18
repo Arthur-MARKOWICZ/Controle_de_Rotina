@@ -19,6 +19,8 @@ public interface ObjetivoTarefaRepository extends JpaRepository<ObjetivoTarefa, 
 
     List<ObjetivoTarefa> findByObjetivoId(UUID objetivoId);
 
+    List<ObjetivoTarefa> findByObjetivoIdIn(Collection<UUID> objetivoIds);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ObjetivoTarefa ot where ot.tarefaId = :tarefaId")
     void deleteAllByTarefaId(@Param("tarefaId") UUID tarefaId);

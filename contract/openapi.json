@@ -1426,6 +1426,24 @@
         "required" : [ "habitos", "projetos", "tarefas" ],
         "type" : "object"
       },
+      "ObjetivoProgressoResponse" : {
+        "properties" : {
+          "minutosConcluidos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosTotais" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "percentual" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "minutosConcluidos", "minutosTotais", "percentual" ],
+        "type" : "object"
+      },
       "ObjetivoResponse" : {
         "properties" : {
           "arquivadoEm" : {
@@ -1451,6 +1469,13 @@
             "format" : "date",
             "type" : [ "null", "string" ]
           },
+          "progresso" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/ObjetivoProgressoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
           "status" : {
             "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
             "type" : "string"
@@ -1463,7 +1488,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "arquivadoEm", "concluidoEm", "createdAt", "descricao", "id", "prazo", "status", "titulo", "updatedAt" ],
+        "required" : [ "arquivadoEm", "concluidoEm", "createdAt", "descricao", "id", "prazo", "progresso", "status", "titulo", "updatedAt" ],
         "type" : "object"
       },
       "ObjetivoResumoResponse" : {

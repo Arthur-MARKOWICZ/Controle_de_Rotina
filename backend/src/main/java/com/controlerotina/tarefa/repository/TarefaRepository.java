@@ -24,6 +24,8 @@ public interface TarefaRepository extends JpaRepository<Tarefa, UUID>, JpaSpecif
 
     List<Tarefa> findByParentIdAndDeletedAtIsNull(UUID parentId);
 
+    List<Tarefa> findByParentIdInAndDeletedAtIsNull(Collection<UUID> parentIds);
+
     @Query("""
             SELECT COALESCE(MAX(t.ordem), -1)
               FROM Tarefa t

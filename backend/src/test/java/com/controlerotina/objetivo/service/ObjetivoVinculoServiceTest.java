@@ -8,7 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,6 +60,7 @@ class ObjetivoVinculoServiceTest {
 
     private static final Instant ANTES = Instant.parse("2026-11-01T12:00:00Z");
     private static final Instant DEPOIS = Instant.parse("2026-11-02T12:00:00Z");
+    private static final Instant AGORA = Instant.parse("2026-11-18T15:00:00Z");
     private static final UUID USUARIO = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID TAREFA_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final UUID HABITO_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -92,7 +95,8 @@ class ObjetivoVinculoServiceTest {
                 objetivoProjetoRepository,
                 tarefaRepository,
                 habitoRepository,
-                projetoRepository
+                projetoRepository,
+                Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }
 
@@ -230,9 +234,81 @@ class ObjetivoVinculoServiceTest {
 
         assertThat(resultado).extracting(ObjetivoResumoResponse::id)
                 .containsExactly(OBJETIVO_A, OBJETIVO_B);
-        verify(objetivoHabitoRepository).deleteAllByHabitoId(HABITO_ID);
+        verify(objetivoHabitoRepository, never()).deleteAllByHabitoId(any());
+        verify(objetivoHabitoRepository, never()).deleteByHabitoIdAndObjetivoIdIn(any(), any());
         assertThat(vinculosHabitoSalvos()).extracting(ObjetivoHabito::getObjetivoId)
                 .containsExactly(OBJETIVO_A, OBJETIVO_B);
+        assertThat(vinculosHabitoSalvos()).extracting(ObjetivoHabito::getCreatedAt)
+                .containsOnly(AGORA);
+    }
+
+    @Test
+    void naoDeveApagarNemSalvarQuandoReenviaOsMesmosIdsDoHabito() {
+        Objetivo ativo = objetivo(OBJETIVO_A, "A", StatusObjetivo.ATIVO);
+        stubObjetivosDoUsuario(ativo);
+        Instant criadoEm = Instant.parse("2026-11-17T12:00:00Z");
+        when(objetivoHabitoRepository.findByHabitoId(HABITO_ID))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, criadoEm)));
+
+        List<ObjetivoResumoResponse> resultado = service.substituirObjetivosHabito(
+                USUARIO, HABITO_ID, List.of(OBJETIVO_A));
+
+        assertThat(resultado).extracting(ObjetivoResumoResponse::id).containsExactly(OBJETIVO_A);
+        verify(objetivoHabitoRepository, never()).deleteByHabitoIdAndObjetivoIdIn(any(), any());
+        verify(objetivoHabitoRepository, never()).deleteAllByHabitoId(any());
+        verify(objetivoHabitoRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void deveTrocarObjetivoAPorBNoHabitoApagandoAEinserindoB() {
+        Objetivo primeiro = objetivo(OBJETIVO_A, "A", StatusObjetivo.ATIVO);
+        Objetivo segundo = objetivo(OBJETIVO_B, "B", StatusObjetivo.ATIVO);
+        stubObjetivosDoUsuario(primeiro, segundo);
+        Instant criadoEm = Instant.parse("2026-11-17T12:00:00Z");
+        when(objetivoHabitoRepository.findByHabitoId(HABITO_ID))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, criadoEm)));
+
+        List<ObjetivoResumoResponse> resultado = service.substituirObjetivosHabito(
+                USUARIO, HABITO_ID, List.of(OBJETIVO_B));
+
+        assertThat(resultado).extracting(ObjetivoResumoResponse::id).containsExactly(OBJETIVO_B);
+        verify(objetivoHabitoRepository).deleteByHabitoIdAndObjetivoIdIn(HABITO_ID, Set.of(OBJETIVO_A));
+        List<ObjetivoHabito> salvos = vinculosHabitoSalvos();
+        assertThat(salvos).hasSize(1);
+        assertThat(salvos.get(0).getObjetivoId()).isEqualTo(OBJETIVO_B);
+        assertThat(salvos.get(0).getHabitoId()).isEqualTo(HABITO_ID);
+        assertThat(salvos.get(0).getCreatedAt()).isEqualTo(AGORA);
+    }
+
+    @Test
+    void deveApagarTodosOsVinculosDoHabitoQuandoListaVazia() {
+        when(objetivoHabitoRepository.findByHabitoId(HABITO_ID))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, ANTES)));
+
+        List<ObjetivoResumoResponse> resultado = service.substituirObjetivosHabito(
+                USUARIO, HABITO_ID, List.of());
+
+        assertThat(resultado).isEmpty();
+        verify(objetivoHabitoRepository).deleteByHabitoIdAndObjetivoIdIn(HABITO_ID, Set.of(OBJETIVO_A));
+        verify(objetivoHabitoRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void deveRetornar409QuandoNovoObjetivoDoHabitoNaoEstaAtivoSemAlterarBanco() {
+        Objetivo concluido = objetivo(OBJETIVO_B, "B", StatusObjetivo.CONCLUIDO);
+        stubObjetivosDoUsuario(concluido);
+        when(objetivoHabitoRepository.findByHabitoId(HABITO_ID))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, ANTES)));
+
+        assertErro(
+                () -> service.substituirObjetivosHabito(USUARIO, HABITO_ID, List.of(OBJETIVO_B)),
+                ObjetivoNaoAtivoException.class,
+                409,
+                "Objetivo não está ativo"
+        );
+        verify(objetivoHabitoRepository, never()).deleteByHabitoIdAndObjetivoIdIn(any(), any());
+        verify(objetivoHabitoRepository, never()).deleteAllByHabitoId(any());
+        verify(objetivoHabitoRepository, never()).saveAll(any());
     }
 
     @Test
@@ -255,7 +331,8 @@ class ObjetivoVinculoServiceTest {
     void deveLimparVinculosDoHabitoEDoProjetoQuandoListaVazia() {
         assertThat(service.substituirObjetivosHabito(USUARIO, HABITO_ID, List.of())).isEmpty();
         assertThat(service.substituirObjetivosProjeto(USUARIO, PROJETO_ID, null)).isEmpty();
-        verify(objetivoHabitoRepository).deleteAllByHabitoId(HABITO_ID);
+        verify(objetivoHabitoRepository, never()).deleteByHabitoIdAndObjetivoIdIn(any(), any());
+        verify(objetivoHabitoRepository, never()).deleteAllByHabitoId(any());
         verify(objetivoProjetoRepository).deleteAllByProjetoId(PROJETO_ID);
         verify(objetivoHabitoRepository, never()).saveAll(any());
         verify(objetivoProjetoRepository, never()).saveAll(any());
@@ -274,7 +351,7 @@ class ObjetivoVinculoServiceTest {
         when(objetivoTarefaRepository.findByTarefaIdIn(List.of(TAREFA_ID)))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
         when(objetivoHabitoRepository.findByHabitoIdIn(List.of(HABITO_ID)))
-                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID)));
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, ANTES)));
         when(objetivoProjetoRepository.findByProjetoIdIn(List.of(PROJETO_ID)))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(objetivoRepository.findAllById(any())).thenReturn(List.of(
@@ -293,7 +370,7 @@ class ObjetivoVinculoServiceTest {
         when(objetivoTarefaRepository.findByTarefaId(TAREFA_ID))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
         when(objetivoHabitoRepository.findByHabitoId(HABITO_ID))
-                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID)));
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, ANTES)));
         when(objetivoProjetoRepository.findByProjetoId(PROJETO_ID))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(objetivoRepository.findAllById(any())).thenReturn(List.of(
@@ -315,11 +392,11 @@ class ObjetivoVinculoServiceTest {
         Tarefa tarefa = tarefa(TAREFA_ID, "Ler", ANTES);
         Habito habito = habito(HABITO_ID, "Correr", ANTES);
         Projeto projeto = projeto(PROJETO_ID, "Casa", StatusProjeto.ATIVO, ANTES);
-        when(objetivoTarefaRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoTarefaRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
-        when(objetivoHabitoRepository.findByObjetivoId(OBJETIVO_A))
-                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID)));
-        when(objetivoProjetoRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoHabitoRepository.findByObjetivoIdIn(any()))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, ANTES)));
+        when(objetivoProjetoRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(tarefaRepository.findByIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
                 .thenReturn(List.of(tarefa));
@@ -340,13 +417,49 @@ class ObjetivoVinculoServiceTest {
     }
 
     @Test
+    void deveExporCreatedAtDoVinculoNoConjuntoDoHabito() {
+        Habito habito = habito(HABITO_ID, "Correr", ANTES);
+        Instant vinculadoEm = Instant.parse("2026-11-10T12:00:00Z");
+        when(objetivoHabitoRepository.findByObjetivoIdIn(any()))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_A, HABITO_ID, vinculadoEm)));
+        when(habitoRepository.findByIdInAndDeletedAtIsNull(any())).thenReturn(List.of(habito));
+
+        ObjetivoConjunto conjunto = service.resolverConjunto(OBJETIVO_A);
+
+        assertThat(conjunto.habitos()).hasSize(1);
+        assertThat(conjunto.habitos().get(0).habito().getId()).isEqualTo(HABITO_ID);
+        assertThat(conjunto.habitos().get(0).vinculoCreatedAt()).isEqualTo(vinculadoEm);
+    }
+
+    @Test
+    void deveResolverConjuntosDeDoisObjetivosEmLote() {
+        when(objetivoTarefaRepository.findByObjetivoIdIn(any()))
+                .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
+        when(objetivoHabitoRepository.findByObjetivoIdIn(any()))
+                .thenReturn(List.of(new ObjetivoHabito(OBJETIVO_B, HABITO_ID, ANTES)));
+        when(tarefaRepository.findByIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
+                .thenReturn(List.of(tarefa(TAREFA_ID, "Ler", ANTES)));
+        when(habitoRepository.findByIdInAndDeletedAtIsNull(any()))
+                .thenReturn(List.of(habito(HABITO_ID, "Correr", ANTES)));
+
+        var conjuntos = service.resolverConjuntos(List.of(OBJETIVO_A, OBJETIVO_B));
+
+        assertThat(conjuntos.get(OBJETIVO_A).tarefasRaiz()).extracting(item -> item.tarefa().getId())
+                .containsExactly(TAREFA_ID);
+        assertThat(conjuntos.get(OBJETIVO_A).habitos()).isEmpty();
+        assertThat(conjuntos.get(OBJETIVO_B).habitos()).extracting(item -> item.habito().getId())
+                .containsExactly(HABITO_ID);
+        assertThat(conjuntos.get(OBJETIVO_B).tarefasRaiz()).isEmpty();
+    }
+
+    @Test
     void deveListarTarefaRaizDoProjetoComoViaProjeto() {
         Objetivo objetivo = objetivo(OBJETIVO_A, "A", StatusObjetivo.ATIVO);
         when(objetivoRepository.findByIdAndUsuarioId(OBJETIVO_A, USUARIO)).thenReturn(Optional.of(objetivo));
         Projeto projeto = projeto(PROJETO_ID, "Casa", StatusProjeto.ATIVO, ANTES);
         Tarefa herdada = tarefa(TAREFA_ID, "Ler", DEPOIS);
         herdada.definirProjetoId(PROJETO_ID, DEPOIS);
-        when(objetivoProjetoRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoProjetoRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(projetoRepository.findAllById(any())).thenReturn(List.of(projeto));
         when(tarefaRepository.findByProjetoIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
@@ -368,9 +481,9 @@ class ObjetivoVinculoServiceTest {
         Projeto projeto = projeto(PROJETO_ID, "Casa", StatusProjeto.ATIVO, ANTES);
         Tarefa tarefa = tarefa(TAREFA_ID, "Ler", ANTES);
         tarefa.definirProjetoId(PROJETO_ID, ANTES);
-        when(objetivoTarefaRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoTarefaRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
-        when(objetivoProjetoRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoProjetoRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(tarefaRepository.findByIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
                 .thenReturn(List.of(tarefa));
@@ -393,7 +506,7 @@ class ObjetivoVinculoServiceTest {
         Tarefa subtarefa = tarefa(TAREFA_ID, "Filho", ANTES);
         subtarefa.definirProjetoId(PROJETO_ID, ANTES);
         subtarefa.definirParentId(UUID.randomUUID());
-        when(objetivoProjetoRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoProjetoRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(projetoRepository.findAllById(any())).thenReturn(List.of(projeto));
         when(tarefaRepository.findByProjetoIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
@@ -410,7 +523,7 @@ class ObjetivoVinculoServiceTest {
         Objetivo objetivo = objetivo(OBJETIVO_A, "A", StatusObjetivo.ATIVO);
         when(objetivoRepository.findByIdAndUsuarioId(OBJETIVO_A, USUARIO)).thenReturn(Optional.of(objetivo));
         Projeto projeto = projeto(PROJETO_ID, "Casa", StatusProjeto.ATIVO, ANTES);
-        when(objetivoProjetoRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoProjetoRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoProjeto(OBJETIVO_A, PROJETO_ID)));
         when(projetoRepository.findAllById(any())).thenReturn(List.of(projeto));
 
@@ -426,7 +539,7 @@ class ObjetivoVinculoServiceTest {
         when(objetivoRepository.findByIdAndUsuarioId(OBJETIVO_A, USUARIO)).thenReturn(Optional.of(objetivo));
         Tarefa deletada = tarefa(TAREFA_ID, "Ler", ANTES);
         deletada.softDelete(DEPOIS);
-        when(objetivoTarefaRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoTarefaRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
         when(tarefaRepository.findByIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
                 .thenReturn(List.of(deletada));
@@ -445,7 +558,7 @@ class ObjetivoVinculoServiceTest {
         when(objetivoRepository.findByIdAndUsuarioId(OBJETIVO_A, USUARIO)).thenReturn(Optional.of(objetivo));
         Tarefa tarefa = tarefa(TAREFA_ID, "Ler", ANTES);
         tarefa.definirProjetoId(PROJETO_ID, ANTES);
-        when(objetivoTarefaRepository.findByObjetivoId(OBJETIVO_A))
+        when(objetivoTarefaRepository.findByObjetivoIdIn(any()))
                 .thenReturn(List.of(new ObjetivoTarefa(OBJETIVO_A, TAREFA_ID)));
         when(tarefaRepository.findByIdInAndDeletedAtIsNullAndParentIdIsNull(any()))
                 .thenReturn(List.of(tarefa));
@@ -467,7 +580,7 @@ class ObjetivoVinculoServiceTest {
                 404,
                 "Objetivo não encontrado"
         );
-        verify(objetivoTarefaRepository, never()).findByObjetivoId(any());
+        verify(objetivoTarefaRepository, never()).findByObjetivoIdIn(any());
     }
 
     @Test

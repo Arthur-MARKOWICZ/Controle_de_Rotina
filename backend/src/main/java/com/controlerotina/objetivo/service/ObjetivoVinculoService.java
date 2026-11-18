@@ -1,5 +1,6 @@
 package com.controlerotina.objetivo.service;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +60,7 @@ public class ObjetivoVinculoService {
     private final TarefaRepository tarefaRepository;
     private final HabitoRepository habitoRepository;
     private final ProjetoRepository projetoRepository;
+    private final Clock clock;
 
     public ObjetivoVinculoService(
             ObjetivoRepository objetivoRepository,
@@ -68,7 +69,8 @@ public class ObjetivoVinculoService {
             ObjetivoProjetoRepository objetivoProjetoRepository,
             TarefaRepository tarefaRepository,
             HabitoRepository habitoRepository,
-            ProjetoRepository projetoRepository
+            ProjetoRepository projetoRepository,
+            Clock clock
     ) {
         this.objetivoRepository = objetivoRepository;
         this.objetivoTarefaRepository = objetivoTarefaRepository;
@@ -77,6 +79,7 @@ public class ObjetivoVinculoService {
         this.tarefaRepository = tarefaRepository;
         this.habitoRepository = habitoRepository;
         this.projetoRepository = projetoRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -108,10 +111,22 @@ public class ObjetivoVinculoService {
                 .map(ObjetivoHabito::getObjetivoId)
                 .collect(Collectors.toSet());
         List<Objetivo> objetivos = validarObjetivosDoUsuario(usuarioId, objetivoIds, atuais);
-        objetivoHabitoRepository.deleteAllByHabitoId(habitoId);
-        if (!objetivos.isEmpty()) {
-            objetivoHabitoRepository.saveAll(objetivos.stream()
-                    .map(objetivo -> new ObjetivoHabito(objetivo.getId(), habitoId))
+        Set<UUID> incoming = objetivos.stream()
+                .map(Objetivo::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        Set<UUID> aRemover = new HashSet<>(atuais);
+        aRemover.removeAll(incoming);
+        if (!aRemover.isEmpty()) {
+            objetivoHabitoRepository.deleteByHabitoIdAndObjetivoIdIn(habitoId, aRemover);
+        }
+
+        Set<UUID> aInserir = new LinkedHashSet<>(incoming);
+        aInserir.removeAll(atuais);
+        if (!aInserir.isEmpty()) {
+            Instant agora = clock.instant();
+            objetivoHabitoRepository.saveAll(aInserir.stream()
+                    .map(objetivoId -> new ObjetivoHabito(objetivoId, habitoId, agora))
                     .toList());
         }
         return resumir(objetivos);
@@ -197,55 +212,152 @@ public class ObjetivoVinculoService {
     public ObjetivoItensResponse listarItens(UUID usuarioId, UUID objetivoId) {
         objetivoRepository.findByIdAndUsuarioId(objetivoId, usuarioId)
                 .orElseThrow(ObjetivoNaoEncontradoException::new);
+        return toItens(resolverConjunto(objetivoId));
+    }
 
-        List<UUID> tarefaIdsDiretos = objetivoTarefaRepository.findByObjetivoId(objetivoId).stream()
-                .map(ObjetivoTarefa::getTarefaId)
-                .toList();
-        List<UUID> habitoIds = objetivoHabitoRepository.findByObjetivoId(objetivoId).stream()
-                .map(ObjetivoHabito::getHabitoId)
-                .toList();
-        List<UUID> projetoIds = objetivoProjetoRepository.findByObjetivoId(objetivoId).stream()
-                .map(ObjetivoProjeto::getProjetoId)
-                .toList();
+    @Transactional(readOnly = true)
+    public ObjetivoConjunto resolverConjunto(UUID objetivoId) {
+        return resolverConjuntos(List.of(objetivoId)).getOrDefault(objetivoId, ObjetivoConjunto.vazio());
+    }
 
-        List<Tarefa> tarefasDiretas = carregarTarefasRaizAtivas(tarefaIdsDiretos);
-        Set<UUID> idsDiretos = tarefasDiretas.stream().map(Tarefa::getId).collect(Collectors.toSet());
+    @Transactional(readOnly = true)
+    public Map<UUID, ObjetivoConjunto> resolverConjuntos(Collection<UUID> objetivoIds) {
+        if (objetivoIds == null || objetivoIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ObjetivoTarefa> vinculosTarefa = objetivoTarefaRepository.findByObjetivoIdIn(objetivoIds);
+        List<ObjetivoHabito> vinculosHabito = objetivoHabitoRepository.findByObjetivoIdIn(objetivoIds);
+        List<ObjetivoProjeto> vinculosProjeto = objetivoProjetoRepository.findByObjetivoIdIn(objetivoIds);
 
-        List<Projeto> projetos = carregarProjetos(projetoIds);
-        List<Tarefa> herdadas = carregarHerdadas(projetoIds, idsDiretos);
-        List<Habito> habitos = carregarHabitosAtivos(habitoIds);
+        Map<UUID, List<UUID>> tarefaIdsPorObjetivo = agruparIds(vinculosTarefa, ObjetivoTarefa::getObjetivoId, ObjetivoTarefa::getTarefaId);
+        Map<UUID, List<ObjetivoHabito>> habitosPorObjetivo = agrupar(vinculosHabito, ObjetivoHabito::getObjetivoId);
+        Map<UUID, List<UUID>> projetoIdsPorObjetivo = agruparIds(vinculosProjeto, ObjetivoProjeto::getObjetivoId, ObjetivoProjeto::getProjetoId);
 
+        Set<UUID> todosTarefaIds = vinculosTarefa.stream().map(ObjetivoTarefa::getTarefaId).collect(Collectors.toSet());
+        Set<UUID> todosHabitoIds = vinculosHabito.stream().map(ObjetivoHabito::getHabitoId).collect(Collectors.toSet());
+        Set<UUID> todosProjetoIds = vinculosProjeto.stream().map(ObjetivoProjeto::getProjetoId).collect(Collectors.toSet());
+
+        Map<UUID, Tarefa> tarefasDiretasPorId = carregarTarefasRaizAtivas(todosTarefaIds).stream()
+                .collect(Collectors.toMap(Tarefa::getId, Function.identity()));
+        Map<UUID, Habito> habitosPorId = carregarHabitosAtivos(todosHabitoIds).stream()
+                .collect(Collectors.toMap(Habito::getId, Function.identity()));
         Map<UUID, Projeto> projetosPorId = new HashMap<>();
-        for (Projeto projeto : projetos) {
+        for (Projeto projeto : carregarProjetos(todosProjetoIds)) {
             projetosPorId.put(projeto.getId(), projeto);
         }
-        Set<UUID> projetosNasTarefas = Stream.concat(tarefasDiretas.stream(), herdadas.stream())
-                .map(Tarefa::getProjetoId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(HashSet::new));
+
+        Map<UUID, List<Tarefa>> herdadasPorProjeto = new HashMap<>();
+        for (Tarefa herdada : carregarHerdadas(todosProjetoIds, Set.of())) {
+            if (herdada.getProjetoId() == null) {
+                continue;
+            }
+            herdadasPorProjeto.computeIfAbsent(herdada.getProjetoId(), ignored -> new ArrayList<>()).add(herdada);
+        }
+
+        Set<UUID> projetosNasTarefas = new HashSet<>();
+        for (Tarefa tarefa : tarefasDiretasPorId.values()) {
+            if (tarefa.getProjetoId() != null) {
+                projetosNasTarefas.add(tarefa.getProjetoId());
+            }
+        }
+        for (List<Tarefa> herdadas : herdadasPorProjeto.values()) {
+            for (Tarefa tarefa : herdadas) {
+                if (tarefa.getProjetoId() != null) {
+                    projetosNasTarefas.add(tarefa.getProjetoId());
+                }
+            }
+        }
         projetosNasTarefas.removeAll(projetosPorId.keySet());
         for (Projeto extra : carregarProjetos(projetosNasTarefas)) {
             projetosPorId.put(extra.getId(), extra);
         }
 
-        List<ObjetivoItemTarefaResponse> tarefas = new ArrayList<>();
+        Map<UUID, ObjetivoConjunto> resultado = new HashMap<>();
+        for (UUID objetivoId : objetivoIds) {
+            if (objetivoId == null) {
+                continue;
+            }
+            resultado.put(objetivoId, montarConjunto(
+                    tarefaIdsPorObjetivo.getOrDefault(objetivoId, List.of()),
+                    habitosPorObjetivo.getOrDefault(objetivoId, List.of()),
+                    projetoIdsPorObjetivo.getOrDefault(objetivoId, List.of()),
+                    tarefasDiretasPorId,
+                    habitosPorId,
+                    projetosPorId,
+                    herdadasPorProjeto
+            ));
+        }
+        return resultado;
+    }
+
+    private ObjetivoConjunto montarConjunto(
+            List<UUID> tarefaIdsDiretos,
+            List<ObjetivoHabito> vinculosHabito,
+            List<UUID> projetoIds,
+            Map<UUID, Tarefa> tarefasDiretasPorId,
+            Map<UUID, Habito> habitosPorId,
+            Map<UUID, Projeto> projetosPorId,
+            Map<UUID, List<Tarefa>> herdadasPorProjeto
+    ) {
+        List<Tarefa> tarefasDiretas = tarefaIdsDiretos.stream()
+                .map(tarefasDiretasPorId::get)
+                .filter(Objects::nonNull)
+                .sorted(POR_CREATED_AT_TAREFA)
+                .toList();
+        Set<UUID> idsDiretos = tarefasDiretas.stream().map(Tarefa::getId).collect(Collectors.toSet());
+
+        List<Projeto> projetos = projetoIds.stream()
+                .map(projetosPorId::get)
+                .filter(Objects::nonNull)
+                .sorted(POR_CREATED_AT_PROJETO)
+                .toList();
+
+        List<Tarefa> herdadas = projetoIds.stream()
+                .flatMap(projetoId -> herdadasPorProjeto.getOrDefault(projetoId, List.of()).stream())
+                .filter(tarefa -> !idsDiretos.contains(tarefa.getId()))
+                .sorted(POR_CREATED_AT_TAREFA)
+                .toList();
+
+        List<ObjetivoConjunto.TarefaRaiz> tarefasRaiz = new ArrayList<>();
         for (Tarefa tarefa : tarefasDiretas) {
-            tarefas.add(itemTarefa(tarefa, OrigemVinculoObjetivo.DIRETO, projetosPorId));
+            tarefasRaiz.add(tarefaRaiz(tarefa, OrigemVinculoObjetivo.DIRETO, projetosPorId));
         }
         for (Tarefa tarefa : herdadas) {
-            tarefas.add(itemTarefa(tarefa, OrigemVinculoObjetivo.VIA_PROJETO, projetosPorId));
+            tarefasRaiz.add(tarefaRaiz(tarefa, OrigemVinculoObjetivo.VIA_PROJETO, projetosPorId));
         }
 
-        List<ObjetivoItemHabitoResponse> habitoItens = habitos.stream()
-                .map(habito -> new ObjetivoItemHabitoResponse(
-                        habito.getId(),
-                        habito.getTitulo(),
-                        habito.getStatus(),
+        List<ObjetivoConjunto.HabitoVinculado> habitos = vinculosHabito.stream()
+                .map(vinculo -> {
+                    Habito habito = habitosPorId.get(vinculo.getHabitoId());
+                    return habito == null ? null : new ObjetivoConjunto.HabitoVinculado(habito, vinculo.getCreatedAt());
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(h -> h.habito().getCreatedAt(), Comparator.nullsLast(Instant::compareTo)))
+                .toList();
+
+        return new ObjetivoConjunto(tarefasRaiz, habitos, projetos);
+    }
+
+    private ObjetivoItensResponse toItens(ObjetivoConjunto conjunto) {
+        List<ObjetivoItemTarefaResponse> tarefas = conjunto.tarefasRaiz().stream()
+                .map(item -> new ObjetivoItemTarefaResponse(
+                        item.tarefa().getId(),
+                        item.tarefa().getTitulo(),
+                        item.tarefa().getStatus(),
+                        item.origem(),
+                        item.tarefa().getProjetoId(),
+                        item.projetoNome()
+                ))
+                .toList();
+        List<ObjetivoItemHabitoResponse> habitos = conjunto.habitos().stream()
+                .map(item -> new ObjetivoItemHabitoResponse(
+                        item.habito().getId(),
+                        item.habito().getTitulo(),
+                        item.habito().getStatus(),
                         OrigemVinculoObjetivo.DIRETO
                 ))
                 .toList();
-
-        List<ObjetivoItemProjetoResponse> projetoItens = projetos.stream()
+        List<ObjetivoItemProjetoResponse> projetos = conjunto.projetos().stream()
                 .map(projeto -> new ObjetivoItemProjetoResponse(
                         projeto.getId(),
                         projeto.getNome(),
@@ -253,8 +365,7 @@ public class ObjetivoVinculoService {
                         OrigemVinculoObjetivo.DIRETO
                 ))
                 .toList();
-
-        return new ObjetivoItensResponse(tarefas, habitoItens, projetoItens);
+        return new ObjetivoItensResponse(tarefas, habitos, projetos);
     }
 
     private List<Objetivo> validarObjetivosDoUsuario(
@@ -380,7 +491,7 @@ public class ObjetivoVinculoService {
         return tarefa.getDeletedAt() == null && tarefa.getParentId() == null;
     }
 
-    private static ObjetivoItemTarefaResponse itemTarefa(
+    private static ObjetivoConjunto.TarefaRaiz tarefaRaiz(
             Tarefa tarefa,
             OrigemVinculoObjetivo origem,
             Map<UUID, Projeto> projetosPorId
@@ -391,13 +502,27 @@ public class ObjetivoVinculoService {
             Projeto projeto = projetosPorId.get(projetoId);
             projetoNome = projeto == null ? null : projeto.getNome();
         }
-        return new ObjetivoItemTarefaResponse(
-                tarefa.getId(),
-                tarefa.getTitulo(),
-                tarefa.getStatus(),
-                origem,
-                projetoId,
-                projetoNome
-        );
+        return new ObjetivoConjunto.TarefaRaiz(tarefa, origem, projetoNome);
+    }
+
+    private static <V> Map<UUID, List<UUID>> agruparIds(
+            List<V> vinculos,
+            Function<V, UUID> objetivoId,
+            Function<V, UUID> entidadeId
+    ) {
+        Map<UUID, List<UUID>> ids = new HashMap<>();
+        for (V vinculo : vinculos) {
+            ids.computeIfAbsent(objetivoId.apply(vinculo), ignored -> new ArrayList<>())
+                    .add(entidadeId.apply(vinculo));
+        }
+        return ids;
+    }
+
+    private static <V> Map<UUID, List<V>> agrupar(List<V> vinculos, Function<V, UUID> objetivoId) {
+        Map<UUID, List<V>> grupos = new HashMap<>();
+        for (V vinculo : vinculos) {
+            grupos.computeIfAbsent(objetivoId.apply(vinculo), ignored -> new ArrayList<>()).add(vinculo);
+        }
+        return grupos;
     }
 }

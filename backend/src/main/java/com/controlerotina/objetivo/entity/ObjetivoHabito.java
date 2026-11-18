@@ -1,6 +1,7 @@
 package com.controlerotina.objetivo.entity;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -23,12 +24,16 @@ public class ObjetivoHabito {
     @Column(name = "habito_id", nullable = false)
     private UUID habitoId;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
     protected ObjetivoHabito() {
     }
 
-    public ObjetivoHabito(UUID objetivoId, UUID habitoId) {
+    public ObjetivoHabito(UUID objetivoId, UUID habitoId, Instant createdAt) {
         this.objetivoId = objetivoId;
         this.habitoId = habitoId;
+        this.createdAt = createdAt;
     }
 
     public UUID getObjetivoId() {
@@ -37,6 +42,10 @@ public class ObjetivoHabito {
 
     public UUID getHabitoId() {
         return habitoId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public static class ObjetivoHabitoId implements Serializable {

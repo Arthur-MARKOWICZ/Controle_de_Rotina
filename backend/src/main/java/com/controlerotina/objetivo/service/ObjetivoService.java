@@ -3,6 +3,8 @@ package com.controlerotina.objetivo.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.objetivo.dto.AtualizarObjetivoRequest;
 import com.controlerotina.objetivo.dto.CriarObjetivoRequest;
+import com.controlerotina.objetivo.dto.ObjetivoProgressoResponse;
 import com.controlerotina.objetivo.dto.ObjetivoResponse;
 import com.controlerotina.objetivo.entity.Objetivo;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
@@ -32,10 +35,19 @@ import com.controlerotina.shared.exception.PrazoNoPassadoException;
 public class ObjetivoService {
 
     private final ObjetivoRepository objetivoRepository;
+    private final ObjetivoVinculoService objetivoVinculoService;
+    private final ObjetivoProgressoService objetivoProgressoService;
     private final Clock clock;
 
-    public ObjetivoService(ObjetivoRepository objetivoRepository, Clock clock) {
+    public ObjetivoService(
+            ObjetivoRepository objetivoRepository,
+            ObjetivoVinculoService objetivoVinculoService,
+            ObjetivoProgressoService objetivoProgressoService,
+            Clock clock
+    ) {
         this.objetivoRepository = objetivoRepository;
+        this.objetivoVinculoService = objetivoVinculoService;
+        this.objetivoProgressoService = objetivoProgressoService;
         this.clock = clock;
     }
 
@@ -52,7 +64,7 @@ public class ObjetivoService {
                 request.prazo(),
                 clock.instant()
         );
-        return ObjetivoResponse.from(objetivoRepository.save(objetivo));
+        return ObjetivoResponse.from(objetivoRepository.save(objetivo), null);
     }
 
     @Transactional(readOnly = true)
@@ -62,13 +74,12 @@ public class ObjetivoService {
                 ObjetivoSpecs.doUsuario(usuarioId),
                 ObjetivoSpecs.comStatus(filtroStatus)
         );
-        return objetivoRepository.findAll(spec, comOrdemPadrao(pageable, filtroStatus))
-                .map(ObjetivoResponse::from);
+        return comProgresso(objetivoRepository.findAll(spec, comOrdemPadrao(pageable, filtroStatus)));
     }
 
     @Transactional(readOnly = true)
     public ObjetivoResponse buscarPorId(UUID usuarioId, UUID id) {
-        return ObjetivoResponse.from(buscarDoUsuario(usuarioId, id));
+        return comProgresso(buscarDoUsuario(usuarioId, id));
     }
 
     @Transactional
@@ -84,7 +95,7 @@ public class ObjetivoService {
                 request.prazo(),
                 clock.instant()
         );
-        return ObjetivoResponse.from(objetivo);
+        return comProgresso(objetivo);
     }
 
     @Transactional
@@ -95,7 +106,7 @@ public class ObjetivoService {
             case ARQUIVADO -> throw new ObjetivoArquivadoException();
             case ATIVO -> objetivo.concluir(clock.instant());
         }
-        return ObjetivoResponse.from(objetivo);
+        return comProgresso(objetivo);
     }
 
     @Transactional
@@ -105,7 +116,7 @@ public class ObjetivoService {
             throw new ObjetivoJaArquivadoException();
         }
         objetivo.arquivar(clock.instant());
-        return ObjetivoResponse.from(objetivo);
+        return comProgresso(objetivo);
     }
 
     @Transactional
@@ -115,7 +126,23 @@ public class ObjetivoService {
             throw new ObjetivoJaAtivoException();
         }
         objetivo.reabrir(clock.instant());
-        return ObjetivoResponse.from(objetivo);
+        return comProgresso(objetivo);
+    }
+
+    private Page<ObjetivoResponse> comProgresso(Page<Objetivo> pagina) {
+        List<Objetivo> objetivos = pagina.getContent();
+        if (objetivos.isEmpty()) {
+            return pagina.map(objetivo -> ObjetivoResponse.from(objetivo, null));
+        }
+        Map<UUID, ObjetivoConjunto> conjuntos = objetivoVinculoService.resolverConjuntos(
+                objetivos.stream().map(Objetivo::getId).toList());
+        Map<UUID, ObjetivoProgressoResponse> progressos = objetivoProgressoService.calcularLote(objetivos, conjuntos);
+        return pagina.map(objetivo -> ObjetivoResponse.from(objetivo, progressos.get(objetivo.getId())));
+    }
+
+    private ObjetivoResponse comProgresso(Objetivo objetivo) {
+        ObjetivoConjunto conjunto = objetivoVinculoService.resolverConjunto(objetivo.getId());
+        return ObjetivoResponse.from(objetivo, objetivoProgressoService.calcular(objetivo, conjunto));
     }
 
     private boolean prazoNovoNoPassado(Objetivo objetivo, AtualizarObjetivoRequest request) {

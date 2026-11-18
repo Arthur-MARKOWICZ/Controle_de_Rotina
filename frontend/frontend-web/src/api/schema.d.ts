@@ -1593,6 +1593,14 @@ export interface components {
             projetos: components["schemas"]["ObjetivoItemProjetoResponse"][];
             tarefas: components["schemas"]["ObjetivoItemTarefaResponse"][];
         };
+        ObjetivoProgressoResponse: {
+            /** Format: int32 */
+            minutosConcluidos: number;
+            /** Format: int32 */
+            minutosTotais: number;
+            /** Format: int32 */
+            percentual: number;
+        };
         ObjetivoResponse: {
             /** Format: date-time */
             arquivadoEm: null | string;
@@ -1605,6 +1613,7 @@ export interface components {
             id: string;
             /** Format: date */
             prazo: null | string;
+            progresso: components["schemas"]["ObjetivoProgressoResponse"] | null;
             /** @enum {string} */
             status: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
             titulo: string;

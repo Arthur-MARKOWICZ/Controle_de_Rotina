@@ -11,7 +11,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +33,7 @@ import org.springframework.web.ErrorResponseException;
 
 import com.controlerotina.objetivo.dto.AtualizarObjetivoRequest;
 import com.controlerotina.objetivo.dto.CriarObjetivoRequest;
+import com.controlerotina.objetivo.dto.ObjetivoProgressoResponse;
 import com.controlerotina.objetivo.dto.ObjetivoResponse;
 import com.controlerotina.objetivo.entity.Objetivo;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
@@ -53,15 +56,20 @@ class ObjetivoServiceTest {
     private static final Instant ANTES = Instant.parse("2026-11-01T12:00:00Z");
     private static final UUID USUARIO = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID OBJETIVO_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private static final UUID OBJETIVO_VAZIO_ID = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 
     @Mock
     ObjetivoRepository objetivoRepository;
+    @Mock
+    ObjetivoVinculoService objetivoVinculoService;
+    @Mock
+    ObjetivoProgressoService objetivoProgressoService;
 
     private ObjetivoService service;
 
     @BeforeEach
     void setUp() {
-        service = new ObjetivoService(objetivoRepository, Clock.fixed(AGORA, ZoneOffset.UTC));
+        service = novoService(AGORA);
     }
 
     @Test
@@ -76,6 +84,11 @@ class ObjetivoServiceTest {
         assertThat(criado.concluidoEm()).isNull();
         assertThat(criado.arquivadoEm()).isNull();
         assertThat(criado.createdAt()).isEqualTo(AGORA);
+        assertThat(criado.progresso()).isNull();
+        verify(objetivoVinculoService, never()).resolverConjunto(any());
+        verify(objetivoVinculoService, never()).resolverConjuntos(any());
+        verify(objetivoProgressoService, never()).calcular(any(), any());
+        verify(objetivoProgressoService, never()).calcularLote(any(), any());
     }
 
     @Test
@@ -88,7 +101,7 @@ class ObjetivoServiceTest {
 
     @Test
     void deveAceitarPrazoDoDiaBrtMesmoComUtcJaNoDiaSeguinte() {
-        service = new ObjetivoService(objetivoRepository, Clock.fixed(QUASE_MEIA_NOITE_BRT, ZoneOffset.UTC));
+        service = novoService(QUASE_MEIA_NOITE_BRT);
         when(objetivoRepository.save(any(Objetivo.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ObjetivoResponse criado = service.criar(USUARIO, new CriarObjetivoRequest("Entregar TCC", null, HOJE));
@@ -102,6 +115,47 @@ class ObjetivoServiceTest {
 
         assertErro(() -> service.buscarPorId(USUARIO, OBJETIVO_ID),
                 ObjetivoNaoEncontradoException.class, 404, "Objetivo não encontrado");
+        verify(objetivoVinculoService, never()).resolverConjunto(any());
+        verify(objetivoProgressoService, never()).calcular(any(), any());
+    }
+
+    @Test
+    void deveBuscarDetalheComProgresso80() {
+        Objetivo objetivo = objetivo(null);
+        doUsuario(objetivo);
+        ObjetivoConjunto conjunto = ObjetivoConjunto.vazio();
+        when(objetivoVinculoService.resolverConjunto(OBJETIVO_ID)).thenReturn(conjunto);
+        when(objetivoProgressoService.calcular(objetivo, conjunto))
+                .thenReturn(new ObjetivoProgressoResponse(80, 120, 150));
+
+        ObjetivoResponse detalhe = service.buscarPorId(USUARIO, OBJETIVO_ID);
+
+        assertThat(detalhe.progresso()).isEqualTo(new ObjetivoProgressoResponse(80, 120, 150));
+    }
+
+    @Test
+    void deveListarProgressoNuloECemPorCentoNaMesmaPagina() {
+        Objetivo vazio = new Objetivo(OBJETIVO_VAZIO_ID, USUARIO, "Vazio", null, null, ANTES);
+        Objetivo completo = objetivo(null);
+        when(objetivoRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(vazio, completo), PageRequest.of(0, 20), 2));
+        ObjetivoConjunto conjuntoVazio = ObjetivoConjunto.vazio();
+        ObjetivoConjunto conjuntoCompleto = ObjetivoConjunto.vazio();
+        when(objetivoVinculoService.resolverConjuntos(List.of(OBJETIVO_VAZIO_ID, OBJETIVO_ID)))
+                .thenReturn(Map.of(OBJETIVO_VAZIO_ID, conjuntoVazio, OBJETIVO_ID, conjuntoCompleto));
+        Map<UUID, ObjetivoProgressoResponse> lote = new HashMap<>();
+        lote.put(OBJETIVO_VAZIO_ID, null);
+        lote.put(OBJETIVO_ID, new ObjetivoProgressoResponse(100, 60, 60));
+        when(objetivoProgressoService.calcularLote(any(), any())).thenReturn(lote);
+
+        var pagina = service.listar(USUARIO, StatusObjetivo.ATIVO, PageRequest.of(0, 20));
+
+        assertThat(pagina.getContent()).hasSize(2);
+        assertThat(pagina.getContent().get(0).progresso()).isNull();
+        assertThat(pagina.getContent().get(1).progresso())
+                .isEqualTo(new ObjetivoProgressoResponse(100, 60, 60));
+        verify(objetivoProgressoService).calcularLote(any(), any());
+        verify(objetivoProgressoService, never()).calcular(any(), any());
     }
 
     @Test
@@ -291,6 +345,17 @@ class ObjetivoServiceTest {
 
         assertThat(pagina.getContent()).isEmpty();
         assertThat(pagina.getTotalElements()).isZero();
+        verify(objetivoVinculoService, never()).resolverConjuntos(any());
+        verify(objetivoProgressoService, never()).calcularLote(any(), any());
+    }
+
+    private ObjetivoService novoService(Instant instante) {
+        return new ObjetivoService(
+                objetivoRepository,
+                objetivoVinculoService,
+                objetivoProgressoService,
+                Clock.fixed(instante, ZoneOffset.UTC)
+        );
     }
 
     @SuppressWarnings("unchecked")

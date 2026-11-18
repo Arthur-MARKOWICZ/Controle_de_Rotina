@@ -86,6 +86,7 @@ class ObjetivoIT {
         assertThat(body.get("prazo")).isNull();
         assertThat(body.get("concluidoEm")).isNull();
         assertThat(body.get("arquivadoEm")).isNull();
+        assertProgresso(body, null, null, null);
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "select usuario_id, titulo, status from objetivo where id = ?", id(response));
@@ -156,6 +157,88 @@ class ObjetivoIT {
                 "select titulo, status from objetivo where id = ?", idOutro);
         assertThat(row.get("titulo")).isEqualTo("Do outro");
         assertThat(row.get("status")).isEqualTo("ATIVO");
+        assertThat(get("/objetivos/" + idOutro).getBody()).doesNotContainKey("progresso");
+    }
+
+    @Test
+    void deveRetornar404SemVazarProgressoDeObjetivoDeOutroUsuario() {
+        String tokenOutro = cadastrarELogar("outro-progresso-" + UUID.randomUUID() + "@email.com");
+        UUID idOutro = id(restTemplate.exchange("/objetivos", HttpMethod.POST,
+                autenticadoJson(tokenOutro, Map.of("titulo", "Do outro")), Map.class));
+        UUID tarefaOutro = id(restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(tokenOutro, Map.of(
+                        "titulo", "Feita",
+                        "duracaoMinutos", 60,
+                        "objetivoIds", List.of(idOutro.toString()))),
+                Map.class));
+        restTemplate.exchange(
+                "/tarefas/" + tarefaOutro,
+                HttpMethod.PATCH,
+                autenticadoJson(tokenOutro, Map.of("status", "FINALIZADA")),
+                Map.class);
+
+        ResponseEntity<Map> response = get("/objetivos/" + idOutro);
+
+        assertProblema(response, NOT_FOUND, "Objetivo não encontrado");
+        assertThat(response.getBody()).doesNotContainKey("progresso");
+        assertThat(response.getBody()).doesNotContainKey("percentual");
+        assertThat(response.getBody()).doesNotContainKey("minutosConcluidos");
+        assertThat(response.getBody()).doesNotContainKey("minutosTotais");
+    }
+
+    @Test
+    void deveBuscarDetalheComProgresso80() {
+        UUID id = criar("Misto", null);
+        UUID finalizada = criarTarefa("Feita", 120, List.of(id));
+        criarTarefa("Pendente", 30, List.of(id));
+        finalizar(finalizada);
+
+        ResponseEntity<Map> response = get("/objetivos/" + id);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertProgresso(response.getBody(), 80, 120, 150);
+    }
+
+    @Test
+    void deveDevolverProgressoNuloQuandoObjetivoNaoTemItens() {
+        UUID id = criar("Vazio", null);
+
+        ResponseEntity<Map> response = get("/objetivos/" + id);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertProgresso(response.getBody(), null, null, null);
+    }
+
+    @Test
+    void listagemTrazProgressoNuloECemPorCento() {
+        UUID vazio = criar("Vazio", hoje.plusDays(1));
+        UUID completo = criar("Completo", hoje.plusDays(10));
+        UUID feita = criarTarefa("Feita", 60, List.of(completo));
+        finalizar(feita);
+
+        ResponseEntity<Map> response = get("/objetivos");
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        List<Map<String, Object>> content = content(response);
+        assertThat(content).extracting(o -> o.get("id"))
+                .containsExactly(vazio.toString(), completo.toString());
+        assertProgresso(content.get(0), null, null, null);
+        assertProgresso(content.get(1), 100, 60, 60);
+    }
+
+    @Test
+    void deveSomarTarefaUmaVezQuandoDiretaEHerdadaPeloProjeto() {
+        UUID id = criar("Dedupe", null);
+        UUID projetoId = criarProjeto("P", List.of(id));
+        UUID tarefaId = criarTarefa("Nos dois", 90, projetoId, List.of(id));
+        finalizar(tarefaId);
+
+        ResponseEntity<Map> response = get("/objetivos/" + id);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertProgresso(response.getBody(), 100, 90, 90);
     }
 
     @Test
@@ -445,6 +528,46 @@ class ObjetivoIT {
         return id(response);
     }
 
+    private UUID criarTarefa(String titulo, int duracaoMinutos, List<UUID> objetivoIds) {
+        return criarTarefa(titulo, duracaoMinutos, null, objetivoIds);
+    }
+
+    private UUID criarTarefa(String titulo, int duracaoMinutos, UUID projetoId, List<UUID> objetivoIds) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("titulo", titulo);
+        body.put("duracaoMinutos", duracaoMinutos);
+        if (projetoId != null) {
+            body.put("projetoId", projetoId.toString());
+        }
+        if (objetivoIds != null && !objetivoIds.isEmpty()) {
+            body.put("objetivoIds", objetivoIds.stream().map(UUID::toString).toList());
+        }
+        ResponseEntity<Map> response = post("/tarefas", body);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return id(response);
+    }
+
+    private UUID criarProjeto(String nome, List<UUID> objetivoIds) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("nome", nome);
+        if (objetivoIds != null && !objetivoIds.isEmpty()) {
+            body.put("objetivoIds", objetivoIds.stream().map(UUID::toString).toList());
+        }
+        ResponseEntity<Map> response = post("/projetos", body);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return id(response);
+    }
+
+    private void finalizar(UUID tarefaId) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(accessToken, Map.of("status", "FINALIZADA")),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("status")).isEqualTo("FINALIZADA");
+    }
+
     private ResponseEntity<Map> post(String path, Object body) {
         return restTemplate.exchange(path, HttpMethod.POST, autenticadoJson(accessToken, body), Map.class);
     }
@@ -489,6 +612,26 @@ class ObjetivoIT {
         assertThat(response.getStatusCode()).isEqualTo(status);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get("title")).isEqualTo(title);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertProgresso(
+            Map<?, ?> body,
+            Integer percentual,
+            Integer minutosConcluidos,
+            Integer minutosTotais
+    ) {
+        Object raw = body.get("progresso");
+        if (percentual == null) {
+            assertThat(raw).isNull();
+            return;
+        }
+        assertThat(raw).isInstanceOf(Map.class);
+        Map<String, Object> progresso = (Map<String, Object>) raw;
+        assertThat(progresso).containsOnlyKeys("percentual", "minutosConcluidos", "minutosTotais");
+        assertThat(((Number) progresso.get("percentual")).intValue()).isEqualTo(percentual);
+        assertThat(((Number) progresso.get("minutosConcluidos")).intValue()).isEqualTo(minutosConcluidos);
+        assertThat(((Number) progresso.get("minutosTotais")).intValue()).isEqualTo(minutosTotais);
     }
 
     @SuppressWarnings("unchecked")

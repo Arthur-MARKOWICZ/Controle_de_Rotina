@@ -1,7 +1,6 @@
 package com.controlerotina.habito.service;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -77,18 +76,6 @@ public class HabitoHistoricoService {
         return dias;
     }
 
-    /** Minutos de uma execução: informados se houver, senão o intervalo bruto do timer (sem a regra de 80%). */
-    static int minutosDedicados(CumprimentoHabitoLinha linha) {
-        if (linha.minutosInformados() != null) {
-            return linha.minutosInformados();
-        }
-        if (linha.iniciadoEm() == null || linha.concluidoEm() == null) {
-            return 0;
-        }
-        long millis = Duration.between(linha.iniciadoEm(), linha.concluidoEm()).toMillis();
-        return millis <= 0 ? 0 : (int) Math.round(millis / 60_000.0);
-    }
-
     private static final class Acumulador {
         private int minutos;
         private int meta;
@@ -96,7 +83,7 @@ public class HabitoHistoricoService {
         private boolean temInformado;
 
         void somar(CumprimentoHabitoLinha linha) {
-            minutos += minutosDedicados(linha);
+            minutos += linha.minutosDedicados();
             meta = Math.max(meta, linha.duracaoBlocoMinutos());
             if (linha.minutosInformados() != null) {
                 temInformado = true;

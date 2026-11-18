@@ -9,10 +9,16 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import com.controlerotina.capacidade.entity.DiaSemana;
+import com.controlerotina.historico.PeriodoBRT;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -221,6 +227,42 @@ class ObjetivoVinculoIT {
     }
 
     @Test
+    void patchHabitoReenviandoMesmosIdsPreservaJanelaDoProgresso() {
+        UUID objetivoId = criarObjetivo("Janela");
+        UUID habitoId = criarHabitoDiario("Hábito", List.of(objetivoId));
+        LocalDate ontem = LocalDate.now(PeriodoBRT.ZONE).minusDays(1);
+        Timestamp createdAtOntem = Timestamp.from(
+                LocalDateTime.of(ontem.getYear(), ontem.getMonth(), ontem.getDayOfMonth(), 12, 0)
+                        .atZone(PeriodoBRT.ZONE)
+                        .toInstant());
+        jdbcTemplate.update(
+                "update objetivo_habito set created_at = ? where habito_id = ? and objetivo_id = ?",
+                createdAtOntem, habitoId, objetivoId);
+
+        ResponseEntity<Map> detalheAntes = get("/objetivos/" + objetivoId);
+        assertThat(detalheAntes.getStatusCode()).isEqualTo(OK);
+        assertProgresso(detalheAntes.getBody(), 0, 0, 60);
+
+        ResponseEntity<Map> patch = restTemplate.exchange(
+                "/habitos/" + habitoId,
+                HttpMethod.PATCH,
+                autenticadoJson(accessToken, Map.of(
+                        "titulo", "Hábito atualizado",
+                        "objetivoIds", List.of(objetivoId.toString()))),
+                Map.class);
+        assertThat(patch.getStatusCode()).isEqualTo(OK);
+
+        Timestamp createdAtDepois = jdbcTemplate.queryForObject(
+                "select created_at from objetivo_habito where habito_id = ? and objetivo_id = ?",
+                Timestamp.class, habitoId, objetivoId);
+        assertThat(createdAtDepois).isEqualTo(createdAtOntem);
+
+        ResponseEntity<Map> detalheDepois = get("/objetivos/" + objetivoId);
+        assertThat(detalheDepois.getStatusCode()).isEqualTo(OK);
+        assertProgresso(detalheDepois.getBody(), 0, 0, 60);
+    }
+
+    @Test
     void patchTarefaComObjetivoConcluidoRetorna409SemAlterarBanco() {
         UUID objetivoId = criarObjetivo("Concluído");
         post("/objetivos/" + objetivoId + "/concluir", null);
@@ -271,10 +313,26 @@ class ObjetivoVinculoIT {
     }
 
     private UUID criarHabito(String titulo, List<UUID> objetivoIds) {
+        return criarHabito(titulo, List.of("SEGUNDA"), objetivoIds);
+    }
+
+    private UUID criarHabitoDiario(String titulo, List<UUID> objetivoIds) {
+        return criarHabito(titulo, List.of(
+                DiaSemana.SEGUNDA.name(),
+                DiaSemana.TERCA.name(),
+                DiaSemana.QUARTA.name(),
+                DiaSemana.QUINTA.name(),
+                DiaSemana.SEXTA.name(),
+                DiaSemana.SABADO.name(),
+                DiaSemana.DOMINGO.name()
+        ), objetivoIds);
+    }
+
+    private UUID criarHabito(String titulo, List<String> diasSemana, List<UUID> objetivoIds) {
         Map<String, Object> body = new HashMap<>();
         body.put("titulo", titulo);
         body.put("duracaoMinutos", 30);
-        body.put("diasSemana", List.of("SEGUNDA"));
+        body.put("diasSemana", diasSemana);
         if (objetivoIds != null && !objetivoIds.isEmpty()) {
             body.put("objetivoIds", objetivoIds.stream().map(UUID::toString).toList());
         }
@@ -325,6 +383,26 @@ class ObjetivoVinculoIT {
         assertThat(response.getStatusCode()).isEqualTo(status);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get("title")).isEqualTo(title);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertProgresso(
+            Map<?, ?> body,
+            Integer percentual,
+            Integer minutosConcluidos,
+            Integer minutosTotais
+    ) {
+        Object raw = body.get("progresso");
+        if (percentual == null) {
+            assertThat(raw).isNull();
+            return;
+        }
+        assertThat(raw).isInstanceOf(Map.class);
+        Map<String, Object> progresso = (Map<String, Object>) raw;
+        assertThat(progresso).containsOnlyKeys("percentual", "minutosConcluidos", "minutosTotais");
+        assertThat(((Number) progresso.get("percentual")).intValue()).isEqualTo(percentual);
+        assertThat(((Number) progresso.get("minutosConcluidos")).intValue()).isEqualTo(minutosConcluidos);
+        assertThat(((Number) progresso.get("minutosTotais")).intValue()).isEqualTo(minutosTotais);
     }
 
     @SuppressWarnings("unchecked")

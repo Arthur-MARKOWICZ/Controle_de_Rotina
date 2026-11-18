@@ -19,6 +19,8 @@ public interface ObjetivoProjetoRepository extends JpaRepository<ObjetivoProjeto
 
     List<ObjetivoProjeto> findByObjetivoId(UUID objetivoId);
 
+    List<ObjetivoProjeto> findByObjetivoIdIn(Collection<UUID> objetivoIds);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ObjetivoProjeto op where op.projetoId = :projetoId")
     void deleteAllByProjetoId(@Param("projetoId") UUID projetoId);

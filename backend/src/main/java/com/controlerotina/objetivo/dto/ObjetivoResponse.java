@@ -18,9 +18,10 @@ public record ObjetivoResponse(
         @Nullable Instant concluidoEm,
         @Nullable Instant arquivadoEm,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        @Nullable ObjetivoProgressoResponse progresso
 ) {
-    public static ObjetivoResponse from(Objetivo objetivo) {
+    public static ObjetivoResponse from(Objetivo objetivo, @Nullable ObjetivoProgressoResponse progresso) {
         return new ObjetivoResponse(
                 objetivo.getId(),
                 objetivo.getTitulo(),
@@ -30,7 +31,8 @@ public record ObjetivoResponse(
                 objetivo.getConcluidoEm(),
                 objetivo.getArquivadoEm(),
                 objetivo.getCreatedAt(),
-                objetivo.getUpdatedAt()
+                objetivo.getUpdatedAt(),
+                progresso
         );
     }
 }
