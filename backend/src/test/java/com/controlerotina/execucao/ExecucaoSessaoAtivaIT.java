@@ -100,6 +100,7 @@ class ExecucaoSessaoAtivaIT {
         jdbcTemplate.update("delete from habito");
         jdbcTemplate.update("delete from refresh_token");
         jdbcTemplate.update("delete from xp_evento");
+        jdbcTemplate.update("delete from capacidade_semanal");
         jdbcTemplate.update("delete from usuario");
 
         String email = "sessao-ativa-" + UUID.randomUUID() + "@email.com";

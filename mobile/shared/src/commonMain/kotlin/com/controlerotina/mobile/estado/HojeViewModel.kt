@@ -2,6 +2,9 @@ package com.controlerotina.mobile.estado
 
 import com.controlerotina.mobile.api.ApiErro
 import com.controlerotina.mobile.api.BlocoPlano
+import com.controlerotina.mobile.api.CapacidadeSemanal
+import com.controlerotina.mobile.api.CriarCapacidadeSemanalItem
+import com.controlerotina.mobile.api.DiaSemana
 import com.controlerotina.mobile.api.Execucao
 import com.controlerotina.mobile.api.Plano
 import com.controlerotina.mobile.api.RotinaApi
@@ -24,9 +27,51 @@ data class BlocoNaTela(
     val status: StatusExecucao get() = execucao?.status ?: StatusExecucao.NAO_INICIADO
 }
 
+/** Horas do preset "Dias úteis 4h" (o mesmo da web e do padrão de contas novas). */
+const val HORAS_PRESET_DIAS_UTEIS = 4
+const val HORAS_MAX_DIA = 16
+const val MSG_CAPACIDADE_MUDOU = "A capacidade mudou, tente de novo."
+
+private val DIAS_UTEIS = listOf(DiaSemana.SEGUNDA, DiaSemana.TERCA, DiaSemana.QUARTA, DiaSemana.QUINTA, DiaSemana.SEXTA)
+
+/** Seg–sex no preset, fim de semana em 0. */
+val SEMANA_DIAS_UTEIS: Map<DiaSemana, Int> =
+    DiaSemana.entries.associateWith { if (it in DIAS_UTEIS) HORAS_PRESET_DIAS_UTEIS else 0 }
+
+/** O que gravar para chegar em [horasPorDia]: `POST` em lote para dias novos com horas, `PATCH` para os que mudaram. */
+data class AlteracoesCapacidade(
+    val criar: List<CriarCapacidadeSemanalItem>,
+    val atualizar: List<Pair<String, Int>>,
+)
+
+fun alteracoesCapacidade(semana: List<CapacidadeSemanal>, horasPorDia: Map<DiaSemana, Int>): AlteracoesCapacidade {
+    val criar = mutableListOf<CriarCapacidadeSemanalItem>()
+    val atualizar = mutableListOf<Pair<String, Int>>()
+    for (dia in DiaSemana.entries) {
+        val horas = horasPorDia[dia] ?: continue
+        val existente = semana.firstOrNull { it.ativo && it.diaSemana == dia }
+        when {
+            existente == null -> if (horas > 0) criar += CriarCapacidadeSemanalItem(dia, horas)
+            existente.horas != horas -> atualizar += existente.id to horas
+        }
+    }
+    return AlteracoesCapacidade(criar, atualizar)
+}
+
 sealed interface EstadoHoje {
     data object Carregando : EstadoHoje
-    data class SemPlano(val gerando: Boolean = false) : EstadoHoje
+
+    /**
+     * Dia sem plano. Com [pedindoCapacidade] a tela abre o sheet "Quanto tempo você tem por dia?"
+     * no lugar de gerar (usuário sem nenhuma hora configurada).
+     */
+    data class SemPlano(
+        val gerando: Boolean = false,
+        val pedindoCapacidade: Boolean = false,
+        val horasPorDia: Map<DiaSemana, Int> = emptyMap(),
+        val salvandoCapacidade: Boolean = false,
+        val erroCapacidade: String? = null,
+    ) : EstadoHoje
     data class Conteudo(val plano: Plano, val blocos: List<BlocoNaTela>) : EstadoHoje
     data class Erro(val mensagem: String) : EstadoHoje
 }
@@ -48,11 +93,15 @@ class HojeViewModel(
     private val _ocupado = MutableStateFlow<String?>(null)
     val ocupado: StateFlow<String?> = _ocupado.asStateFlow()
 
+    /** Template semanal lido pela guarda; base para decidir entre `POST` e `PATCH`. */
+    private var semana: List<CapacidadeSemanal> = emptyList()
+
     /** Volta ao estado inicial, sem nada do usuário anterior na memória. */
     fun limpar() {
         _estado.value = EstadoHoje.Carregando
         _atualizando.value = false
         _ocupado.value = null
+        semana = emptyList()
     }
 
     suspend fun carregar(puxando: Boolean = false) {
@@ -85,11 +134,30 @@ class HojeViewModel(
         return EstadoHoje.Conteudo(plano, blocos)
     }
 
+    /**
+     * Gera o plano do dia. Sem capacidade configurada (dia em 0h e nenhum dia do template com horas),
+     * não chama a API: pede a capacidade primeiro. Fim de semana com template não bloqueia.
+     */
     suspend fun gerar() {
-        if (_estado.value !is EstadoHoje.SemPlano) return
+        val atual = _estado.value as? EstadoHoje.SemPlano ?: return
+        if (atual.gerando || atual.salvandoCapacidade) return
+        _estado.value = EstadoHoje.SemPlano(gerando = true)
+        val data = hoje()
+        if (faltaCapacidade(data)) {
+            _estado.value = EstadoHoje.SemPlano(
+                pedindoCapacidade = true,
+                horasPorDia = DiaSemana.entries.associateWith { dia ->
+                    semana.firstOrNull { it.ativo && it.diaSemana == dia }?.horas ?: 0
+                },
+            )
+            return
+        }
+        gerarAgora(data)
+    }
+
+    private suspend fun gerarAgora(data: String) {
         _estado.value = EstadoHoje.SemPlano(gerando = true)
         try {
-            val data = hoje()
             _estado.value = montar(api.gerarPlano(data), data)
         } catch (e: CancellationException) {
             throw e
@@ -99,9 +167,66 @@ class HojeViewModel(
         }
     }
 
+    /** Se uma das leituras falhar, segue gerando (comportamento anterior) em vez de travar. */
+    private suspend fun faltaCapacidade(data: String): Boolean = try {
+        val doDia = api.capacidadeResolvida(data, data).firstOrNull { it.data == data }?.horas ?: 0
+        if (doDia > 0) {
+            false
+        } else {
+            semana = api.capacidadesSemanais()
+            semana.none { it.ativo && it.horas > 0 }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: ApiErro) {
+        false
+    }
+
+    /** "Usar dias úteis 4h": seg–sex 4h, fim de semana em 0, e gera. */
+    suspend fun usarDiasUteis() = salvarSemana(SEMANA_DIAS_UTEIS)
+
+    /** Grava o stepper do sheet e, no sucesso, gera o plano (um toque até o plano). */
+    suspend fun salvarSemana(horasPorDia: Map<DiaSemana, Int>) {
+        val atual = _estado.value as? EstadoHoje.SemPlano ?: return
+        if (!atual.pedindoCapacidade || atual.salvandoCapacidade) return
+        val horas = horasPorDia.mapValues { (_, h) -> h.coerceIn(0, HORAS_MAX_DIA) }
+        _estado.value = atual.copy(horasPorDia = horas, salvandoCapacidade = true, erroCapacidade = null)
+        try {
+            val (criar, atualizar) = alteracoesCapacidade(semana, horas)
+            if (criar.isNotEmpty()) api.criarCapacidadesSemanais(criar)
+            atualizar.forEach { (id, h) -> api.atualizarCapacidadeSemanal(id, h) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiErro) {
+            val conflito = e is ApiErro.Http && e.status == 409
+            if (conflito) {
+                semana = try {
+                    api.capacidadesSemanais()
+                } catch (_: ApiErro) {
+                    semana
+                }
+            }
+            _estado.value = atual.copy(
+                horasPorDia = horas,
+                erroCapacidade = if (conflito) MSG_CAPACIDADE_MUDOU else mensagemDeErro(e),
+            )
+            return
+        }
+        gerarAgora(hoje())
+    }
+
+    /** Fechar o sheet sem escolher: nada é gravado, nada é gerado. */
+    fun fecharCapacidade() {
+        val atual = _estado.value as? EstadoHoje.SemPlano ?: return
+        if (atual.salvandoCapacidade) return
+        _estado.value = EstadoHoje.SemPlano()
+    }
+
     suspend fun aprovar() {
         val atual = _estado.value as? EstadoHoje.Conteudo ?: return
         if (atual.plano.status != StatusPlano.RASCUNHO) return
+        // Nada para aprovar: o back devolveria 409 Plano vazio.
+        if (atual.plano.blocos.isEmpty()) return
         acao("plano") {
             val aprovado = api.aprovarPlano(atual.plano.id)
             _estado.value = montar(aprovado, hoje())

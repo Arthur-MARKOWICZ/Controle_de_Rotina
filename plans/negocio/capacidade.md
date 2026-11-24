@@ -9,7 +9,7 @@ Fora deste slice: planner, blocos, aprovação de plano, execução, XP, recorr�
 
 1. **Template semanal** — horas disponíveis por `DiaSemana` (SEGUNDA … DOMINGO), reutilizado toda semana.
 2. **Override por data** — exceção para um dia específico (ex.: “hoje só 1h”). Quando existir override ativo para a data, ele prevalece sobre o template do dia da semana.
-3. Dia sem registro no template = dia vazio (sem capacidade naquele weekday). `horas = 0` também é válido (capacidade explícita zero).
+3. Dia sem registro no template = dia vazio (sem capacidade naquele weekday). `horas = 0` também é válido (capacidade explícita zero). Contas novas nascem com seg–sex 4h e fim de semana sem registro (ver `capacidade-inicial-plano-vazio.md`); depois disso o usuário edita livremente.
 
 ---
 

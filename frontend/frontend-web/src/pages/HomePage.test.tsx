@@ -7,6 +7,8 @@ import { AuthProvider } from '../auth/session/AuthContext'
 import * as meApi from '../auth/api/meApi'
 import * as capacidadeOverrideApi from '../capacidade/api/capacidadeOverrideApi'
 import * as capacidadeResolvidaApi from '../capacidade/api/capacidadeResolvidaApi'
+import * as capacidadeSemanalApi from '../capacidade/api/capacidadeSemanalApi'
+import { ApiError } from '../auth/api/authApi'
 import * as execucaoApi from '../execucao/api/execucaoApi'
 import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
 import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
@@ -44,6 +46,12 @@ vi.mock('../capacidade/api/capacidadeOverrideApi', () => ({
   atualizarCapacidadeOverride: vi.fn(),
   excluirCapacidadeOverride: vi.fn(),
   restaurarCapacidadeOverride: vi.fn(),
+}))
+
+vi.mock('../capacidade/api/capacidadeSemanalApi', () => ({
+  listarCapacidadesSemanais: vi.fn(),
+  criarCapacidadeSemanal: vi.fn(),
+  atualizarCapacidadeSemanal: vi.fn(),
 }))
 
 vi.mock('../tarefa/api/tarefaApi', () => ({
@@ -239,6 +247,133 @@ describe('HomePage — plano do dia', () => {
       itens: [itemExecucaoBase],
     })
     vi.mocked(habitoApi.listarHabitosDoDia).mockReset().mockResolvedValue([])
+    // Sem template por padrão: o onboarding some (catch) e a guarda gera direto.
+    vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais)
+      .mockReset()
+      .mockRejectedValue(new Error('sem template no teste'))
+    vi.mocked(capacidadeSemanalApi.criarCapacidadeSemanal).mockReset().mockResolvedValue([])
+    vi.mocked(capacidadeSemanalApi.atualizarCapacidadeSemanal).mockReset()
+  })
+
+  describe('primeiro plano sem capacidade', () => {
+    beforeEach(() => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
+      vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([
+        { data: '2026-10-20', horas: 0, origem: 'VAZIO' },
+      ])
+      vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais).mockResolvedValue([])
+      vi.mocked(planoApi.gerarPlano).mockResolvedValue(planoBase)
+    })
+
+    it('T1: gerar sem capacidade abre o passo e não chama gerarPlano', async () => {
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /^gerar plano de hoje$/i }))
+
+      expect(
+        await screen.findByRole('heading', { name: 'Quanto tempo você tem por dia?' }),
+      ).toBeInTheDocument()
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+
+    it('T2: "Usar dias úteis 4h" grava a semana e mostra o plano gerado', async () => {
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /^gerar plano de hoje$/i }))
+      await user.click(await screen.findByRole('button', { name: 'Usar dias úteis 4h' }))
+
+      expect(await screen.findByText('Estudar Spring')).toBeInTheDocument()
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).toHaveBeenCalledTimes(1)
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+      expect(screen.queryByText('Quanto tempo você tem por dia?')).not.toBeInTheDocument()
+    })
+
+    it('T5: Esc fecha o passo, não grava nem gera e devolve o foco ao botão', async () => {
+      const user = userEvent.setup()
+      renderHome()
+      const gerar = await screen.findByRole('button', { name: /^gerar plano de hoje$/i })
+
+      await user.click(gerar)
+      await screen.findByRole('heading', { name: 'Quanto tempo você tem por dia?' })
+      await user.keyboard('{Escape}')
+
+      await waitFor(() => {
+        expect(screen.queryByText('Quanto tempo você tem por dia?')).not.toBeInTheDocument()
+      })
+      expect(gerar).toHaveFocus()
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).not.toHaveBeenCalled()
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+      expect(screen.getByText(/ainda não há plano/i)).toBeInTheDocument()
+    })
+
+    it('T6: falha 500 ao salvar mostra o erro no passo e não gera', async () => {
+      vi.mocked(capacidadeSemanalApi.criarCapacidadeSemanal).mockRejectedValue(
+        new ApiError(500, 'Erro interno no servidor'),
+      )
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /^gerar plano de hoje$/i }))
+      await user.click(await screen.findByRole('button', { name: 'Usar dias úteis 4h' }))
+
+      expect(await screen.findByText('Erro interno no servidor')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Quanto tempo você tem por dia?' })).toBeVisible()
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+
+    it('T8: item 3 do onboarding passa pela mesma guarda', async () => {
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: 'Gerar primeiro plano' }))
+
+      expect(
+        await screen.findByRole('heading', { name: 'Quanto tempo você tem por dia?' }),
+      ).toBeInTheDocument()
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('aprovar plano sem blocos', () => {
+    it('T9: rascunho com 0 blocos mostra "Nada para aprovar" desabilitado e explicado', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({ ...planoBase, blocos: [] })
+
+      renderHome()
+
+      const botao = await screen.findByRole('button', { name: 'Nada para aprovar' })
+      expect(botao).toBeDisabled()
+      expect(botao).toHaveAccessibleDescription(
+        'Nenhum bloco coube. Ajuste a capacidade ou adicione tarefas.',
+      )
+      expect(screen.queryByRole('button', { name: /^aprovar 0 blocos/i })).not.toBeInTheDocument()
+    })
+
+    it('T10: 409 Plano vazio vira alerta inline e o plano segue rascunho', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+      vi.mocked(planoApi.aprovarPlano).mockRejectedValue(
+        new ApiError(409, 'Não há blocos para aprovar.', 'Plano vazio'),
+      )
+      const user = userEvent.setup()
+      renderHome()
+
+      await user.click(await screen.findByRole('button', { name: /^aprovar 1 bloco · 1h$/i }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Não há blocos para aprovar.')
+      expect(screen.getByText(/^rascunho$/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /tentar de novo/i })).not.toBeInTheDocument()
+    })
+
+    it('T11: plano com blocos segue com "Aprovar N blocos · Xmin" habilitado', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(planoBase)
+
+      renderHome()
+
+      const botao = await screen.findByRole('button', { name: /^aprovar 1 bloco · 1h$/i })
+      expect(botao).toBeEnabled()
+      expect(screen.queryByRole('button', { name: 'Nada para aprovar' })).not.toBeInTheDocument()
+    })
   })
 
   describe('atalho da revisão semanal', () => {
@@ -631,7 +766,10 @@ describe('HomePage — plano do dia', () => {
       await waitFor(() => {
         expect(screen.queryByText('Estudar Spring')).not.toBeInTheDocument()
       })
-      expect(screen.getByText(/nenhum bloco neste plano/i)).toBeInTheDocument()
+      expect(
+        screen.getByText('Nenhum bloco coube. Ajuste a capacidade ou adicione tarefas.'),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Nada para aprovar' })).toBeDisabled()
     })
 
     it('T9: bloco some na hora, Desfazer re-adiciona a tarefa', async () => {

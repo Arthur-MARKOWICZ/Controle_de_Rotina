@@ -24,9 +24,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.controlerotina.planner.dto.PlanoResponse;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
+import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.shared.exception.PlanoNaoAprovavelException;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
+import com.controlerotina.shared.exception.PlanoVazioException;
 
 @ExtendWith(MockitoExtension.class)
 class PlanoAprovacaoServiceTest {
@@ -42,6 +44,8 @@ class PlanoAprovacaoServiceTest {
     PlanoConsultaService planoConsultaService;
     @Mock
     PropostaService propostaService;
+    @Mock
+    BlocoPlanoRepository blocoPlanoRepository;
 
     private PlanoAprovacaoService service;
 
@@ -49,6 +53,7 @@ class PlanoAprovacaoServiceTest {
     void setUp() {
         service = new PlanoAprovacaoService(
                 planoRepository,
+                blocoPlanoRepository,
                 planoConsultaService,
                 propostaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
@@ -61,6 +66,7 @@ class PlanoAprovacaoServiceTest {
         when(planoRepository.findByIdAndUsuarioId(PLANO_ID, USUARIO)).thenReturn(Optional.of(plano));
         when(planoRepository.findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(any(), any(), any()))
                 .thenReturn(Optional.of(plano));
+        when(blocoPlanoRepository.existsByPlanoId(PLANO_ID)).thenReturn(true);
         PlanoResponse resposta = PlanoResponse.from(plano, List.of(), false);
         when(planoConsultaService.buscarPorId(USUARIO, PLANO_ID)).thenReturn(Optional.of(resposta));
 
@@ -117,6 +123,7 @@ class PlanoAprovacaoServiceTest {
         when(planoRepository.findByIdAndUsuarioId(PLANO_ID, USUARIO)).thenReturn(Optional.of(plano));
         when(planoRepository.findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(any(), any(), any()))
                 .thenReturn(Optional.of(plano));
+        when(blocoPlanoRepository.existsByPlanoId(PLANO_ID)).thenReturn(true);
         PlanoResponse resposta = PlanoResponse.from(plano, List.of(), false);
         when(propostaService.aceitar(USUARIO, propostaId)).thenReturn(resposta);
 
@@ -145,6 +152,46 @@ class PlanoAprovacaoServiceTest {
         assertThatThrownBy(() -> service.aprovar(USUARIO, PLANO_ID))
                 .isInstanceOf(PlanoNaoAprovavelException.class);
         verify(planoRepository, never()).save(any());
+    }
+
+    @Test
+    void naoDeveAprovarRascunhoSemBlocos() {
+        Plano plano = rascunho(null);
+        when(planoRepository.findByIdAndUsuarioId(PLANO_ID, USUARIO)).thenReturn(Optional.of(plano));
+        when(planoRepository.findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(any(), any(), any()))
+                .thenReturn(Optional.of(plano));
+        when(blocoPlanoRepository.existsByPlanoId(PLANO_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.aprovar(USUARIO, PLANO_ID))
+                .isInstanceOf(PlanoVazioException.class);
+        assertThat(plano.getStatus()).isEqualTo(StatusPlano.RASCUNHO);
+        verify(planoRepository, never()).save(any());
+    }
+
+    @Test
+    void naoDeveDelegarAceiteDePropostaQuandoPlanoNaoTemBlocos() {
+        UUID propostaId = UUID.randomUUID();
+        Plano plano = rascunho(propostaId);
+        when(planoRepository.findByIdAndUsuarioId(PLANO_ID, USUARIO)).thenReturn(Optional.of(plano));
+        when(planoRepository.findFirstByUsuarioIdAndDataAndStatusInOrderByVersaoDesc(any(), any(), any()))
+                .thenReturn(Optional.of(plano));
+        when(blocoPlanoRepository.existsByPlanoId(PLANO_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.aprovar(USUARIO, PLANO_ID))
+                .isInstanceOf(PlanoVazioException.class);
+        verify(propostaService, never()).aceitar(any(), any());
+    }
+
+    @Test
+    void planoJaAprovadoSemBlocosDeveFalharComoNaoAprovavelENaoComoVazio() {
+        Plano plano = new Plano(
+                PLANO_ID, USUARIO, DIA, 1, StatusPlano.APROVADO,
+                false, null, null, AGORA, AGORA, AGORA);
+        when(planoRepository.findByIdAndUsuarioId(PLANO_ID, USUARIO)).thenReturn(Optional.of(plano));
+
+        assertThatThrownBy(() -> service.aprovar(USUARIO, PLANO_ID))
+                .isInstanceOf(PlanoNaoAprovavelException.class);
+        verify(blocoPlanoRepository, never()).existsByPlanoId(any());
     }
 
     private static Plano rascunho(UUID propostaId) {

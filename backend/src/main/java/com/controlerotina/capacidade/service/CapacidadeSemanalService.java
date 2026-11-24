@@ -46,6 +46,28 @@ public class CapacidadeSemanalService {
         this.clock = clock;
     }
 
+    /** Ponto de partida de conta nova: seg–sex 4h; sábado e domingo sem registro (dia vazio). */
+    static final List<DiaSemana> DIAS_PADRAO_INICIAL = List.of(
+            DiaSemana.SEGUNDA, DiaSemana.TERCA, DiaSemana.QUARTA, DiaSemana.QUINTA, DiaSemana.SEXTA);
+    static final int HORAS_PADRAO_INICIAL = 4;
+
+    /**
+     * Cria a capacidade padrão de uma conta nova. Idempotente: pula dia já ativo.
+     * Não dispara proposta (usuário recém-criado não tem plano aprovado).
+     */
+    @Transactional
+    public void criarPadraoInicial(UUID usuarioId) {
+        Instant agora = clock.instant();
+        List<CapacidadeSemanal> novas = DIAS_PADRAO_INICIAL.stream()
+                .filter(dia -> !capacidadeSemanalRepository.existsByUsuarioIdAndDiaSemanaAndAtivoTrue(usuarioId, dia))
+                .map(dia -> new CapacidadeSemanal(
+                        UUID.randomUUID(), usuarioId, dia, HORAS_PADRAO_INICIAL, true, agora, agora))
+                .toList();
+        if (!novas.isEmpty()) {
+            capacidadeSemanalRepository.saveAll(novas);
+        }
+    }
+
     @Transactional
     public List<CapacidadeSemanalResponse> criar(UUID usuarioId, List<CriarCapacidadeSemanalItemRequest> itens) {
         if (itens == null || itens.isEmpty()) {

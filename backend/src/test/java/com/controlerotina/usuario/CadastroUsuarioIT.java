@@ -198,6 +198,43 @@ class CadastroUsuarioIT {
         )).isZero();
     }
 
+    @Test
+    void deveCriarCapacidadeSemanalPadraoAoCadastrar() {
+        String email = "capacidade-padrao-" + UUID.randomUUID() + "@email.com";
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/usuarios", json(Map.of("nome", "Nova", "email", email, "senha", "Senha@123")), Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        UUID id = UUID.fromString(response.getBody().get("id").toString());
+
+        List<Map<String, Object>> linhas = jdbcTemplate.queryForList(
+                "select dia_semana, horas, ativo from capacidade_semanal where usuario_id = ? order by dia_semana",
+                id);
+
+        assertThat(linhas).hasSize(5);
+        assertThat(linhas).extracting(l -> l.get("dia_semana").toString()).containsExactlyInAnyOrder(
+                "SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA");
+        assertThat(linhas).allSatisfy(l -> {
+            assertThat(((Number) l.get("horas")).intValue()).isEqualTo(4);
+            assertThat(l.get("ativo")).isEqualTo(true);
+        });
+    }
+
+    @Test
+    void cadastroComEmailDuplicadoNaoDeveCriarCapacidadeExtra() {
+        String email = "capacidade-dup-" + UUID.randomUUID() + "@email.com";
+        var body = Map.of("nome", "Dup", "email", email, "senha", "Senha@123");
+        assertThat(restTemplate.postForEntity("/usuarios", json(body), Map.class).getStatusCode())
+                .isEqualTo(CREATED);
+        Integer antes = jdbcTemplate.queryForObject("select count(*) from capacidade_semanal", Integer.class);
+
+        ResponseEntity<Map> segundo = restTemplate.postForEntity("/usuarios", json(body), Map.class);
+
+        assertThat(segundo.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(segundo.getBody().get("title")).isEqualTo("Email já cadastrado");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from capacidade_semanal", Integer.class))
+                .isEqualTo(antes);
+    }
+
     private static HttpEntity<Map<String, String>> json(Map<String, String> body) {
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

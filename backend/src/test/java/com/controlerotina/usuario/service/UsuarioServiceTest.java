@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.controlerotina.capacidade.service.CapacidadeSemanalService;
 import com.controlerotina.shared.exception.CredenciaisInvalidasException;
 import com.controlerotina.shared.exception.EmailJaCadastradoException;
 import com.controlerotina.usuario.dto.AtualizarMeRequest;
@@ -39,6 +40,9 @@ class UsuarioServiceTest {
     @Mock
     PasswordEncoder passwordEncoder;
 
+    @Mock
+    CapacidadeSemanalService capacidadeSemanalService;
+
     private UsuarioService usuarioService;
 
     @BeforeEach
@@ -46,6 +50,7 @@ class UsuarioServiceTest {
         usuarioService = new UsuarioService(
                 usuarioRepository,
                 passwordEncoder,
+                capacidadeSemanalService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }
@@ -146,5 +151,26 @@ class UsuarioServiceTest {
 
         assertThat(response.email()).isEqualTo("ana@email.com");
         assertThat(response.nome()).isEqualTo("Ana");
+    }
+
+    @Test
+    void cadastrarDeveCriarCapacidadePadraoParaONovoUsuario() {
+        when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(false);
+        when(passwordEncoder.encode("Senha@123")).thenReturn("hash");
+        when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var resposta = usuarioService.cadastrar(new CadastroUsuarioRequest("Ana", "ana@email.com", "Senha@123"));
+
+        verify(capacidadeSemanalService).criarPadraoInicial(resposta.id());
+    }
+
+    @Test
+    void cadastrarComEmailDuplicadoNaoDeveCriarCapacidadePadrao() {
+        when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioService.cadastrar(
+                new CadastroUsuarioRequest("Ana", "ana@email.com", "Senha@123")))
+                .isInstanceOf(EmailJaCadastradoException.class);
+        verify(capacidadeSemanalService, never()).criarPadraoInicial(any());
     }
 }

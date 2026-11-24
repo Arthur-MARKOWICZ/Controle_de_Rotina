@@ -197,6 +197,53 @@ class PlanoAprovacaoIT {
         assertThat(gerar.getStatusCode()).isEqualTo(CONFLICT);
     }
 
+    @Test
+    void deveRetornar409PlanoVazioAoAprovarRascunhoSemBlocos() {
+        salvarOverride(0);
+        Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/" + plano.getId() + "/aprovar",
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+        assertThat(response.getBody().get("title")).isEqualTo("Plano vazio");
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from plano where id = ?", String.class, plano.getId()))
+                .isEqualTo("RASCUNHO");
+        assertThat(jdbcTemplate.queryForObject(
+                "select versao from plano where id = ?", Integer.class, plano.getId()))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void deveRetornar404AoAprovarPlanoVazioDeOutroUsuario() {
+        salvarOverride(0);
+        Plano plano = plannerGeracaoService.gerar(usuarioId, DIA_D);
+        String emailOutro = "aprovar-outro-" + UUID.randomUUID() + "@email.com";
+        restTemplate.postForEntity(
+                "/usuarios",
+                json(Map.of("nome", "Outro", "email", emailOutro, "senha", SENHA)),
+                Map.class);
+        String tokenOutro = restTemplate.postForEntity(
+                "/auth/login",
+                json(Map.of("email", emailOutro, "senha", SENHA)),
+                Map.class).getBody().get("accessToken").toString();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenOutro);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/" + plano.getId() + "/aprovar",
+                HttpMethod.POST,
+                new HttpEntity<>(headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isNotEqualTo("Plano vazio");
+    }
+
     private void salvarOverride(int horas) {
         capacidadeOverrideRepository.save(new CapacidadeOverride(
                 UUID.randomUUID(),

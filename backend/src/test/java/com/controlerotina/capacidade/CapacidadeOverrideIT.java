@@ -69,6 +69,8 @@ class CapacidadeOverrideIT {
                 "select id from usuario where email = ?",
                 UUID.class,
                 email);
+        // Premissa destes testes: conta sem capacidade (o cadastro cria seg–sex 4h por padrão).
+        jdbcTemplate.update("delete from capacidade_semanal where usuario_id = ?", usuarioId);
     }
 
     @Test
@@ -651,6 +653,8 @@ class CapacidadeOverrideIT {
                 "/usuarios",
                 json(Map.of("nome", "Outro", "email", email, "senha", SENHA)),
                 Map.class);
+        jdbcTemplate.update(
+                "delete from capacidade_semanal where usuario_id = (select id from usuario where email = ?)", email);
         return restTemplate.postForEntity(
                 "/auth/login",
                 json(Map.of("email", email, "senha", SENHA)),

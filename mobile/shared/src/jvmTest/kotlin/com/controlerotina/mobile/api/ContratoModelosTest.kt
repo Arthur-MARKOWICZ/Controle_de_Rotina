@@ -39,6 +39,8 @@ class ContratoModelosTest {
         HabitoDoDia.serializer().descriptor to "HabitoDoDiaResponse",
         Projeto.serializer().descriptor to "ProjetoResponse",
         ItemDecidir.serializer().descriptor to "DecidirResponse",
+        CapacidadeSemanal.serializer().descriptor to "CapacidadeSemanalResponse",
+        CapacidadeResolvida.serializer().descriptor to "CapacidadeResolvidaResponse",
     )
 
     private val requisicoes: List<Pair<SerialDescriptor, String>> = listOf(
@@ -49,6 +51,9 @@ class ContratoModelosTest {
         CriarProjetoRequest.serializer().descriptor to "CriarProjetoRequest",
         CriarDecidirRequest.serializer().descriptor to "CriarDecidirRequest",
         PromoverDecidirRequest.serializer().descriptor to "PromoverDecidirRequest",
+        CriarCapacidadeSemanalItem.serializer().descriptor to "CriarCapacidadeSemanalItemRequest",
+        CriarCapacidadeSemanalRequest.serializer().descriptor to "CriarCapacidadeSemanalRequest",
+        AtualizarCapacidadeSemanalRequest.serializer().descriptor to "AtualizarCapacidadeSemanalRequest",
     )
 
     private val enums: List<Triple<SerialDescriptor, String, String>> = listOf(
@@ -58,6 +63,8 @@ class ContratoModelosTest {
         Triple(Prioridade.serializer().descriptor, "TarefaResponse", "prioridade"),
         Triple(StatusExecucao.serializer().descriptor, "ExecucaoResponse", "status"),
         Triple(StatusProjeto.serializer().descriptor, "ProjetoResponse", "status"),
+        Triple(DiaSemana.serializer().descriptor, "CapacidadeSemanalResponse", "diaSemana"),
+        Triple(OrigemCapacidade.serializer().descriptor, "CapacidadeResolvidaResponse", "origem"),
     )
 
     @Test

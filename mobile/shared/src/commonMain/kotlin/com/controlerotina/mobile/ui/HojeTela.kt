@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -15,6 +18,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,11 +35,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -40,6 +50,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.controlerotina.mobile.AppDependencias
+import com.controlerotina.mobile.api.DiaSemana
 import com.controlerotina.mobile.api.OrigemBloco
 import com.controlerotina.mobile.api.StatusExecucao
 import com.controlerotina.mobile.api.StatusPlano
@@ -47,6 +58,7 @@ import com.controlerotina.mobile.dominio.AcaoBloco
 import com.controlerotina.mobile.dominio.formatarMinutos
 import com.controlerotina.mobile.estado.BlocoNaTela
 import com.controlerotina.mobile.estado.EstadoHoje
+import com.controlerotina.mobile.estado.HORAS_MAX_DIA
 import com.controlerotina.mobile.estado.HojeViewModel
 import kotlinx.coroutines.launch
 
@@ -73,12 +85,22 @@ fun HojeTela(vm: HojeViewModel, deps: AppDependencias, modifier: Modifier) {
             is EstadoHoje.Erro -> Aviso("Não foi possível carregar o dia", e.mensagem, "Tentar de novo") {
                 lancar { vm.carregar() }
             }
-            is EstadoHoje.SemPlano -> Aviso(
-                "Ainda não há plano para hoje",
-                "O planner monta o dia com suas tarefas, hábitos e capacidade.",
-                if (e.gerando) "Gerando…" else "Gerar plano",
-                acaoHabilitada = !e.gerando,
-            ) { lancar { vm.gerar() } }
+            is EstadoHoje.SemPlano -> {
+                Aviso(
+                    "Ainda não há plano para hoje",
+                    "O planner monta o dia com suas tarefas, hábitos e capacidade.",
+                    if (e.gerando) "Gerando…" else "Gerar plano",
+                    acaoHabilitada = !e.gerando,
+                ) { lancar { vm.gerar() } }
+                if (e.pedindoCapacidade) {
+                    CapacidadeSheet(
+                        e,
+                        onFechar = vm::fecharCapacidade,
+                        onUsarDiasUteis = { lancar { vm.usarDiasUteis() } },
+                        onSalvar = { horas -> lancar { vm.salvarSemana(horas) } },
+                    )
+                }
+            }
             is EstadoHoje.Conteudo -> PlanoConteudo(e, ocupado, lancar, vm, onAbortar = { abortar = it })
         }
     }
@@ -135,14 +157,32 @@ private fun PlanoConteudo(
             item {
                 Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Revise o rascunho e aprove para começar.", style = MaterialTheme.typography.bodyMedium)
+                        val vazio = plano.blocos.isEmpty()
+                        Text(
+                            if (vazio) {
+                                "Nenhum bloco coube. Ajuste a capacidade ou adicione tarefas."
+                            } else {
+                                "Revise o rascunho e aprove para começar."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Text(
                             "Ajustes finos (adicionar ou remover blocos) estão na versão web.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         )
-                        Button(onClick = { lancar { vm.aprovar() } }, enabled = ocupado == null, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (ocupado == "plano") "Aprovando…" else "Aprovar plano")
+                        Button(
+                            onClick = { lancar { vm.aprovar() } },
+                            enabled = ocupado == null && !vazio,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                when {
+                                    vazio -> "Nada para aprovar"
+                                    ocupado == "plano" -> "Aprovando…"
+                                    else -> "Aprovar plano"
+                                },
+                            )
                         }
                     }
                 }
@@ -227,6 +267,82 @@ private fun BlocoCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+private val NOMES_DIA = mapOf(
+    DiaSemana.SEGUNDA to ("Seg" to "segunda"),
+    DiaSemana.TERCA to ("Ter" to "terça"),
+    DiaSemana.QUARTA to ("Qua" to "quarta"),
+    DiaSemana.QUINTA to ("Qui" to "quinta"),
+    DiaSemana.SEXTA to ("Sex" to "sexta"),
+    DiaSemana.SABADO to ("Sáb" to "sábado"),
+    DiaSemana.DOMINGO to ("Dom" to "domingo"),
+)
+
+/** "Quanto tempo você tem por dia?": preset em um toque ou stepper por dia, e gera o plano. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CapacidadeSheet(
+    e: EstadoHoje.SemPlano,
+    onFechar: () -> Unit,
+    onUsarDiasUteis: () -> Unit,
+    onSalvar: (Map<DiaSemana, Int>) -> Unit,
+) {
+    var horas by remember(e.horasPorDia) { mutableStateOf(DiaSemana.entries.associateWith { e.horasPorDia[it] ?: 0 }) }
+    val salvando = e.salvandoCapacidade
+    ModalBottomSheet(
+        onDismissRequest = { if (!salvando) onFechar() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Quanto tempo você tem por dia?", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Sem horas definidas o plano sai vazio. Escolha um ponto de partida; dá para mudar depois.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            e.erroCapacidade?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
+            Button(onClick = onUsarDiasUteis, enabled = !salvando, modifier = Modifier.fillMaxWidth()) {
+                Text(if (salvando) "Salvando…" else "Usar dias úteis 4h")
+            }
+            Text("Ou ajuste cada dia:", style = MaterialTheme.typography.labelLarge)
+            DiaSemana.entries.forEach { dia ->
+                val (curto, extenso) = NOMES_DIA.getValue(dia)
+                val valor = horas.getValue(dia)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(curto, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    IconButton(
+                        onClick = { horas = horas + (dia to (valor - 1).coerceAtLeast(0)) },
+                        enabled = !salvando && valor > 0,
+                        modifier = Modifier.semantics { contentDescription = "Diminuir horas de $extenso" },
+                    ) { Text("−", Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.titleLarge) }
+                    Text(
+                        "${valor}h",
+                        Modifier.width(48.dp).semantics { contentDescription = "$valor horas na $extenso" },
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    IconButton(
+                        onClick = { horas = horas + (dia to (valor + 1).coerceAtMost(HORAS_MAX_DIA)) },
+                        enabled = !salvando && valor < HORAS_MAX_DIA,
+                        modifier = Modifier.semantics { contentDescription = "Aumentar horas de $extenso" },
+                    ) { Text("+", Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.titleLarge) }
+                }
+            }
+            OutlinedButton(
+                onClick = { onSalvar(horas) },
+                enabled = !salvando && horas.values.any { it > 0 },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Salvar e gerar") }
+            TextButton(onClick = onFechar, enabled = !salvando, modifier = Modifier.align(Alignment.End).padding(bottom = 16.dp)) {
+                Text("Agora não")
             }
         }
     }

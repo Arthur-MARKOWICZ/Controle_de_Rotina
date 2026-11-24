@@ -10,25 +10,30 @@ import org.springframework.transaction.annotation.Transactional;
 import com.controlerotina.planner.dto.PlanoResponse;
 import com.controlerotina.planner.entity.Plano;
 import com.controlerotina.planner.entity.StatusPlano;
+import com.controlerotina.planner.repository.BlocoPlanoRepository;
 import com.controlerotina.planner.repository.PlanoRepository;
 import com.controlerotina.shared.exception.PlanoNaoAprovavelException;
 import com.controlerotina.shared.exception.PlanoNaoEncontradoException;
+import com.controlerotina.shared.exception.PlanoVazioException;
 
 @Service
 public class PlanoAprovacaoService {
 
     private final PlanoRepository planoRepository;
+    private final BlocoPlanoRepository blocoPlanoRepository;
     private final PlanoConsultaService planoConsultaService;
     private final PropostaService propostaService;
     private final Clock clock;
 
     public PlanoAprovacaoService(
             PlanoRepository planoRepository,
+            BlocoPlanoRepository blocoPlanoRepository,
             PlanoConsultaService planoConsultaService,
             PropostaService propostaService,
             Clock clock
     ) {
         this.planoRepository = planoRepository;
+        this.blocoPlanoRepository = blocoPlanoRepository;
         this.planoConsultaService = planoConsultaService;
         this.propostaService = propostaService;
         this.clock = clock;
@@ -39,6 +44,9 @@ public class PlanoAprovacaoService {
         Plano plano = planoRepository.findByIdAndUsuarioId(planoId, usuarioId)
                 .orElseThrow(PlanoNaoEncontradoException::new);
         garantirRascunhoCorrente(plano);
+        if (!blocoPlanoRepository.existsByPlanoId(plano.getId())) {
+            throw new PlanoVazioException();
+        }
 
         // Rascunho de proposta: /aprovar equivale a aceitar (preserva concluídos).
         if (plano.getPropostaId() != null) {

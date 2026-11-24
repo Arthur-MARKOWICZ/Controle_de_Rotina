@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../auth/api/authApi'
 import * as capacidadeOverrideApi from '../capacidade/api/capacidadeOverrideApi'
 import * as capacidadeResolvidaApi from '../capacidade/api/capacidadeResolvidaApi'
+import * as capacidadeSemanalApi from '../capacidade/api/capacidadeSemanalApi'
+import type { CapacidadeSemanalResponse } from '../capacidade/api/capacidadeSemanalApi'
 import * as execucaoApi from '../execucao/api/execucaoApi'
 import type { ItemExecucaoResponse } from '../execucao/api/execucaoApi'
 import * as planoApi from '../planner/api/planoApi'
@@ -62,6 +64,12 @@ vi.mock('../capacidade/api/capacidadeOverrideApi', () => ({
   listarCapacidadesOverride: vi.fn().mockResolvedValue([]),
   criarCapacidadeOverride: vi.fn(),
   atualizarCapacidadeOverride: vi.fn(),
+}))
+
+vi.mock('../capacidade/api/capacidadeSemanalApi', () => ({
+  listarCapacidadesSemanais: vi.fn(),
+  criarCapacidadeSemanal: vi.fn(),
+  atualizarCapacidadeSemanal: vi.fn(),
 }))
 
 vi.mock('../tarefa/api/tarefaApi', () => ({
@@ -355,5 +363,257 @@ describe('usePlanoDoDia', () => {
       'Já em andamento',
       expect.objectContaining({ action: expect.anything() }),
     )
+  })
+
+  describe('guarda de capacidade antes de gerar', () => {
+    function semanal(
+      diaSemana: CapacidadeSemanalResponse['diaSemana'],
+      horas: number,
+      id = `s-${diaSemana}`,
+    ): CapacidadeSemanalResponse {
+      return {
+        id,
+        diaSemana,
+        horas,
+        ativo: true,
+        createdAt: '2026-10-01T10:00:00Z',
+        updatedAt: '2026-10-01T10:00:00Z',
+      }
+    }
+
+    const gerado: PlanoResponse = { ...planoRascunho, id: 'p-novo', versao: 1 }
+
+    async function hookSemCapacidade(semana: CapacidadeSemanalResponse[] = []) {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
+      vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([
+        { data: '2026-10-20', horas: 0, origem: 'VAZIO' },
+      ])
+      vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais).mockResolvedValue(semana)
+      const utils = await hookCarregado()
+      await act(async () => {
+        await utils.result.current.handleGerar()
+      })
+      return utils
+    }
+
+    beforeEach(() => {
+      vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais).mockReset().mockResolvedValue([])
+      vi.mocked(capacidadeSemanalApi.criarCapacidadeSemanal).mockReset().mockResolvedValue([])
+      vi.mocked(capacidadeSemanalApi.atualizarCapacidadeSemanal)
+        .mockReset()
+        .mockResolvedValue(semanal('SEGUNDA', 4))
+      vi.mocked(capacidadeOverrideApi.criarCapacidadeOverride).mockReset().mockResolvedValue([])
+      vi.mocked(capacidadeOverrideApi.atualizarCapacidadeOverride).mockReset()
+      vi.mocked(planoApi.gerarPlano).mockResolvedValue(gerado)
+    })
+
+    it('deveAbrirPassoDeCapacidadeSemGerarQuandoNenhumaHoraConfigurada', async () => {
+      const { result } = await hookSemCapacidade()
+
+      expect(result.current.capacidadeInicialAberta).toBe(true)
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+      expect(result.current.plano).toBeNull()
+    })
+
+    it('naoDeveLerTemplateQuandoODiaJaTemCapacidade', async () => {
+      vi.mocked(planoApi.gerarPlano).mockResolvedValue(gerado)
+      const { result } = await hookCarregado()
+
+      await act(async () => {
+        await result.current.handleGerar()
+      })
+
+      expect(capacidadeSemanalApi.listarCapacidadesSemanais).not.toHaveBeenCalled()
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+      expect(result.current.capacidadeInicialAberta).toBe(false)
+    })
+
+    it('deveCriarDiasFaltantesAtualizarDiaZeradoEGerarUmaVezAoUsarDiasUteis', async () => {
+      const { result } = await hookSemCapacidade([semanal('SEGUNDA', 0, 's-seg')])
+      vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([
+        { data: '2026-10-20', horas: 4, origem: 'SEMANAL' },
+      ])
+
+      await act(async () => {
+        await result.current.handleUsarDiasUteis()
+      })
+
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).toHaveBeenCalledTimes(1)
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).toHaveBeenCalledWith([
+        { diaSemana: 'TERCA', horas: 4 },
+        { diaSemana: 'QUARTA', horas: 4 },
+        { diaSemana: 'QUINTA', horas: 4 },
+        { diaSemana: 'SEXTA', horas: 4 },
+      ])
+      expect(capacidadeSemanalApi.atualizarCapacidadeSemanal).toHaveBeenCalledWith('s-seg', {
+        horas: 4,
+      })
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+      expect(result.current.capacidadeInicialAberta).toBe(false)
+      expect(result.current.plano?.id).toBe('p-novo')
+      expect(result.current.capacidade?.horas).toBe(4)
+    })
+
+    it('deveGerarDiretoQuandoTemplateTemHorasMesmoComDiaZerado', async () => {
+      const { result } = await hookSemCapacidade([semanal('SEGUNDA', 4)])
+
+      expect(result.current.capacidadeInicialAberta).toBe(false)
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+      expect(result.current.plano?.id).toBe('p-novo')
+    })
+
+    it('deveGerarMesmoAssimQuandoLeituraDoTemplateFalha', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue(null)
+      vi.mocked(capacidadeResolvidaApi.consultarCapacidadeResolvida).mockResolvedValue([])
+      vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais).mockRejectedValue(
+        new TypeError('Failed to fetch'),
+      )
+      const { result } = await hookCarregado()
+
+      await act(async () => {
+        await result.current.handleGerar()
+      })
+
+      expect(result.current.capacidadeInicialAberta).toBe(false)
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+    })
+
+    it('naoDeveDuplicarGravacaoNemGeracaoQuandoUsarDiasUteisChamadoDuasVezes', async () => {
+      const { result } = await hookSemCapacidade()
+
+      await act(async () => {
+        await Promise.all([
+          result.current.handleUsarDiasUteis(),
+          result.current.handleUsarDiasUteis(),
+        ])
+      })
+
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).toHaveBeenCalledTimes(1)
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+    })
+
+    it('naoDeveGravarNemGerarQuandoPassoEFechado', async () => {
+      const { result } = await hookSemCapacidade()
+
+      act(() => {
+        result.current.fecharCapacidadeInicial()
+      })
+
+      expect(result.current.capacidadeInicialAberta).toBe(false)
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).not.toHaveBeenCalled()
+      expect(capacidadeSemanalApi.atualizarCapacidadeSemanal).not.toHaveBeenCalled()
+      expect(capacidadeOverrideApi.criarCapacidadeOverride).not.toHaveBeenCalled()
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+      expect(result.current.plano).toBeNull()
+    })
+
+    it('deveGravarOverrideDeHojeEGerarQuandoEscolheSoHoje', async () => {
+      const { result } = await hookSemCapacidade()
+
+      await act(async () => {
+        await result.current.handleCapacidadeSoHoje(3)
+      })
+
+      expect(capacidadeOverrideApi.criarCapacidadeOverride).toHaveBeenCalledWith({
+        data: '2026-10-20',
+        horas: 3,
+      })
+      expect(capacidadeSemanalApi.criarCapacidadeSemanal).not.toHaveBeenCalled()
+      expect(planoApi.gerarPlano).toHaveBeenCalledTimes(1)
+    })
+
+    it('deveMostrarErroNoPassoSemGerarQuandoSalvarFalhaCom500', async () => {
+      const { result } = await hookSemCapacidade()
+      vi.mocked(capacidadeSemanalApi.criarCapacidadeSemanal).mockRejectedValue(
+        new ApiError(500, 'Erro interno'),
+      )
+
+      await act(async () => {
+        await result.current.handleUsarDiasUteis()
+      })
+
+      expect(result.current.erroCapacidadeInicial).toBe('Erro interno')
+      expect(result.current.capacidadeInicialAberta).toBe(true)
+      expect(result.current.salvandoCapacidadeInicial).toBe(false)
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+
+    it('deveRelerSemanaEAvisarQuandoSalvarRetorna409', async () => {
+      const { result } = await hookSemCapacidade()
+      vi.mocked(capacidadeSemanalApi.criarCapacidadeSemanal).mockRejectedValue(
+        new ApiError(409, 'Já existe capacidade ativa', 'Capacidade semanal já existe'),
+      )
+      vi.mocked(capacidadeSemanalApi.listarCapacidadesSemanais).mockClear()
+
+      await act(async () => {
+        await result.current.handleUsarDiasUteis()
+      })
+
+      expect(capacidadeSemanalApi.listarCapacidadesSemanais).toHaveBeenCalledTimes(1)
+      expect(result.current.erroCapacidadeInicial).toBe('A capacidade mudou, tente de novo.')
+      expect(result.current.capacidadeInicialAberta).toBe(true)
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+
+    it('deveMostrarErroQuandoSalvarSoHojeFalhaPorRede', async () => {
+      const { result } = await hookSemCapacidade()
+      vi.mocked(capacidadeOverrideApi.criarCapacidadeOverride).mockRejectedValue(
+        new TypeError('Failed to fetch'),
+      )
+
+      await act(async () => {
+        await result.current.handleCapacidadeSoHoje(2)
+      })
+
+      expect(result.current.erroCapacidadeInicial).toBe('Failed to fetch')
+      expect(planoApi.gerarPlano).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('aprovar plano vazio', () => {
+    it('naoDeveChamarAprovarQuandoRascunhoNaoTemBlocos', async () => {
+      vi.mocked(planoApi.buscarPlano).mockResolvedValue({ ...planoRascunho, blocos: [] })
+      const { result } = await hookCarregado()
+
+      await act(async () => {
+        await result.current.handleAprovar()
+      })
+
+      expect(planoApi.aprovarPlano).not.toHaveBeenCalled()
+      expect(result.current.plano?.status).toBe('RASCUNHO')
+    })
+
+    it('deveMostrarDetailInlineSemToastQuandoAprovarRetorna409PlanoVazio', async () => {
+      vi.mocked(planoApi.aprovarPlano).mockRejectedValue(
+        new ApiError(409, 'Não há blocos para aprovar.', 'Plano vazio'),
+      )
+      const { result } = await hookCarregado()
+
+      await act(async () => {
+        await result.current.handleAprovar()
+      })
+
+      expect(result.current.erroAprovar).toBe('Não há blocos para aprovar.')
+      expect(toastMocks.error).not.toHaveBeenCalled()
+      expect(result.current.plano?.status).toBe('RASCUNHO')
+      expect(result.current.aprovando).toBe(false)
+    })
+
+    it('deveLimparErroInlineQuandoUmaNovaVersaoEGerada', async () => {
+      vi.mocked(planoApi.aprovarPlano).mockRejectedValue(
+        new ApiError(409, 'Não há blocos para aprovar.', 'Plano vazio'),
+      )
+      vi.mocked(planoApi.gerarPlano).mockResolvedValue({ ...planoRascunho, versao: 2 })
+      const { result } = await hookCarregado()
+      await act(async () => {
+        await result.current.handleAprovar()
+      })
+
+      await act(async () => {
+        await result.current.handleGerar()
+      })
+
+      await waitFor(() => expect(result.current.erroAprovar).toBeNull())
+    })
   })
 })

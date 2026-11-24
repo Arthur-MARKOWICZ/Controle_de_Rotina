@@ -19,6 +19,7 @@ describe('lerErroApi', () => {
     expect(erro).toBeInstanceOf(ApiError)
     expect(erro.status).toBe(400)
     expect(erro.message).toBe('Um ou mais campos estão inválidos.')
+    expect(erro.title).toBe('Dados inválidos')
   })
 
   it('usa title quando detail ausente', async () => {
