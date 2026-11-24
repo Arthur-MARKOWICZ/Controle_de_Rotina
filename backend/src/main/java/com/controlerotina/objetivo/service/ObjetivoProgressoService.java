@@ -1,7 +1,6 @@
 package com.controlerotina.objetivo.service;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,15 +16,14 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.execucao.entity.StatusExecucao;
 import com.controlerotina.execucao.repository.CumprimentoHabitoLinha;
 import com.controlerotina.execucao.repository.ExecucaoRepository;
 import com.controlerotina.habito.entity.Habito;
-import com.controlerotina.habito.entity.StatusHabito;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.objetivo.dto.ObjetivoProgressoResponse;
 import com.controlerotina.objetivo.entity.Objetivo;
+import com.controlerotina.objetivo.service.RegrasContagemObjetivo.Janela;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.entity.Tarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -75,18 +73,18 @@ public class ObjetivoProgressoService {
             ObjetivoConjunto conjunto = conjuntos.getOrDefault(objetivo.getId(), ObjetivoConjunto.vazio());
             for (ObjetivoConjunto.TarefaRaiz item : conjunto.tarefasRaiz()) {
                 Tarefa tarefa = item.tarefa();
-                if (!contaNoProgresso(tarefa) || tarefa.getStatus() == StatusTarefa.FINALIZADA) {
+                if (!RegrasContagemObjetivo.contaNoProgresso(tarefa) || tarefa.getStatus() == StatusTarefa.FINALIZADA) {
                     continue;
                 }
                 idsParciais.add(tarefa.getId());
             }
             for (ObjetivoConjunto.HabitoVinculado vinculo : conjunto.habitos()) {
-                if (!contaNoProgresso(vinculo.habito())) {
+                if (!RegrasContagemObjetivo.contaNoProgresso(vinculo.habito())) {
                     continue;
                 }
                 habitoIdsAtivos.add(vinculo.habito().getId());
-                Janela janela = janela(objetivo, vinculo.vinculoCreatedAt(), hoje);
-                if (!janela.inicio().isAfter(janela.fim())) {
+                Janela janela = RegrasContagemObjetivo.janela(objetivo, vinculo.vinculoCreatedAt(), hoje);
+                if (!janela.vazia()) {
                     janelas.add(janela);
                 }
             }
@@ -121,7 +119,7 @@ public class ObjetivoProgressoService {
 
         for (ObjetivoConjunto.TarefaRaiz item : conjunto.tarefasRaiz()) {
             Tarefa tarefa = item.tarefa();
-            if (!contaNoProgresso(tarefa)) {
+            if (!RegrasContagemObjetivo.contaNoProgresso(tarefa)) {
                 continue;
             }
             int duracao = tarefa.getDuracaoMinutos();
@@ -135,11 +133,11 @@ public class ObjetivoProgressoService {
 
         for (ObjetivoConjunto.HabitoVinculado vinculo : conjunto.habitos()) {
             Habito habito = vinculo.habito();
-            if (!contaNoProgresso(habito)) {
+            if (!RegrasContagemObjetivo.contaNoProgresso(habito)) {
                 continue;
             }
-            Janela janela = janela(objetivo, vinculo.vinculoCreatedAt(), hoje);
-            int diasEsperados = diasEsperados(habito, janela);
+            Janela janela = RegrasContagemObjetivo.janela(objetivo, vinculo.vinculoCreatedAt(), hoje);
+            int diasEsperados = RegrasContagemObjetivo.diasEsperados(habito, janela);
             int totalHabito = habito.getDuracaoMinutos() * diasEsperados;
             if (totalHabito <= 0) {
                 continue;
@@ -207,49 +205,5 @@ public class ObjetivoProgressoService {
                         usuarioId, habitoIds, minInicio, maxFim, StatusExecucao.CONCLUIDO)
                 .stream()
                 .collect(Collectors.groupingBy(CumprimentoHabitoLinha::habitoId));
-    }
-
-    private static boolean contaNoProgresso(Tarefa tarefa) {
-        return tarefa.getDeletedAt() == null && tarefa.getStatus() != StatusTarefa.CANCELADA;
-    }
-
-    private static boolean contaNoProgresso(Habito habito) {
-        return habito.getDeletedAt() == null && habito.getStatus() == StatusHabito.ATIVO;
-    }
-
-    private static Janela janela(Objetivo objetivo, Instant vinculoCreatedAt, LocalDate hoje) {
-        LocalDate inicio = vinculoCreatedAt.atZone(PeriodoBRT.ZONE).toLocalDate();
-        LocalDate fim = hoje;
-        if (objetivo.getPrazo() != null && objetivo.getPrazo().isBefore(hoje)) {
-            fim = objetivo.getPrazo();
-        }
-        LocalDate freeze = null;
-        if (objetivo.getConcluidoEm() != null) {
-            freeze = objetivo.getConcluidoEm().atZone(PeriodoBRT.ZONE).toLocalDate();
-        }
-        if (objetivo.getArquivadoEm() != null) {
-            LocalDate arquivado = objetivo.getArquivadoEm().atZone(PeriodoBRT.ZONE).toLocalDate();
-            freeze = freeze == null || arquivado.isBefore(freeze) ? arquivado : freeze;
-        }
-        if (freeze != null && freeze.isBefore(fim)) {
-            fim = freeze;
-        }
-        return new Janela(inicio, fim);
-    }
-
-    private static int diasEsperados(Habito habito, Janela janela) {
-        if (janela.inicio().isAfter(janela.fim())) {
-            return 0;
-        }
-        int dias = 0;
-        for (LocalDate dia = janela.inicio(); !dia.isAfter(janela.fim()); dia = dia.plusDays(1)) {
-            if (habito.getDiasSemana().contains(DiaSemana.de(dia))) {
-                dias++;
-            }
-        }
-        return dias;
-    }
-
-    private record Janela(LocalDate inicio, LocalDate fim) {
     }
 }

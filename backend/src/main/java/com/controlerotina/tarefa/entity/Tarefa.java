@@ -55,6 +55,9 @@ public class Tarefa {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "finalizada_em")
+    private Instant finalizadaEm;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -141,6 +144,11 @@ public class Tarefa {
         return deletedAt;
     }
 
+    /** Instante em que passou a FINALIZADA; nulo fora desse status ou se finalizada antes do registro existir. */
+    public Instant getFinalizadaEm() {
+        return finalizadaEm;
+    }
+
     public void atualizar(
             String titulo,
             String descricao,
@@ -163,6 +171,9 @@ public class Tarefa {
             this.prazo = prazo;
         }
         if (status != null) {
+            if (status != this.status) {
+                this.finalizadaEm = status == StatusTarefa.FINALIZADA ? updatedAt : null;
+            }
             this.status = status;
         }
         if (duracaoMinutos != null) {

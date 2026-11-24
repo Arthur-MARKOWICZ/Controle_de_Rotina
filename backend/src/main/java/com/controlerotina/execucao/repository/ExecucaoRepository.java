@@ -67,6 +67,23 @@ public interface ExecucaoRepository extends JpaRepository<Execucao, UUID> {
             @Param("status") StatusExecucao status
     );
 
+    /** Uma linha por execução, para posicionar os minutos de tarefa em cada dia (sem agrupar). */
+    @Query("""
+            SELECT new com.controlerotina.execucao.repository.MinutoTarefaLinha(
+                       b.tarefaId, e.concluidoEm, p.data, b.duracaoMinutos)
+              FROM Execucao e, BlocoPlano b, Plano p
+             WHERE e.blocoPlanoId = b.id
+               AND b.planoId = p.id
+               AND b.tarefaId IN :tarefaIds
+               AND e.usuarioId = :usuarioId
+               AND e.status = :status
+            """)
+    List<MinutoTarefaLinha> listarMinutosConcluidosPorTarefas(
+            @Param("tarefaIds") Collection<UUID> tarefaIds,
+            @Param("usuarioId") UUID usuarioId,
+            @Param("status") StatusExecucao status
+    );
+
     @Query("""
             SELECT e, b.duracaoMinutos
               FROM Execucao e, BlocoPlano b

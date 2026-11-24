@@ -1,5 +1,5 @@
 import { ArrowLeftIcon, PencilSimpleIcon } from '@phosphor-icons/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useParams } from 'react-router-dom'
 
 import { ApiError } from '../../auth/api/authApi'
@@ -20,11 +20,15 @@ import {
 import {
   buscarObjetivo,
   listarItensObjetivo,
+  obterEvolucaoObjetivo,
+  type ObjetivoEvolucao as EvolucaoApi,
   type ObjetivoItens,
   type ObjetivoResponse,
   type StatusObjetivo,
 } from '../api/objetivoApi'
+import { montarSerie } from '../evolucaoObjetivo'
 import type { ObjetivoDrawerState, ObjetivosOutletContext } from '../ObjetivoDrawer'
+import { ObjetivoEvolucao } from '../ObjetivoEvolucao'
 import { ObjetivoItensSecao, totalItens } from '../ObjetivoItensSecao'
 import { ObjetivoProgresso } from '../ObjetivoProgresso'
 import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from '../prazoObjetivo'
@@ -36,6 +40,8 @@ const STATUS_LABEL: Record<StatusObjetivo, string> = {
 }
 
 const ERRO_ITENS = 'Não foi possível carregar os itens vinculados.'
+
+const ERRO_EVOLUCAO = 'Não foi possível carregar a evolução.'
 
 const TEXTO_NAO_SOMAM =
   'Os itens vinculados ainda não somam tempo. Tarefas canceladas e hábitos pausados não contam.'
@@ -65,6 +71,11 @@ function ObjetivoDetalhe({ id }: { id: string }) {
   const [carregandoItens, setCarregandoItens] = useState(true)
   const [erroItens, setErroItens] = useState<string | null>(null)
   const [recarregarItensEm, setRecarregarItensEm] = useState(0)
+
+  const [evolucao, setEvolucao] = useState<EvolucaoApi | null>(null)
+  const [carregandoEvolucao, setCarregandoEvolucao] = useState(true)
+  const [erroEvolucao, setErroEvolucao] = useState<string | null>(null)
+  const [recarregarEvolucaoEm, setRecarregarEvolucaoEm] = useState(0)
 
   const [acao, setAcao] = useState<AcaoObjetivo | null>(null)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
@@ -124,6 +135,34 @@ function ObjetivoDetalhe({ id }: { id: string }) {
     }
   }, [id, recarregarItensEm])
 
+  // A evolução falha e recarrega por conta própria: um erro nela não derruba o resto da página.
+  useEffect(() => {
+    let ativo = true
+    async function carregar() {
+      setCarregandoEvolucao(true)
+      try {
+        const data = await obterEvolucaoObjetivo(id)
+        if (ativo) {
+          setEvolucao(data)
+          setErroEvolucao(null)
+        }
+      } catch {
+        if (ativo) {
+          setEvolucao(null)
+          setErroEvolucao(ERRO_EVOLUCAO)
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoEvolucao(false)
+        }
+      }
+    }
+    void carregar()
+    return () => {
+      ativo = false
+    }
+  }, [id, recarregarEvolucaoEm])
+
   async function executarAcao(tipo: AcaoObjetivo) {
     if (!objetivo || acaoRef.current) {
       return
@@ -139,6 +178,8 @@ function ObjetivoDetalhe({ id }: { id: string }) {
       try {
         const atualizado = await EXECUTAR_ACAO[tipo](objetivo.id)
         setObjetivo(atualizado)
+        // Concluir, arquivar e reabrir mudam a janela dos hábitos: a curva pode mudar.
+        setRecarregarEvolucaoEm((n) => n + 1)
         toast.success(SUCESSO_ACAO[tipo])
       } catch (error) {
         setErroAcao(error instanceof ApiError ? error.message : FALHA_ACAO[tipo])
@@ -155,6 +196,7 @@ function ObjetivoDetalhe({ id }: { id: string }) {
     aoSalvar: () => {
       setRecarregarObjetivoEm((n) => n + 1)
       setRecarregarItensEm((n) => n + 1)
+      setRecarregarEvolucaoEm((n) => n + 1)
     },
   }
 
@@ -165,6 +207,10 @@ function ObjetivoDetalhe({ id }: { id: string }) {
   // com os itens carregados; sem itens a seção abaixo já convida a vincular.
   const itensCarregados = !carregandoItens && erroItens == null && itens != null
   const semProgresso = itensCarregados && totalItens(itens) > 0 ? TEXTO_NAO_SOMAM : null
+  const serieEvolucao = useMemo(
+    () => (objetivo && evolucao ? montarSerie(evolucao, objetivo, hojeIso) : null),
+    [objetivo, evolucao, hojeIso],
+  )
   const linhaData = objetivo
     ? ativo
       ? rotuloPrazo(objetivo.prazo, hojeIso)
@@ -230,6 +276,13 @@ function ObjetivoDetalhe({ id }: { id: string }) {
             progresso={objetivo.progresso}
             tamanho="destaque"
             semProgresso={semProgresso}
+          />
+
+          <ObjetivoEvolucao
+            serie={serieEvolucao}
+            carregando={carregandoEvolucao}
+            erro={erroEvolucao}
+            onTentarDeNovo={() => setRecarregarEvolucaoEm((n) => n + 1)}
           />
 
           <ObjetivoItensSecao itens={itens} carregando={carregandoItens} erro={erroItens} />

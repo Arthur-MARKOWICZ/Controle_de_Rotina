@@ -1,5 +1,6 @@
 package com.controlerotina.objetivo.repository;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -16,7 +17,7 @@ public final class ObjetivoSpecs {
         return (root, query, cb) -> cb.equal(root.get("usuarioId"), usuarioId);
     }
 
-    public static Specification<Objetivo> comStatus(StatusObjetivo status) {
-        return (root, query, cb) -> cb.equal(root.get("status"), status);
+    public static Specification<Objetivo> comStatus(Collection<StatusObjetivo> status) {
+        return (root, query, cb) -> root.get("status").in(status);
     }
 }

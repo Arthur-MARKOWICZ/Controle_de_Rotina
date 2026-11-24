@@ -245,6 +245,84 @@
   gap: var(--space-2);
 }
 
+/* Evolução do objetivo: minutos acumulados por dia, em degraus. */
+.objetivo-evolucao {
+  margin-top: var(--space-6);
+}
+
+.objetivo-evolucao__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: 1.15rem;
+}
+
+.objetivo-evolucao__resumo {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.objetivo-evolucao__resumo strong {
+  color: var(--ink);
+}
+
+.objetivo-evolucao__svg {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  height: auto;
+}
+
+.objetivo-evolucao__eixo {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.objetivo-evolucao__grade {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.objetivo-evolucao__linha {
+  stroke: var(--cta);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.objetivo-evolucao__ponto {
+  fill: var(--cta);
+}
+
+.objetivo-evolucao__marcador {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.objetivo-evolucao__rotulo {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.objetivo-evolucao__rotulo--marcador {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+.objetivo-evolucao__legenda {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.objetivo-evolucao__legenda-marca {
+  width: 1rem;
+  border-top: 2px dashed var(--ink);
+}
+
 .objetivo-itens {
   margin-top: var(--space-6);
 }

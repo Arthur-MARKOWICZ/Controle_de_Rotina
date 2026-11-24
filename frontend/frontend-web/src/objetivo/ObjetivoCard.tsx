@@ -6,7 +6,7 @@ import type { ObjetivoResponse } from './api/objetivoApi'
 import { ACOES_POR_STATUS, ROTULO_ACAO, type AcaoObjetivo } from './acoesObjetivo'
 import type { ObjetivoDrawerState } from './ObjetivoDrawer'
 import { ObjetivoProgresso } from './ObjetivoProgresso'
-import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
+import { rotuloArquivamento, rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
 
 type Props = {
   objetivo: ObjetivoResponse
@@ -26,9 +26,12 @@ export function ObjetivoCard({ objetivo, hojeIso, acaoEmAndamento, bloqueado, on
 
   const ativo = objetivo.status === 'ATIVO'
   const vencido = ativo && situacaoPrazo(objetivo.prazo, hojeIso) === 'vencido'
+  // Encerrado mostra as datas que tiver: concluído e depois arquivado mostra as duas.
   const linhaData = ativo
     ? rotuloPrazo(objetivo.prazo, hojeIso)
-    : rotuloConclusao(objetivo.concluidoEm, hojeIso)
+    : [rotuloConclusao(objetivo.concluidoEm, hojeIso), rotuloArquivamento(objetivo.arquivadoEm, hojeIso)]
+        .filter((rotulo): rotulo is string => rotulo != null)
+        .join(' · ') || null
   const descricao = truncarDescricao(objetivo.descricao)
 
   const classes = [

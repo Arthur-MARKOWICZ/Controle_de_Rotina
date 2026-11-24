@@ -18,16 +18,21 @@ export type ObjetivoResumo = Schemas['ObjetivoResumoResponse']
 
 export type ObjetivoItens = Schemas['ObjetivoItensResponse']
 
+export type ObjetivoEvolucao = Schemas['ObjetivoEvolucaoResponse']
+
+export type PontoEvolucao = Schemas['PontoEvolucaoResponse']
+
 export type ListarObjetivosParams = {
-  status?: StatusObjetivo
+  /** Vários status viram `status` repetido na query. `ATIVO` não pode vir junto com encerrados. */
+  status?: StatusObjetivo[]
   page?: number
   size?: number
 }
 
 export function buildObjetivosQuery(filtro: ListarObjetivosParams = {}): string {
   const params = new URLSearchParams()
-  if (filtro.status) {
-    params.set('status', filtro.status)
+  for (const status of filtro.status ?? []) {
+    params.append('status', status)
   }
   params.set('page', String(filtro.page ?? 0))
   params.set('size', String(filtro.size ?? 20))
@@ -68,6 +73,14 @@ export async function listarItensObjetivo(id: string): Promise<ObjetivoItens> {
     throw await lerErroApi(response, 'Não foi possível carregar os itens vinculados.')
   }
   return readApiJson<ObjetivoItens>(response)
+}
+
+export async function obterEvolucaoObjetivo(id: string): Promise<ObjetivoEvolucao> {
+  const response = await apiFetch(`/objetivos/${id}/evolucao`)
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar a evolução.')
+  }
+  return readApiJson<ObjetivoEvolucao>(response)
 }
 
 export async function atualizarObjetivo(

@@ -8,13 +8,14 @@ import { adicionarDiasIso } from '../../capacidade/semana'
 import { ToastProvider } from '../../feedback/ToastProvider'
 import { dataHojeIso } from '../../planner/data'
 import * as objetivoApi from '../api/objetivoApi'
-import type { ObjetivoItens, ObjetivoResponse } from '../api/objetivoApi'
+import type { ObjetivoEvolucao, ObjetivoItens, ObjetivoResponse } from '../api/objetivoApi'
 import { ObjetivoDrawer } from '../ObjetivoDrawer'
 import { ObjetivoDetalhePage } from './ObjetivoDetalhePage'
 
 vi.mock('../api/objetivoApi', () => ({
   buscarObjetivo: vi.fn(),
   listarItensObjetivo: vi.fn(),
+  obterEvolucaoObjetivo: vi.fn(),
   concluirObjetivo: vi.fn(),
   arquivarObjetivo: vi.fn(),
   reabrirObjetivo: vi.fn(),
@@ -62,6 +63,16 @@ const ITENS: ObjetivoItens = {
 }
 
 const SEM_ITENS: ObjetivoItens = { tarefas: [], habitos: [], projetos: [] }
+
+const SEM_EVOLUCAO: ObjetivoEvolucao = { antesDoHistorico: 0, pontos: [] }
+
+const COM_EVOLUCAO: ObjetivoEvolucao = {
+  antesDoHistorico: 0,
+  pontos: [
+    { data: '2026-11-03', minutosNoDia: 30, minutosAcumulados: 30 },
+    { data: '2026-11-05', minutosNoDia: 45, minutosAcumulados: 75 },
+  ],
+}
 
 function LocationProbe() {
   const location = useLocation()
@@ -117,12 +128,14 @@ describe('ObjetivoDetalhePage', () => {
   beforeEach(() => {
     vi.mocked(objetivoApi.buscarObjetivo).mockReset()
     vi.mocked(objetivoApi.listarItensObjetivo).mockReset()
+    vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockReset()
     vi.mocked(objetivoApi.concluirObjetivo).mockReset()
     vi.mocked(objetivoApi.arquivarObjetivo).mockReset()
     vi.mocked(objetivoApi.reabrirObjetivo).mockReset()
     vi.mocked(objetivoApi.atualizarObjetivo).mockReset()
     vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo())
     vi.mocked(objetivoApi.listarItensObjetivo).mockResolvedValue(ITENS)
+    vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(SEM_EVOLUCAO)
   })
 
   describe('cabeçalho e itens', () => {
@@ -542,6 +555,188 @@ describe('ObjetivoDetalhePage', () => {
         expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos\/obj-1$/)
       })
       expect(objetivoApi.listarItensObjetivo).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('evolução', () => {
+    it('mostra a seção entre a barra de progresso e os itens vinculados', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ progresso: { percentual: 50, minutosConcluidos: 75, minutosTotais: 150 } }),
+      )
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(COM_EVOLUCAO)
+      renderDetalhe()
+
+      const barra = await screen.findByRole('progressbar', {
+        name: 'Progresso de Passar na certificação',
+      })
+      const evolucao = await screen.findByRole('heading', { name: 'Evolução' })
+      const itens = await screen.findByRole('heading', { name: 'Itens vinculados' })
+      expect(barra.compareDocumentPosition(evolucao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(evolucao.compareDocumentPosition(itens) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledWith('obj-1')
+      expect(screen.getByRole('table', { name: 'Minutos concluídos por dia' })).toBeInTheDocument()
+    })
+
+    it('mostra o placeholder enquanto a evolução carrega', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockReturnValue(new Promise(() => {}))
+      renderDetalhe()
+
+      await h1('Passar na certificação')
+      expect(screen.getByRole('heading', { name: 'Evolução' })).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: 'Minutos concluídos por dia' })).not.toBeInTheDocument()
+    })
+
+    it('falha na evolução mantém cabeçalho, barra e itens e oferece "Tentar de novo"', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ progresso: { percentual: 50, minutosConcluidos: 75, minutosTotais: 150 } }),
+      )
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockRejectedValue(new ApiError(500, 'Erro interno'))
+      renderDetalhe()
+
+      expect(await screen.findByText('Não foi possível carregar a evolução.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'Passar na certificação' })).toBeInTheDocument()
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Tarefas (2)' })).toBeInTheDocument()
+    })
+
+    it('"Tentar de novo" busca de novo e troca o alerta pelo gráfico', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo)
+        .mockRejectedValueOnce(new ApiError(500, 'Erro interno'))
+        .mockResolvedValue(COM_EVOLUCAO)
+      const user = userEvent.setup()
+      renderDetalhe()
+      await user.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
+
+      expect(await screen.findByRole('table', { name: 'Minutos concluídos por dia' })).toBeInTheDocument()
+      expect(screen.queryByText('Não foi possível carregar a evolução.')).not.toBeInTheDocument()
+      expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledTimes(2)
+    })
+
+    it('HTML do proxy na evolução mostra o alerta da seção', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockRejectedValue(
+        new ApiError(200, 'Resposta inválida da API (não é JSON).'),
+      )
+      renderDetalhe()
+
+      expect(await screen.findByText('Não foi possível carregar a evolução.')).toBeInTheDocument()
+      expect(screen.queryByText(/Resposta inválida/)).not.toBeInTheDocument()
+    })
+
+    it('sem pontos e sem "antes do histórico" a seção não aparece', async () => {
+      renderDetalhe()
+
+      await h1('Passar na certificação')
+      await screen.findByRole('heading', { name: 'Tarefas (2)' })
+      await waitFor(() => {
+        expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalled()
+      })
+      expect(screen.queryByRole('heading', { name: 'Evolução' })).not.toBeInTheDocument()
+    })
+
+    it('só "antes do histórico" mostra o total em texto, sem gráfico', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue({
+        antesDoHistorico: 90,
+        pontos: [],
+      })
+      renderDetalhe()
+
+      expect(await screen.findByText(/1h 30min antes do histórico/)).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: 'Minutos concluídos por dia' })).not.toBeInTheDocument()
+    })
+
+    it('objetivo não encontrado não mostra a seção de evolução', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockRejectedValue(
+        new ApiError(404, 'Objetivo inexistente ou sem permissão de acesso.'),
+      )
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockRejectedValue(
+        new ApiError(404, 'Objetivo inexistente ou sem permissão de acesso.'),
+      )
+      renderDetalhe()
+
+      expect(await screen.findByText('Objetivo inexistente ou sem permissão de acesso.')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Evolução' })).not.toBeInTheDocument()
+    })
+
+    it('concluir pelo detalhe relê a evolução e passa a mostrar o marcador de encerramento', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(COM_EVOLUCAO)
+      vi.mocked(objetivoApi.concluirObjetivo).mockResolvedValue(
+        objetivo({ status: 'CONCLUIDO', concluidoEm: '2026-11-12T15:00:00Z' }),
+      )
+      const user = userEvent.setup()
+      renderDetalhe()
+      await screen.findByRole('table', { name: 'Minutos concluídos por dia' })
+      expect(screen.queryByText('Concluído em 12 nov', { selector: 'p' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Concluir' }))
+      await confirmar('Concluir')
+
+      expect(await screen.findByText('Objetivo concluído')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledTimes(2)
+      })
+      expect(screen.getByText('Concluído em 12 nov', { selector: '.objetivo-evolucao__legenda' })).toBeInTheDocument()
+    })
+
+    it('reabrir relê a evolução, porque a janela dos hábitos volta a avançar', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ status: 'ARQUIVADO', arquivadoEm: '2026-11-10T12:00:00Z' }),
+      )
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(COM_EVOLUCAO)
+      vi.mocked(objetivoApi.reabrirObjetivo).mockResolvedValue(objetivo())
+      const user = userEvent.setup()
+      renderDetalhe()
+      await screen.findByRole('table', { name: 'Minutos concluídos por dia' })
+
+      await user.click(screen.getByRole('button', { name: 'Reabrir' }))
+
+      expect(await screen.findByText('Objetivo reaberto')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledTimes(2)
+      })
+    })
+
+    it('arquivado direto mostra o marcador do arquivamento', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ status: 'ARQUIVADO', arquivadoEm: '2026-11-18T15:00:00Z' }),
+      )
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(COM_EVOLUCAO)
+      renderDetalhe()
+
+      expect(
+        await screen.findByText('Arquivado em 18 nov', { selector: '.objetivo-evolucao__legenda' }),
+      ).toBeInTheDocument()
+    })
+
+    it('salvar no drawer de edição relê a evolução', async () => {
+      vi.mocked(objetivoApi.obterEvolucaoObjetivo).mockResolvedValue(COM_EVOLUCAO)
+      vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(objetivo({ titulo: 'Passar na prova' }))
+      const user = userEvent.setup()
+      renderDetalhe()
+      await h1('Passar na certificação')
+      await screen.findByRole('table', { name: 'Minutos concluídos por dia' })
+
+      await user.click(screen.getByRole('link', { name: /editar/i }))
+      const campo = await screen.findByLabelText('Título')
+      await user.clear(campo)
+      await user.type(campo, 'Passar na prova')
+      await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+      await waitFor(() => {
+        expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledTimes(2)
+      })
+    })
+
+    it('trocar de objetivo busca a evolução do novo id', async () => {
+      const user = userEvent.setup()
+      renderDetalhe()
+      await h1('Passar na certificação')
+
+      await user.click(screen.getByRole('link', { name: 'Ir para o outro' }))
+
+      await waitFor(() => {
+        expect(objetivoApi.obterEvolucaoObjetivo).toHaveBeenCalledWith('obj-2')
+      })
     })
   })
 })

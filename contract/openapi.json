@@ -1332,6 +1332,22 @@
         "required" : [ "amostras", "desvioMedioMinutos", "razao", "suficiente" ],
         "type" : "object"
       },
+      "ObjetivoEvolucaoResponse" : {
+        "properties" : {
+          "antesDoHistorico" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pontos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PontoEvolucaoResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "antesDoHistorico", "pontos" ],
+        "type" : "object"
+      },
       "ObjetivoItemHabitoResponse" : {
         "properties" : {
           "id" : {
@@ -1732,6 +1748,24 @@
           }
         },
         "required" : [ "blocos", "createdAt", "data", "geradoEm", "id", "itensNaoAlocados", "mensagem", "propostaId", "propostaPendente", "status", "temConflito", "updatedAt", "versao" ],
+        "type" : "object"
+      },
+      "PontoEvolucaoResponse" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "minutosAcumulados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosNoDia" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "data", "minutosAcumulados", "minutosNoDia" ],
         "type" : "object"
       },
       "ProjetoResponse" : {
@@ -3613,8 +3647,11 @@
           "name" : "status",
           "required" : false,
           "schema" : {
-            "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
-            "type" : "string"
+            "items" : {
+              "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
+              "type" : "string"
+            },
+            "type" : "array"
           }
         }, {
           "in" : "query",
@@ -3772,6 +3809,33 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/evolucao" : {
+      "get" : {
+        "operationId" : "evolucao",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoEvolucaoResponse"
                 }
               }
             },

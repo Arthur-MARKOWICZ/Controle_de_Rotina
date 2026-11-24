@@ -72,7 +72,7 @@ describe('ObjetivoPicker', () => {
     await abrir(user)
     await user.click(await screen.findByRole('button', { name: 'Correr 10 km' }))
 
-    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: 'ATIVO', size: 100 })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: ['ATIVO'], size: 100 })
     expect(onChange).toHaveBeenCalledWith(['o1'], [resumo(CORRER)])
   })
 

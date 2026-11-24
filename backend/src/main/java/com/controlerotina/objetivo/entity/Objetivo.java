@@ -40,6 +40,10 @@ public class Objetivo {
     @Column(name = "arquivado_em")
     private Instant arquivadoEm;
 
+    /** Coluna gerada pelo banco: {@code COALESCE(concluido_em, arquivado_em)}. Só leitura, usada para ordenar. */
+    @Column(name = "encerrado_em", insertable = false, updatable = false)
+    private Instant encerradoEm;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -97,6 +101,10 @@ public class Objetivo {
 
     public Instant getArquivadoEm() {
         return arquivadoEm;
+    }
+
+    public Instant getEncerradoEm() {
+        return encerradoEm;
     }
 
     public Instant getCreatedAt() {

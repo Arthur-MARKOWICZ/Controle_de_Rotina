@@ -21,7 +21,7 @@
         <java.version>25</java.version>
         <!-- Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 0.70 / 0.60. -->
         <jacoco.minimo.linhas>0.93</jacoco.minimo.linhas>
-        <jacoco.minimo.branches>0.77</jacoco.minimo.branches>
+        <jacoco.minimo.branches>0.78</jacoco.minimo.branches>
     </properties>
 
     <dependencies>

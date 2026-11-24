@@ -596,6 +596,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objetivos/{id}/evolucao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evolucao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/objetivos/{id}/itens": {
         parameters: {
             query?: never;
@@ -1558,6 +1574,11 @@ export interface components {
             razao: null | number;
             suficiente: boolean;
         };
+        ObjetivoEvolucaoResponse: {
+            /** Format: int32 */
+            antesDoHistorico: number;
+            pontos: components["schemas"]["PontoEvolucaoResponse"][];
+        };
         ObjetivoItemHabitoResponse: {
             /** Format: uuid */
             id: string;
@@ -1707,6 +1728,14 @@ export interface components {
             updatedAt: string;
             /** Format: int32 */
             versao: number;
+        };
+        PontoEvolucaoResponse: {
+            /** Format: date */
+            data: string;
+            /** Format: int32 */
+            minutosAcumulados: number;
+            /** Format: int32 */
+            minutosNoDia: number;
         };
         ProjetoResponse: {
             bloqueada: boolean;
@@ -2969,7 +2998,7 @@ export interface operations {
     listar_3: {
         parameters: {
             query: {
-                status?: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
+                status?: ("ARQUIVADO" | "ATIVO" | "CONCLUIDO")[];
                 pageable: components["schemas"]["Pageable"];
             };
             header?: never;
@@ -3101,6 +3130,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    evolucao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoEvolucaoResponse"];
                 };
             };
         };

@@ -487,6 +487,127 @@ class ObjetivoIT {
     }
 
     @Test
+    void listagemDeEncerradosJuntosOrdenaPelaDataDeEncerramento() {
+        UUID concluidoAntigo = criar("Concluído antigo", null);
+        UUID arquivadoDireto = criar("Arquivado direto", null);
+        UUID concluidoEArquivado = criar("Concluído e depois arquivado", null);
+        UUID ativo = criar("Ainda ativo", null);
+        post("/objetivos/" + concluidoAntigo + "/concluir", null);
+        post("/objetivos/" + arquivadoDireto + "/arquivar", null);
+        post("/objetivos/" + concluidoEArquivado + "/concluir", null);
+        post("/objetivos/" + concluidoEArquivado + "/arquivar", null);
+        Instant base = Instant.now();
+        definirEncerramento(concluidoAntigo, "concluido_em", base.minusSeconds(10 * 86_400));
+        definirEncerramento(arquivadoDireto, "arquivado_em", base.minusSeconds(5 * 86_400));
+        definirEncerramento(concluidoEArquivado, "concluido_em", base.minusSeconds(15 * 86_400));
+        definirEncerramento(concluidoEArquivado, "arquivado_em", base.minusSeconds(1 * 86_400));
+
+        ResponseEntity<Map> response = get("/objetivos?status=CONCLUIDO&status=ARQUIVADO");
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(content(response)).extracting(o -> o.get("id"))
+                .containsExactly(arquivadoDireto.toString(), concluidoAntigo.toString(),
+                        concluidoEArquivado.toString())
+                .doesNotContain(ativo.toString());
+    }
+
+    @Test
+    void listagemDeArquivadosOrdenaConcluidoEDepoisArquivadoPelaDataDeConclusao() {
+        UUID concluidoEArquivado = criar("Concluído e depois arquivado", null);
+        UUID arquivadoDireto = criar("Arquivado direto", null);
+        post("/objetivos/" + concluidoEArquivado + "/concluir", null);
+        post("/objetivos/" + concluidoEArquivado + "/arquivar", null);
+        post("/objetivos/" + arquivadoDireto + "/arquivar", null);
+        Instant base = Instant.now();
+        definirEncerramento(concluidoEArquivado, "concluido_em", base.minusSeconds(20 * 86_400));
+        definirEncerramento(concluidoEArquivado, "arquivado_em", base.minusSeconds(86_400));
+        definirEncerramento(arquivadoDireto, "arquivado_em", base.minusSeconds(12 * 86_400));
+
+        ResponseEntity<Map> response = get("/objetivos?status=ARQUIVADO");
+
+        assertThat(content(response)).extracting(o -> o.get("id"))
+                .containsExactly(arquivadoDireto.toString(), concluidoEArquivado.toString());
+    }
+
+    @Test
+    void encerradoEmDeveSerGeradoPeloBancoComConclusaoOuArquivamento() {
+        UUID direto = criar("Arquivado direto", null);
+        UUID ambos = criar("Concluído e arquivado", null);
+        UUID ativo = criar("Ativo", null);
+        post("/objetivos/" + direto + "/arquivar", null);
+        post("/objetivos/" + ambos + "/concluir", null);
+        post("/objetivos/" + ambos + "/arquivar", null);
+
+        assertThat(dataNoBanco(direto, "encerrado_em")).isEqualTo(dataNoBanco(direto, "arquivado_em"));
+        assertThat(dataNoBanco(ambos, "encerrado_em")).isEqualTo(dataNoBanco(ambos, "concluido_em"));
+        assertThat(dataNoBanco(ativo, "encerrado_em")).isNull();
+    }
+
+    @Test
+    void reabrirObjetivoEncerradoLimpaOEncerramentoEOTiraDaLista() {
+        UUID id = criar("Vai e volta", null);
+        post("/objetivos/" + id + "/concluir", null);
+        assertThat(content(get("/objetivos?status=CONCLUIDO&status=ARQUIVADO"))).hasSize(1);
+
+        post("/objetivos/" + id + "/reabrir", null);
+
+        assertThat(dataNoBanco(id, "encerrado_em")).isNull();
+        assertThat(content(get("/objetivos?status=CONCLUIDO&status=ARQUIVADO"))).isEmpty();
+    }
+
+    @Test
+    void listagemComStatusRepetidoIgualRetornaOMesmoQueUmSo() {
+        UUID id = criar("Concluído", null);
+        post("/objetivos/" + id + "/concluir", null);
+
+        ResponseEntity<Map> response = get("/objetivos?status=CONCLUIDO&status=CONCLUIDO");
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(content(response)).extracting(o -> o.get("id")).containsExactly(id.toString());
+    }
+
+    @Test
+    void listagemComAtivoJuntoComEncerradoRetorna400SemListar() {
+        UUID id = criar("Concluído", null);
+        post("/objetivos/" + id + "/concluir", null);
+
+        assertProblema(get("/objetivos?status=ATIVO&status=CONCLUIDO"),
+                BAD_REQUEST, "Combinação de status inválida");
+        assertProblema(get("/objetivos?status=ARQUIVADO&status=ATIVO"),
+                BAD_REQUEST, "Combinação de status inválida");
+        assertThat(statusNoBanco(id)).isEqualTo("CONCLUIDO");
+    }
+
+    @Test
+    void listagemComUmStatusInvalidoEntreOsValidosRetorna400() {
+        assertProblema(get("/objetivos?status=CONCLUIDO&status=PAUSADO"), BAD_REQUEST, "Parâmetro inválido");
+    }
+
+    @Test
+    void listagemDeEncerradosNaoTrazObjetivosDeOutroUsuario() {
+        String tokenOutro = cadastrarELogar("outro-encerrados-" + UUID.randomUUID() + "@email.com");
+        ResponseEntity<Map> criado = restTemplate.exchange("/objetivos", HttpMethod.POST,
+                autenticadoJson(tokenOutro, Map.of("titulo", "Do outro")), Map.class);
+        UUID doOutro = id(criado);
+        restTemplate.exchange("/objetivos/" + doOutro + "/concluir", HttpMethod.POST,
+                autenticadoJson(tokenOutro, null), Map.class);
+        UUID meu = criar("Meu", null);
+        post("/objetivos/" + meu + "/arquivar", null);
+
+        ResponseEntity<Map> response = get("/objetivos?status=CONCLUIDO&status=ARQUIVADO");
+
+        assertThat(content(response)).extracting(o -> o.get("id")).containsExactly(meu.toString());
+    }
+
+    @Test
+    void deveRetornar401AoListarEncerradosSemToken() {
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "/objetivos?status=CONCLUIDO&status=ARQUIVADO", Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(UNAUTHORIZED);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void listagemDeArquivadosVaziaRetornaPaginaVazia() {
         criar("Ativo", null);
@@ -579,6 +700,10 @@ class ObjetivoIT {
 
     private ResponseEntity<Map> get(String path) {
         return restTemplate.exchange(path, HttpMethod.GET, autenticadoJson(accessToken, null), Map.class);
+    }
+
+    private void definirEncerramento(UUID id, String coluna, Instant instante) {
+        jdbcTemplate.update("update objetivo set " + coluna + " = ? where id = ?", Timestamp.from(instante), id);
     }
 
     private int totalObjetivos() {

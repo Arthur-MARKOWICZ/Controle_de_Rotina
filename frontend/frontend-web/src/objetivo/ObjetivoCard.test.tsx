@@ -122,6 +122,67 @@ describe('ObjetivoCard', () => {
     expect(nomesDosBotoes(card)).toEqual(['Reabrir'])
   })
 
+  it('arquivado direto de ativo mostra só a data de arquivamento', () => {
+    const { card } = renderCard(
+      objetivo({ status: 'ARQUIVADO', concluidoEm: null, arquivadoEm: '2026-11-15T15:00:00Z' }),
+    )
+
+    expect(card).toHaveTextContent('Arquivado em 15 nov')
+    expect(card).not.toHaveTextContent('Concluído em')
+  })
+
+  it('concluído e depois arquivado mostra as duas datas, com a conclusão primeiro', () => {
+    const { card } = renderCard(
+      objetivo({
+        status: 'ARQUIVADO',
+        concluidoEm: '2026-11-05T15:00:00Z',
+        arquivadoEm: '2026-11-15T15:00:00Z',
+      }),
+    )
+
+    expect(card).toHaveTextContent('Concluído em 5 nov · Arquivado em 15 nov')
+  })
+
+  it('concluído mostra só a conclusão e não a data de arquivamento', () => {
+    const { card } = renderCard(
+      objetivo({ status: 'CONCLUIDO', concluidoEm: '2026-11-12T15:00:00Z' }),
+    )
+
+    expect(card).toHaveTextContent('Concluído em 12 nov')
+    expect(card).not.toHaveTextContent('Arquivado em')
+  })
+
+  it('encerrado sem nenhuma data válida não mostra linha de data nem quebra', () => {
+    const { card } = renderCard(
+      objetivo({ status: 'ARQUIVADO', concluidoEm: 'ontem', arquivadoEm: null }),
+    )
+
+    expect(card).not.toHaveTextContent('Concluído em')
+    expect(card).not.toHaveTextContent('Arquivado em')
+    expect(within(card).getByRole('link', { name: 'Perder 5 kg' })).toBeInTheDocument()
+  })
+
+  it('encerrado não mostra o prazo nem o destaque de vencido', () => {
+    const { card } = renderCard(
+      objetivo({
+        status: 'ARQUIVADO',
+        prazo: '2026-10-01',
+        arquivadoEm: '2026-11-15T15:00:00Z',
+      }),
+    )
+
+    expect(card).not.toHaveTextContent('Prazo vencido')
+    expect(card).not.toHaveAttribute('data-vencido')
+  })
+
+  it('arquivamento às 02:30Z cai no dia anterior em BRT', () => {
+    const { card } = renderCard(
+      objetivo({ status: 'ARQUIVADO', arquivadoEm: '2026-11-13T02:30:00Z' }),
+    )
+
+    expect(card).toHaveTextContent('Arquivado em 12 nov')
+  })
+
   it('progresso nulo mostra o convite a vincular, sem barra nem percentual', () => {
     const { card } = renderCard(objetivo())
 

@@ -26,20 +26,27 @@ import type { ObjetivoDrawerState, ObjetivosOutletContext } from '../ObjetivoDra
 
 const DRAWER_STATE: ObjetivoDrawerState = { daLista: true }
 
-const VISOES: { id: StatusObjetivo; label: string }[] = [
-  { id: 'ATIVO', label: 'Ativos' },
-  { id: 'CONCLUIDO', label: 'Concluídos' },
-  { id: 'ARQUIVADO', label: 'Arquivados' },
+type Visao = 'ativos' | 'encerrados'
+
+const VISOES: { id: Visao; label: string }[] = [
+  { id: 'ativos', label: 'Ativos' },
+  { id: 'encerrados', label: 'Encerrados' },
 ]
 
-const VAZIO_POR_VISAO: Record<Exclude<StatusObjetivo, 'ATIVO'>, string> = {
-  CONCLUIDO: 'Nenhum objetivo concluído.',
-  ARQUIVADO: 'Nenhum objetivo arquivado.',
+/** Status pedidos à API por visão. Encerrados reúne concluídos e arquivados numa só lista. */
+const STATUS_POR_VISAO: Record<Visao, StatusObjetivo[]> = {
+  ativos: ['ATIVO'],
+  encerrados: ['CONCLUIDO', 'ARQUIVADO'],
 }
 
-function lerStatusDaUrl(params: URLSearchParams): StatusObjetivo {
+/** Links antigos (`?status=CONCLUIDO|ARQUIVADO`) abrem Encerrados; qualquer outro valor cai em Ativos. */
+function ehLinkAntigoDeEncerrados(params: URLSearchParams): boolean {
   const status = params.get('status')
-  return status === 'CONCLUIDO' || status === 'ARQUIVADO' ? status : 'ATIVO'
+  return status === 'CONCLUIDO' || status === 'ARQUIVADO'
+}
+
+function lerVisaoDaUrl(params: URLSearchParams): Visao {
+  return params.get('visao') === 'encerrados' || ehLinkAntigoDeEncerrados(params) ? 'encerrados' : 'ativos'
 }
 
 function lerPageDaUrl(params: URLSearchParams): number {
@@ -51,7 +58,7 @@ export function ObjetivosPage() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const status = lerStatusDaUrl(searchParams)
+  const visao = lerVisaoDaUrl(searchParams)
   const page = lerPageDaUrl(searchParams)
   const hojeIso = dataHojeIso()
 
@@ -63,10 +70,10 @@ export function ObjetivosPage() {
   const acaoRef = useRef(false)
   const [recarregarEm, setRecarregarEm] = useState(0)
 
-  function escreverUrl(proximo: { status: StatusObjetivo; page: number }) {
+  function escreverUrl(proximo: { visao: Visao; page: number }) {
     const params = new URLSearchParams()
-    if (proximo.status !== 'ATIVO') {
-      params.set('status', proximo.status)
+    if (proximo.visao === 'encerrados') {
+      params.set('visao', 'encerrados')
     }
     if (proximo.page > 0) {
       params.set('page', String(proximo.page))
@@ -74,10 +81,18 @@ export function ObjetivosPage() {
     setSearchParams(params, { replace: true })
   }
 
-  function aplicarVisao(proximo: StatusObjetivo) {
+  function aplicarVisao(proximo: Visao) {
     setErroAcao(null)
-    escreverUrl({ status: proximo, page: 0 })
+    escreverUrl({ visao: proximo, page: 0 })
   }
+
+  // Reescreve o link antigo para a URL nova, mantendo a página (o `search` é repassado ao detalhe).
+  useEffect(() => {
+    if (ehLinkAntigoDeEncerrados(searchParams)) {
+      escreverUrl({ visao: 'encerrados', page: lerPageDaUrl(searchParams) })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     let ativo = true
@@ -86,7 +101,7 @@ export function ObjetivosPage() {
       setCarregando(true)
       setErroCarga(null)
       try {
-        const data = await listarObjetivos({ status, page, size: 20 })
+        const data = await listarObjetivos({ status: STATUS_POR_VISAO[visao], page, size: 20 })
         if (ativo) {
           setResultado(data)
         }
@@ -106,7 +121,7 @@ export function ObjetivosPage() {
     return () => {
       ativo = false
     }
-  }, [status, page, recarregarEm])
+  }, [visao, page, recarregarEm])
 
   async function executarAcao(tipo: AcaoObjetivo, objetivo: ObjetivoResponse) {
     if (acaoRef.current) {
@@ -158,16 +173,16 @@ export function ObjetivosPage() {
       </header>
 
       <div className="visao-chips" role="group" aria-label="Visão da lista">
-        {VISOES.map((visao) => (
+        {VISOES.map((opcao) => (
           <button
-            key={visao.id}
+            key={opcao.id}
             type="button"
-            className={status === visao.id ? 'visao-chip visao-chip--ativo' : 'visao-chip'}
-            aria-pressed={status === visao.id}
-            onClick={() => aplicarVisao(visao.id)}
+            className={visao === opcao.id ? 'visao-chip visao-chip--ativo' : 'visao-chip'}
+            aria-pressed={visao === opcao.id}
+            onClick={() => aplicarVisao(opcao.id)}
           >
-            {status === visao.id ? <CheckIcon aria-hidden /> : null}
-            {visao.label}
+            {visao === opcao.id ? <CheckIcon aria-hidden /> : null}
+            {opcao.label}
           </button>
         ))}
       </div>
@@ -185,7 +200,7 @@ export function ObjetivosPage() {
 
           {listaVazia ? (
             <div className="objetivos-empty" role="status">
-              {status === 'ATIVO' ? (
+              {visao === 'ativos' ? (
                 <>
                   <FlagIcon className="objetivos-empty__icone" aria-hidden />
                   <p className="objetivos-empty__titulo">Nenhum objetivo ainda</p>
@@ -196,11 +211,11 @@ export function ObjetivosPage() {
                 </>
               ) : (
                 <>
-                  <p className="objetivos-empty__titulo">{VAZIO_POR_VISAO[status]}</p>
+                  <p className="objetivos-empty__titulo">Nenhum objetivo encerrado.</p>
                   <button
                     type="button"
                     className="btn btn--secondary"
-                    onClick={() => aplicarVisao('ATIVO')}
+                    onClick={() => aplicarVisao('ativos')}
                   >
                     Ver ativos
                   </button>
@@ -228,7 +243,7 @@ export function ObjetivosPage() {
                 type="button"
                 className="btn btn--primary"
                 disabled={page <= 0}
-                onClick={() => escreverUrl({ status, page: page - 1 })}
+                onClick={() => escreverUrl({ visao, page: page - 1 })}
               >
                 Anterior
               </button>
@@ -239,7 +254,7 @@ export function ObjetivosPage() {
                 type="button"
                 className="btn btn--primary"
                 disabled={page >= totalPages - 1}
-                onClick={() => escreverUrl({ status, page: page + 1 })}
+                onClick={() => escreverUrl({ visao, page: page + 1 })}
               >
                 Próxima
               </button>

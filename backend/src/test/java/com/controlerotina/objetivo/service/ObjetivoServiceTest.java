@@ -38,6 +38,7 @@ import com.controlerotina.objetivo.dto.ObjetivoResponse;
 import com.controlerotina.objetivo.entity.Objetivo;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
 import com.controlerotina.objetivo.repository.ObjetivoRepository;
+import com.controlerotina.shared.exception.CombinacaoStatusInvalidaException;
 import com.controlerotina.shared.exception.ObjetivoArquivadoException;
 import com.controlerotina.shared.exception.ObjetivoJaArquivadoException;
 import com.controlerotina.shared.exception.ObjetivoJaAtivoException;
@@ -148,7 +149,7 @@ class ObjetivoServiceTest {
         lote.put(OBJETIVO_ID, new ObjetivoProgressoResponse(100, 60, 60));
         when(objetivoProgressoService.calcularLote(any(), any())).thenReturn(lote);
 
-        var pagina = service.listar(USUARIO, StatusObjetivo.ATIVO, PageRequest.of(0, 20));
+        var pagina = service.listar(USUARIO, List.of(StatusObjetivo.ATIVO), PageRequest.of(0, 20));
 
         assertThat(pagina.getContent()).hasSize(2);
         assertThat(pagina.getContent().get(0).progresso()).isNull();
@@ -310,28 +311,76 @@ class ObjetivoServiceTest {
     }
 
     @Test
-    void listarConcluidosOrdenaPorConclusaoMaisRecente() {
-        Pageable aplicado = listarECapturar(StatusObjetivo.CONCLUIDO, PageRequest.of(0, 20));
+    void listarConcluidosOrdenaPorEncerramentoMaisRecente() {
+        Pageable aplicado = listarECapturar(List.of(StatusObjetivo.CONCLUIDO), PageRequest.of(0, 20));
 
         assertThat(aplicado.getSort().toList())
-                .containsExactly(Sort.Order.desc("concluidoEm"), Sort.Order.desc("createdAt"));
+                .containsExactly(Sort.Order.desc("encerradoEm"), Sort.Order.desc("createdAt"));
     }
 
     @Test
-    void listarArquivadosOrdenaPorArquivamentoMaisRecente() {
-        Pageable aplicado = listarECapturar(StatusObjetivo.ARQUIVADO, PageRequest.of(1, 5));
+    void listarArquivadosOrdenaPorEncerramentoMaisRecente() {
+        Pageable aplicado = listarECapturar(List.of(StatusObjetivo.ARQUIVADO), PageRequest.of(1, 5));
 
         assertThat(aplicado.getSort().toList())
-                .containsExactly(Sort.Order.desc("arquivadoEm"), Sort.Order.desc("createdAt"));
+                .containsExactly(Sort.Order.desc("encerradoEm"), Sort.Order.desc("createdAt"));
         assertThat(aplicado.getPageNumber()).isEqualTo(1);
         assertThat(aplicado.getPageSize()).isEqualTo(5);
+    }
+
+    @Test
+    void listarEncerradosJuntosOrdenaPelaDataDeEncerramento() {
+        Pageable aplicado = listarECapturar(
+                List.of(StatusObjetivo.CONCLUIDO, StatusObjetivo.ARQUIVADO), PageRequest.of(0, 20));
+
+        assertThat(aplicado.getSort().toList())
+                .containsExactly(Sort.Order.desc("encerradoEm"), Sort.Order.desc("createdAt"));
+    }
+
+    @Test
+    void listarComListaVaziaUsaAtivo() {
+        Pageable aplicado = listarECapturar(List.of(), PageRequest.of(0, 20));
+
+        assertThat(aplicado.getSort().toList())
+                .extracting(Sort.Order::getProperty)
+                .containsExactly("prazo", "createdAt");
+    }
+
+    @Test
+    void listarComStatusRepetidoTrataComoUm() {
+        Pageable aplicado = listarECapturar(
+                List.of(StatusObjetivo.CONCLUIDO, StatusObjetivo.CONCLUIDO), PageRequest.of(0, 20));
+
+        assertThat(aplicado.getSort().toList())
+                .containsExactly(Sort.Order.desc("encerradoEm"), Sort.Order.desc("createdAt"));
+    }
+
+    @Test
+    void naoDeveListarAtivoJuntoComConcluido() {
+        assertErro(() -> service.listar(USUARIO,
+                        List.of(StatusObjetivo.ATIVO, StatusObjetivo.CONCLUIDO), PageRequest.of(0, 20)),
+                CombinacaoStatusInvalidaException.class, 400, "Combinação de status inválida");
+        verify(objetivoRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
+    void naoDeveListarAtivoJuntoComArquivado() {
+        assertErro(() -> service.listar(USUARIO,
+                        List.of(StatusObjetivo.ARQUIVADO, StatusObjetivo.ATIVO), PageRequest.of(0, 20)),
+                CombinacaoStatusInvalidaException.class, 400, "Combinação de status inválida");
+    }
+
+    @Test
+    void naoDeveListarOsTresStatusJuntos() {
+        assertErro(() -> service.listar(USUARIO, List.of(StatusObjetivo.values()), PageRequest.of(0, 20)),
+                CombinacaoStatusInvalidaException.class, 400, "Combinação de status inválida");
     }
 
     @Test
     void listarPreservaOrdenacaoInformadaPeloCliente() {
         PageRequest doCliente = PageRequest.of(0, 20, Sort.by("titulo"));
 
-        Pageable aplicado = listarECapturar(StatusObjetivo.ATIVO, doCliente);
+        Pageable aplicado = listarECapturar(List.of(StatusObjetivo.ATIVO), doCliente);
 
         assertThat(aplicado.getSort()).isEqualTo(Sort.by("titulo"));
     }
@@ -341,7 +390,7 @@ class ObjetivoServiceTest {
         when(objetivoRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
-        var pagina = service.listar(USUARIO, StatusObjetivo.ARQUIVADO, PageRequest.of(0, 20));
+        var pagina = service.listar(USUARIO, List.of(StatusObjetivo.ARQUIVADO), PageRequest.of(0, 20));
 
         assertThat(pagina.getContent()).isEmpty();
         assertThat(pagina.getTotalElements()).isZero();
@@ -359,7 +408,7 @@ class ObjetivoServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Pageable listarECapturar(StatusObjetivo status, Pageable pageable) {
+    private Pageable listarECapturar(List<StatusObjetivo> status, Pageable pageable) {
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         when(objetivoRepository.findAll(any(Specification.class), captor.capture()))
                 .thenReturn(new PageImpl<>(List.of()));

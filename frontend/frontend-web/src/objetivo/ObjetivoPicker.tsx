@@ -49,7 +49,7 @@ export function ObjetivoPicker({
     setCarregando(true)
     setErro(null)
     try {
-      const pagina = await listarObjetivos({ status: 'ATIVO', size: MAX_OPCOES })
+      const pagina = await listarObjetivos({ status: ['ATIVO'], size: MAX_OPCOES })
       setOpcoes(
         pagina.content.map(({ id, titulo, status }) => ({ id, titulo, status })),
       )

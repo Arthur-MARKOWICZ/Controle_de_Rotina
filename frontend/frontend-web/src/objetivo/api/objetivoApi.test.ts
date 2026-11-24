@@ -11,7 +11,9 @@ import {
   criarObjetivo,
   listarItensObjetivo,
   listarObjetivos,
+  obterEvolucaoObjetivo,
   reabrirObjetivo,
+  type ObjetivoEvolucao,
   type ObjetivoItens,
   type ObjetivoResponse,
 } from './objetivoApi'
@@ -57,12 +59,45 @@ describe('objetivoApi', () => {
     }
     vi.mocked(apiClient.apiFetch).mockResolvedValue(json(pagina))
 
-    await expect(listarObjetivos({ status: 'CONCLUIDO', page: 1 })).resolves.toEqual(pagina)
+    await expect(listarObjetivos({ status: ['CONCLUIDO'], page: 1 })).resolves.toEqual(pagina)
     expect(apiClient.apiFetch).toHaveBeenCalledWith('/objetivos?status=CONCLUIDO&page=1&size=20')
   })
 
   it('omite status da query quando não informado', () => {
     expect(buildObjetivosQuery()).toBe('/objetivos?page=0&size=20')
+  })
+
+  it('omite status da query quando a lista vem vazia', () => {
+    expect(buildObjetivosQuery({ status: [] })).toBe('/objetivos?page=0&size=20')
+  })
+
+  it('repete status na query para os encerrados', async () => {
+    const pagina = {
+      content: [objetivo],
+      page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
+    }
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(json(pagina))
+
+    await listarObjetivos({ status: ['CONCLUIDO', 'ARQUIVADO'] })
+
+    expect(apiClient.apiFetch).toHaveBeenCalledWith(
+      '/objetivos?status=CONCLUIDO&status=ARQUIVADO&page=0&size=20',
+    )
+  })
+
+  it('propaga o 400 de combinação de status inválida', async () => {
+    vi.mocked(apiClient.apiFetch).mockResolvedValue(
+      problem(
+        400,
+        'Combinação de status inválida',
+        'Status ATIVO não pode ser combinado com CONCLUIDO ou ARQUIVADO.',
+      ),
+    )
+
+    await expect(listarObjetivos({ status: ['ATIVO', 'CONCLUIDO'] })).rejects.toMatchObject({
+      status: 400,
+      message: 'Status ATIVO não pode ser combinado com CONCLUIDO ou ARQUIVADO.',
+    })
   })
 
   it('cria objetivo via POST /objetivos', async () => {
@@ -258,6 +293,106 @@ describe('objetivoApi', () => {
         }),
       )
       await expect(listarItensObjetivo('obj-1')).rejects.toMatchObject({
+        message: 'Resposta inválida da API (não é JSON).',
+      })
+    })
+  })
+
+  describe('obterEvolucaoObjetivo', () => {
+    const evolucao: ObjetivoEvolucao = {
+      antesDoHistorico: 60,
+      pontos: [
+        { data: '2026-11-03', minutosNoDia: 30, minutosAcumulados: 90 },
+        { data: '2026-11-05', minutosNoDia: 45, minutosAcumulados: 135 },
+      ],
+    }
+
+    it('busca a evolução via GET /objetivos/{id}/evolucao', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json(evolucao))
+
+      await expect(obterEvolucaoObjetivo('obj-1')).resolves.toEqual(evolucao)
+      expect(apiClient.apiFetch).toHaveBeenCalledWith('/objetivos/obj-1/evolucao')
+    })
+
+    it('aceita evolução sem nada (zero antes do histórico e sem pontos)', async () => {
+      const vazia: ObjetivoEvolucao = { antesDoHistorico: 0, pontos: [] }
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json(vazia))
+
+      await expect(obterEvolucaoObjetivo('obj-1')).resolves.toEqual(vazia)
+    })
+
+    it('propaga 400 com a mensagem da API', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(400, 'Parâmetro inválido', 'O id informado é inválido.'),
+      )
+
+      await expect(obterEvolucaoObjetivo('xx')).rejects.toMatchObject({
+        status: 400,
+        message: 'O id informado é inválido.',
+      })
+    })
+
+    it('propaga 401 quando o refresh falhou', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(401, 'Não autorizado', 'Sessão expirada.'),
+      )
+
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toMatchObject({ status: 401 })
+    })
+
+    it('propaga 404 de objetivo inexistente ou de outro usuário', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(404, 'Objetivo não encontrado', 'Objetivo inexistente ou sem permissão de acesso.'),
+      )
+
+      await expect(obterEvolucaoObjetivo('alheio')).rejects.toMatchObject({
+        status: 404,
+        message: 'Objetivo inexistente ou sem permissão de acesso.',
+      })
+    })
+
+    it('propaga 409 com a mensagem da API', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(409, 'Conflito', 'Estado alterado em outra aba.'),
+      )
+
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toMatchObject({
+        status: 409,
+        message: 'Estado alterado em outra aba.',
+      })
+    })
+
+    it('usa a mensagem padrão em 500 sem corpo útil', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json({}, 500))
+
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toMatchObject({
+        status: 500,
+        message: 'Não foi possível carregar a evolução.',
+      })
+    })
+
+    it('propaga falha de rede/timeout do fetch', async () => {
+      vi.mocked(apiClient.apiFetch).mockRejectedValue(new TypeError('Failed to fetch'))
+
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toBeInstanceOf(TypeError)
+    })
+
+    it('rejeita HTML do proxy e JSON inválido', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('<!doctype html><html><div id="root"></div></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toBeInstanceOf(ApiError)
+
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('não-é-json', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      await expect(obterEvolucaoObjetivo('obj-1')).rejects.toMatchObject({
         message: 'Resposta inválida da API (não é JSON).',
       })
     })

@@ -3,8 +3,10 @@ package com.controlerotina.objetivo.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -24,6 +26,7 @@ import com.controlerotina.objetivo.entity.Objetivo;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
 import com.controlerotina.objetivo.repository.ObjetivoRepository;
 import com.controlerotina.objetivo.repository.ObjetivoSpecs;
+import com.controlerotina.shared.exception.CombinacaoStatusInvalidaException;
 import com.controlerotina.shared.exception.ObjetivoArquivadoException;
 import com.controlerotina.shared.exception.ObjetivoJaArquivadoException;
 import com.controlerotina.shared.exception.ObjetivoJaAtivoException;
@@ -68,8 +71,8 @@ public class ObjetivoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ObjetivoResponse> listar(UUID usuarioId, StatusObjetivo status, Pageable pageable) {
-        StatusObjetivo filtroStatus = status != null ? status : StatusObjetivo.ATIVO;
+    public Page<ObjetivoResponse> listar(UUID usuarioId, List<StatusObjetivo> status, Pageable pageable) {
+        Set<StatusObjetivo> filtroStatus = normalizarStatus(status);
         Specification<Objetivo> spec = Specification.allOf(
                 ObjetivoSpecs.doUsuario(usuarioId),
                 ObjetivoSpecs.comStatus(filtroStatus)
@@ -157,19 +160,31 @@ public class ObjetivoService {
         return LocalDate.now(clock.withZone(PeriodoBRT.ZONE));
     }
 
-    private static Pageable comOrdemPadrao(Pageable pageable, StatusObjetivo status) {
+    /** Sem status → só ATIVO. ATIVO misturado com encerrados não tem ordem definida, então é recusado. */
+    private static Set<StatusObjetivo> normalizarStatus(List<StatusObjetivo> status) {
+        if (status == null || status.isEmpty()) {
+            return EnumSet.of(StatusObjetivo.ATIVO);
+        }
+        Set<StatusObjetivo> conjunto = EnumSet.copyOf(status);
+        if (conjunto.contains(StatusObjetivo.ATIVO) && conjunto.size() > 1) {
+            throw new CombinacaoStatusInvalidaException();
+        }
+        return conjunto;
+    }
+
+    private static Pageable comOrdemPadrao(Pageable pageable, Set<StatusObjetivo> status) {
         if (pageable.getSort().isSorted()) {
             return pageable;
         }
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), ordemPadrao(status));
     }
 
-    private static Sort ordemPadrao(StatusObjetivo status) {
-        return switch (status) {
-            case ATIVO -> Sort.by(Sort.Order.asc("prazo").nullsLast(), Sort.Order.asc("createdAt"));
-            case CONCLUIDO -> Sort.by(Sort.Order.desc("concluidoEm"), Sort.Order.desc("createdAt"));
-            case ARQUIVADO -> Sort.by(Sort.Order.desc("arquivadoEm"), Sort.Order.desc("createdAt"));
-        };
+    private static Sort ordemPadrao(Set<StatusObjetivo> status) {
+        if (status.contains(StatusObjetivo.ATIVO)) {
+            return Sort.by(Sort.Order.asc("prazo").nullsLast(), Sort.Order.asc("createdAt"));
+        }
+        // Encerrados: pela data em que foram encerrados (conclusão, senão arquivamento).
+        return Sort.by(Sort.Order.desc("encerradoEm"), Sort.Order.desc("createdAt"));
     }
 
     private Objetivo buscarDoUsuario(UUID usuarioId, UUID id) {

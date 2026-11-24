@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
+import { rotuloArquivamento, rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
 
 const HOJE = '2026-11-17'
 
@@ -66,5 +66,31 @@ describe('prazoObjetivo', () => {
   it('conclusão ausente ou inválida não gera rótulo', () => {
     expect(rotuloConclusao(null, HOJE)).toBeNull()
     expect(rotuloConclusao('ontem', HOJE)).toBeNull()
+  })
+
+  it('arquivamento mostra a data local', () => {
+    expect(rotuloArquivamento('2026-11-15T15:00:00Z', HOJE)).toBe('Arquivado em 15 nov')
+  })
+
+  it('arquivamento às 02:30Z cai no dia anterior em BRT', () => {
+    expect(rotuloArquivamento('2026-11-13T02:30:00Z', HOJE)).toBe('Arquivado em 12 nov')
+  })
+
+  it('arquivamento na virada de mês em BRT fica no último dia do mês', () => {
+    expect(rotuloArquivamento('2026-12-01T02:30:00Z', '2026-12-05')).toBe('Arquivado em 30 nov')
+  })
+
+  it('arquivamento em outro ano mostra o ano', () => {
+    expect(rotuloArquivamento('2025-12-20T15:00:00Z', HOJE)).toBe('Arquivado em 20 dez 2025')
+  })
+
+  it('arquivamento na virada de ano em BRT fica no último dia do ano', () => {
+    expect(rotuloArquivamento('2027-01-01T02:59:00Z', '2027-01-10')).toBe('Arquivado em 31 dez 2026')
+  })
+
+  it('arquivamento ausente ou inválido não gera rótulo', () => {
+    expect(rotuloArquivamento(null, HOJE)).toBeNull()
+    expect(rotuloArquivamento(undefined, HOJE)).toBeNull()
+    expect(rotuloArquivamento('ontem', HOJE)).toBeNull()
   })
 })

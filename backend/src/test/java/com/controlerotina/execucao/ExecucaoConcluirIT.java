@@ -146,8 +146,9 @@ class ExecucaoConcluirIT {
 
         assertThat(concluida.getStatusCode()).isEqualTo(OK);
         assertThat(concluida.getBody().get("status")).isEqualTo("CONCLUIDO");
-        assertThat(tarefaRepository.findById(tarefaId).orElseThrow().getStatus())
-                .isEqualTo(StatusTarefa.FINALIZADA);
+        Tarefa finalizada = tarefaRepository.findById(tarefaId).orElseThrow();
+        assertThat(finalizada.getStatus()).isEqualTo(StatusTarefa.FINALIZADA);
+        assertThat(finalizada.getFinalizadaEm()).isNotNull();
 
         UUID outroUsuario = UUID.randomUUID();
         usuarioRepository.save(new Usuario(

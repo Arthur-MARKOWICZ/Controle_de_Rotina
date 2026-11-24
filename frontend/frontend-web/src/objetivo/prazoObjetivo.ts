@@ -57,12 +57,28 @@ export function rotuloPrazo(
   return `Até ${data} · ${dias === 1 ? 'falta 1 dia' : `faltam ${dias} dias`}`
 }
 
+/** "Prefixo 12 nov" (com o ano fora do ano de hoje). O instante é convertido para a data civil em BRT. */
+function rotuloDeInstante(
+  prefixo: string,
+  instante: string | null | undefined,
+  hojeIso: string,
+): string | null {
+  if (!instante || Number.isNaN(Date.parse(instante))) {
+    return null
+  }
+  return `${prefixo} ${formatarDiaMes(dataHojeIso(new Date(instante)), hojeIso.slice(0, 4))}`
+}
+
 export function rotuloConclusao(
   concluidoEm: string | null | undefined,
   hojeIso: string = dataHojeIso(),
 ): string | null {
-  if (!concluidoEm || Number.isNaN(Date.parse(concluidoEm))) {
-    return null
-  }
-  return `Concluído em ${formatarDiaMes(dataHojeIso(new Date(concluidoEm)), hojeIso.slice(0, 4))}`
+  return rotuloDeInstante('Concluído em', concluidoEm, hojeIso)
+}
+
+export function rotuloArquivamento(
+  arquivadoEm: string | null | undefined,
+  hojeIso: string = dataHojeIso(),
+): string | null {
+  return rotuloDeInstante('Arquivado em', arquivadoEm, hojeIso)
 }

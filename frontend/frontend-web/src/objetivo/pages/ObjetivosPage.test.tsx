@@ -87,7 +87,7 @@ describe('ObjetivosPage', () => {
     renderPagina()
 
     expect(await screen.findByRole('link', { name: 'Perder 5 kg' })).toBeInTheDocument()
-    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: 'ATIVO', page: 0, size: 20 })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: ['ATIVO'], page: 0, size: 20 })
     expect(screen.getByRole('button', { name: 'Ativos' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('1 objetivo')).toBeInTheDocument()
   })
@@ -122,28 +122,84 @@ describe('ObjetivosPage', () => {
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
   })
 
-  it('trocar de visão escreve o status na URL e zera a página', async () => {
+  it('trocar para Encerrados escreve a visão na URL, zera a página e pede concluídos e arquivados', async () => {
     const user = userEvent.setup()
     renderPagina('/objetivos?page=2')
     await screen.findByRole('link', { name: 'Perder 5 kg' })
 
-    await user.click(screen.getByRole('button', { name: 'Concluídos' }))
+    await user.click(screen.getByRole('button', { name: 'Encerrados' }))
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?status=CONCLUIDO')
+    expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?visao=encerrados')
     await waitFor(() => {
       expect(objetivoApi.listarObjetivos).toHaveBeenLastCalledWith({
-        status: 'CONCLUIDO',
+        status: ['CONCLUIDO', 'ARQUIVADO'],
         page: 0,
         size: 20,
       })
     })
+    expect(screen.getByRole('button', { name: 'Encerrados' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('não oferece mais as visões Concluídos e Arquivados separadas', async () => {
+    renderPagina()
+    await screen.findByRole('link', { name: 'Perder 5 kg' })
+
+    expect(screen.queryByRole('button', { name: 'Concluídos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Arquivados' })).not.toBeInTheDocument()
+  })
+
+  it('link antigo de concluídos abre Encerrados e reescreve a URL', async () => {
+    renderPagina('/objetivos?status=CONCLUIDO')
+
+    await screen.findByRole('link', { name: 'Perder 5 kg' })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({
+      status: ['CONCLUIDO', 'ARQUIVADO'],
+      page: 0,
+      size: 20,
+    })
+    expect(screen.getByRole('button', { name: 'Encerrados' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos\?visao=encerrados$/)
+    })
+  })
+
+  it('link antigo de arquivados mantém a página ao virar Encerrados', async () => {
+    renderPagina('/objetivos?status=ARQUIVADO&page=1')
+
+    await screen.findByRole('link', { name: 'Perder 5 kg' })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({
+      status: ['CONCLUIDO', 'ARQUIVADO'],
+      page: 1,
+      size: 20,
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?visao=encerrados&page=1')
+    })
+  })
+
+  it('link antigo não refaz a busca ao reescrever a URL', async () => {
+    renderPagina('/objetivos?status=CONCLUIDO')
+
+    await screen.findByRole('link', { name: 'Perder 5 kg' })
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('visao=encerrados')
+    })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledTimes(1)
+  })
+
+  it('visão desconhecida na URL cai na visão Ativos', async () => {
+    renderPagina('/objetivos?visao=pausados')
+
+    await screen.findByRole('link', { name: 'Perder 5 kg' })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: ['ATIVO'], page: 0, size: 20 })
+    expect(screen.getByRole('button', { name: 'Ativos' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('status desconhecido na URL cai na visão Ativos', async () => {
     renderPagina('/objetivos?status=PAUSADO')
 
     await screen.findByRole('link', { name: 'Perder 5 kg' })
-    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: 'ATIVO', page: 0, size: 20 })
+    expect(objetivoApi.listarObjetivos).toHaveBeenCalledWith({ status: ['ATIVO'], page: 0, size: 20 })
     expect(screen.getByRole('button', { name: 'Ativos' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -159,7 +215,7 @@ describe('ObjetivosPage', () => {
 
     expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?page=1')
     await waitFor(() => {
-      expect(objetivoApi.listarObjetivos).toHaveBeenLastCalledWith({ status: 'ATIVO', page: 1, size: 20 })
+      expect(objetivoApi.listarObjetivos).toHaveBeenLastCalledWith({ status: ['ATIVO'], page: 1, size: 20 })
     })
   })
 
@@ -175,12 +231,12 @@ describe('ObjetivosPage', () => {
     )
   })
 
-  it('visão Arquivados vazia oferece "Ver ativos"', async () => {
+  it('visão Encerrados vazia oferece "Ver ativos"', async () => {
     const user = userEvent.setup()
     vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(VAZIA)
-    renderPagina('/objetivos?status=ARQUIVADO')
+    renderPagina('/objetivos?visao=encerrados')
 
-    expect(await screen.findByText('Nenhum objetivo arquivado.')).toBeInTheDocument()
+    expect(await screen.findByText('Nenhum objetivo encerrado.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ver ativos' }))
 
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos$/)
@@ -229,20 +285,84 @@ describe('ObjetivosPage', () => {
     expect(screen.getByRole('link', { name: 'Perder 5 kg' })).toBeInTheDocument()
   })
 
-  it('arquivar um concluído confirma e mostra "Objetivo arquivado"', async () => {
+  it('arquivar um concluído confirma, mostra "Objetivo arquivado" e ele continua em Encerrados com as duas datas', async () => {
     const concluido = objetivo({ status: 'CONCLUIDO', concluidoEm: '2026-11-12T15:00:00Z' })
+    const arquivado = {
+      ...concluido,
+      status: 'ARQUIVADO' as const,
+      arquivadoEm: '2026-11-15T15:00:00Z',
+    }
     vi.mocked(objetivoApi.listarObjetivos)
       .mockResolvedValueOnce(pagina([concluido]))
-      .mockResolvedValueOnce(VAZIA)
-    vi.mocked(objetivoApi.arquivarObjetivo).mockResolvedValue({ ...concluido, status: 'ARQUIVADO' })
-    renderPagina('/objetivos?status=CONCLUIDO')
+      .mockResolvedValueOnce(pagina([arquivado]))
+    vi.mocked(objetivoApi.arquivarObjetivo).mockResolvedValue(arquivado)
+    renderPagina('/objetivos?visao=encerrados')
     await screen.findByRole('link', { name: 'Perder 5 kg' })
 
     await userEvent.click(within(card('Perder 5 kg')).getByRole('button', { name: 'Arquivar' }))
     await confirmar('Arquivar')
 
     expect(await screen.findByText('Objetivo arquivado')).toBeInTheDocument()
-    expect(await screen.findByText('Nenhum objetivo concluído.')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(card('Perder 5 kg')).toHaveTextContent('Arquivado em 15 nov')
+    })
+    expect(card('Perder 5 kg')).toHaveTextContent('Concluído em 12 nov')
+    expect(screen.queryByText('Nenhum objetivo encerrado.')).not.toBeInTheDocument()
+    expect(objetivoApi.arquivarObjetivo).toHaveBeenCalledWith('obj-1')
+  })
+
+  it('Encerrados mostra concluído e arquivado juntos, cada um com as suas ações', async () => {
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(
+      pagina([
+        objetivo({
+          id: 'obj-a',
+          titulo: 'Arquivado direto',
+          status: 'ARQUIVADO',
+          arquivadoEm: '2026-11-15T15:00:00Z',
+        }),
+        objetivo({
+          id: 'obj-c',
+          titulo: 'Concluído',
+          status: 'CONCLUIDO',
+          concluidoEm: '2026-11-10T15:00:00Z',
+        }),
+      ]),
+    )
+    renderPagina('/objetivos?visao=encerrados')
+    await screen.findByRole('link', { name: 'Concluído' })
+
+    const direto = card('Arquivado direto')
+    expect(direto).toHaveTextContent('Arquivado em 15 nov')
+    expect(direto).not.toHaveTextContent('Concluído em')
+    expect(within(direto).getByRole('button', { name: 'Reabrir' })).toBeInTheDocument()
+    expect(within(direto).queryByRole('button', { name: 'Arquivar' })).not.toBeInTheDocument()
+    const concluido = card('Concluído')
+    expect(concluido).toHaveTextContent('Concluído em 10 nov')
+    expect(within(concluido).getByRole('button', { name: 'Arquivar' })).toBeInTheDocument()
+    expect(within(concluido).getByRole('button', { name: 'Reabrir' })).toBeInTheDocument()
+    expect(screen.getByText('2 objetivos')).toBeInTheDocument()
+  })
+
+  it('falha ao carregar Encerrados mostra alerta sem cards nem vazio', async () => {
+    vi.mocked(objetivoApi.listarObjetivos).mockRejectedValue(new ApiError(500, 'Erro interno'))
+    renderPagina('/objetivos?visao=encerrados')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar os objetivos.')
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nenhum objetivo encerrado.')).not.toBeInTheDocument()
+  })
+
+  it('paginação de Encerrados mantém a visão na URL', async () => {
+    const user = userEvent.setup()
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(
+      pagina([objetivo({ status: 'CONCLUIDO' })], { totalElements: 25, totalPages: 2 }),
+    )
+    renderPagina('/objetivos?visao=encerrados')
+    await screen.findByText('Página 1 de 2')
+
+    await user.click(screen.getByRole('button', { name: 'Próxima' }))
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?visao=encerrados&page=1')
   })
 
   it('reabrir não pede confirmação e mostra "Objetivo reaberto"', async () => {
@@ -252,7 +372,7 @@ describe('ObjetivosPage', () => {
       .mockResolvedValueOnce(pagina([arquivado]))
       .mockResolvedValueOnce(VAZIA)
     vi.mocked(objetivoApi.reabrirObjetivo).mockResolvedValue(objetivo())
-    renderPagina('/objetivos?status=ARQUIVADO')
+    renderPagina('/objetivos?visao=encerrados')
     await screen.findByRole('link', { name: 'Perder 5 kg' })
 
     await user.click(screen.getByRole('button', { name: 'Reabrir' }))
@@ -273,7 +393,7 @@ describe('ObjetivosPage', () => {
     vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(
       pagina([objetivo({ status: 'ARQUIVADO' })]),
     )
-    renderPagina('/objetivos?status=ARQUIVADO')
+    renderPagina('/objetivos?visao=encerrados')
     await screen.findByRole('link', { name: 'Perder 5 kg' })
 
     const botao = screen.getByRole('button', { name: 'Reabrir' })
@@ -295,7 +415,7 @@ describe('ObjetivosPage', () => {
         objetivo({ id: 'obj-2', titulo: 'Ler 12 livros', status: 'ARQUIVADO' }),
       ]),
     )
-    renderPagina('/objetivos?status=ARQUIVADO')
+    renderPagina('/objetivos?visao=encerrados')
     await screen.findByRole('link', { name: 'Ler 12 livros' })
 
     await user.click(within(card('Perder 5 kg')).getByRole('button', { name: 'Reabrir' }))
@@ -348,7 +468,7 @@ describe('ObjetivosPage', () => {
       pagina([objetivo({ status: 'ARQUIVADO' })]),
     )
     vi.mocked(objetivoApi.reabrirObjetivo).mockRejectedValue(new TypeError('Failed to fetch'))
-    renderPagina('/objetivos?status=ARQUIVADO')
+    renderPagina('/objetivos?visao=encerrados')
     await screen.findByRole('link', { name: 'Perder 5 kg' })
 
     await user.click(screen.getByRole('button', { name: 'Reabrir' }))

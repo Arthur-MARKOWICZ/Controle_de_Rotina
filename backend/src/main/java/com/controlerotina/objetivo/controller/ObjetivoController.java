@@ -1,5 +1,6 @@
 package com.controlerotina.objetivo.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.controlerotina.objetivo.dto.AtualizarObjetivoRequest;
 import com.controlerotina.objetivo.dto.CriarObjetivoRequest;
+import com.controlerotina.objetivo.dto.ObjetivoEvolucaoResponse;
 import com.controlerotina.objetivo.dto.ObjetivoItensResponse;
 import com.controlerotina.objetivo.dto.ObjetivoResponse;
 import com.controlerotina.objetivo.entity.StatusObjetivo;
+import com.controlerotina.objetivo.service.ObjetivoEvolucaoService;
 import com.controlerotina.objetivo.service.ObjetivoService;
 import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 
@@ -36,10 +39,16 @@ public class ObjetivoController {
 
     private final ObjetivoService objetivoService;
     private final ObjetivoVinculoService objetivoVinculoService;
+    private final ObjetivoEvolucaoService objetivoEvolucaoService;
 
-    public ObjetivoController(ObjetivoService objetivoService, ObjetivoVinculoService objetivoVinculoService) {
+    public ObjetivoController(
+            ObjetivoService objetivoService,
+            ObjetivoVinculoService objetivoVinculoService,
+            ObjetivoEvolucaoService objetivoEvolucaoService
+    ) {
         this.objetivoService = objetivoService;
         this.objetivoVinculoService = objetivoVinculoService;
+        this.objetivoEvolucaoService = objetivoEvolucaoService;
     }
 
     @PostMapping
@@ -54,7 +63,7 @@ public class ObjetivoController {
     @GetMapping
     public PagedModel<ObjetivoResponse> listar(
             @AuthenticationPrincipal UUID usuarioId,
-            @RequestParam(required = false) StatusObjetivo status,
+            @RequestParam(required = false) List<StatusObjetivo> status,
             Pageable pageable
     ) {
         return new PagedModel<>(objetivoService.listar(usuarioId, status, normalizarPageable(pageable)));
@@ -74,6 +83,14 @@ public class ObjetivoController {
             @PathVariable UUID id
     ) {
         return objetivoVinculoService.listarItens(usuarioId, id);
+    }
+
+    @GetMapping("/{id}/evolucao")
+    public ObjetivoEvolucaoResponse evolucao(
+            @AuthenticationPrincipal UUID usuarioId,
+            @PathVariable UUID id
+    ) {
+        return objetivoEvolucaoService.obter(usuarioId, id);
     }
 
     @PatchMapping("/{id}")
