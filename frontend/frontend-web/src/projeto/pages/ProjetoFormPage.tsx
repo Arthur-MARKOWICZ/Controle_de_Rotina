@@ -18,6 +18,7 @@ import {
   type ProjetoResponse,
   type StatusProjeto,
 } from '../api/projetoApi'
+import type { ObjetivoResumo } from '../../objetivo/api/objetivoApi'
 import type { TagResumo } from '../../tag/api/tagApi'
 import { ProjetoCampos } from '../ProjetoCampos'
 import {
@@ -40,6 +41,8 @@ export function ProjetoFormPage() {
   const [values, setValues] = useState<ProjetoFormValues>(PROJETO_FORM_VAZIO)
   const [tagIds, setTagIds] = useState<string[]>([])
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
+  const [objetivoIds, setObjetivoIds] = useState<string[]>([])
+  const [objetivosSelecionados, setObjetivosSelecionados] = useState<ObjetivoResumo[]>([])
   const [projeto, setProjeto] = useState<ProjetoResponse | null>(null)
   const [esperas, setEsperas] = useState<EsperaResumo[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -70,6 +73,8 @@ export function ProjetoFormPage() {
         })
         setTagIds(carregado.tags?.map((tag) => tag.id) ?? [])
         setTagsSelecionadas(carregado.tags ?? [])
+        setObjetivoIds(carregado.objetivos?.map((objetivo) => objetivo.id) ?? [])
+        setObjetivosSelecionados(carregado.objetivos ?? [])
         setEsperas(carregado.esperas ?? [])
       } catch {
         if (ativo) {
@@ -110,6 +115,7 @@ export function ProjetoFormPage() {
         nome: values.nome.trim(),
         descricao: descricao || null,
         tagIds,
+        objetivoIds,
       })
       setProjeto(atualizado)
       setValues({
@@ -118,6 +124,8 @@ export function ProjetoFormPage() {
       })
       setTagIds(atualizado.tags?.map((tag) => tag.id) ?? [])
       setTagsSelecionadas(atualizado.tags ?? [])
+      setObjetivoIds(atualizado.objetivos?.map((objetivo) => objetivo.id) ?? [])
+      setObjetivosSelecionados(atualizado.objetivos ?? [])
       toast.success('Projeto atualizado')
     } catch (error) {
       setErro(
@@ -296,6 +304,12 @@ export function ProjetoFormPage() {
             onTagsChange={(ids, tags) => {
               setTagIds(ids)
               setTagsSelecionadas(tags)
+            }}
+            objetivoIds={objetivoIds}
+            objetivosSelecionados={objetivosSelecionados}
+            onObjetivosChange={(ids, objetivos) => {
+              setObjetivoIds(ids)
+              setObjetivosSelecionados(objetivos)
             }}
           />
 

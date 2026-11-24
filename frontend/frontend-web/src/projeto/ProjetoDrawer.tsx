@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type FormEvent } from 'react'
 
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -34,12 +35,15 @@ export function ProjetoDrawer() {
   const [values, setValues] = useState<ProjetoFormValues>(PROJETO_FORM_VAZIO)
   const [tagIds, setTagIds] = useState<string[]>([])
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
+  const [objetivoIds, setObjetivoIds] = useState<string[]>([])
+  const [objetivosSelecionados, setObjetivosSelecionados] = useState<ObjetivoResumo[]>([])
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(true)
   const confirmandoRef = useRef(false)
 
-  const alterado = values.nome !== '' || values.descricao !== '' || tagIds.length > 0 || tagIds.length > 0
+  const alterado =
+    values.nome !== '' || values.descricao !== '' || tagIds.length > 0 || objetivoIds.length > 0
 
   const voltarParaLista = useCallback(() => {
     if (estado.daLista) {
@@ -86,6 +90,7 @@ export function ProjetoDrawer() {
         nome: values.nome.trim(),
         descricao: descricao || null,
         tagIds,
+        objetivoIds,
       })
       toast.success('Projeto criado')
       navigate(`/projetos/${criado.id}`, { replace: true })
@@ -138,6 +143,12 @@ export function ProjetoDrawer() {
             onTagsChange={(ids, tags) => {
               setTagIds(ids)
               setTagsSelecionadas(tags)
+            }}
+            objetivoIds={objetivoIds}
+            objetivosSelecionados={objetivosSelecionados}
+            onObjetivosChange={(ids, objetivos) => {
+              setObjetivoIds(ids)
+              setObjetivosSelecionados(objetivos)
             }}
           />
           {erro ? <InlineAlert>{erro}</InlineAlert> : null}

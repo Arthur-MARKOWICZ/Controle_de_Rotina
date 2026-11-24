@@ -11,6 +11,7 @@ import java.util.UUID;
 import com.controlerotina.capacidade.entity.DiaSemana;
 import com.controlerotina.habito.entity.Habito;
 import com.controlerotina.habito.entity.StatusHabito;
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
 import com.controlerotina.tag.dto.TagResumoResponse;
 
 public record HabitoResponse(
@@ -29,7 +30,8 @@ public record HabitoResponse(
         Instant createdAt,
         Instant updatedAt,
         @Nullable Instant deletedAt,
-        boolean deletada
+        boolean deletada,
+        List<ObjetivoResumoResponse> objetivos
 ) {
     public static HabitoResponse from(Habito habito) {
         return from(habito, List.of(), null);
@@ -40,7 +42,17 @@ public record HabitoResponse(
             List<TagResumoResponse> tags,
             Integer tagMatchScore
     ) {
+        return from(habito, tags, tagMatchScore, List.of());
+    }
+
+    public static HabitoResponse from(
+            Habito habito,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore,
+            List<ObjetivoResumoResponse> objetivos
+    ) {
         List<TagResumoResponse> tagsSafe = tags == null ? List.of() : List.copyOf(tags);
+        List<ObjetivoResumoResponse> objetivosSafe = objetivos == null ? List.of() : List.copyOf(objetivos);
         return new HabitoResponse(
                 habito.getId(),
                 habito.getTitulo(),
@@ -57,7 +69,8 @@ public record HabitoResponse(
                 habito.getCreatedAt(),
                 habito.getUpdatedAt(),
                 habito.getDeletedAt(),
-                habito.isDeletado()
+                habito.isDeletado(),
+                objetivosSafe
         );
     }
 }

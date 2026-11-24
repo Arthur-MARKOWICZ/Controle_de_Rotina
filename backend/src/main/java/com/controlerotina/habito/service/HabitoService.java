@@ -23,6 +23,8 @@ import com.controlerotina.habito.entity.Habito;
 import com.controlerotina.habito.entity.StatusHabito;
 import com.controlerotina.habito.repository.HabitoRepository;
 import com.controlerotina.habito.repository.HabitoSpecs;
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.shared.exception.HabitoJaAtivoException;
 import com.controlerotina.shared.exception.HabitoJaPausadoException;
 import com.controlerotina.shared.exception.HabitoNaoEncontradoException;
@@ -37,17 +39,20 @@ public class HabitoService {
     private final HabitoRepository habitoRepository;
     private final HabitoStreakService habitoStreakService;
     private final TagVinculoService tagVinculoService;
+    private final ObjetivoVinculoService objetivoVinculoService;
     private final Clock clock;
 
     public HabitoService(
             HabitoRepository habitoRepository,
             HabitoStreakService habitoStreakService,
             TagVinculoService tagVinculoService,
+            ObjetivoVinculoService objetivoVinculoService,
             Clock clock
     ) {
         this.habitoRepository = habitoRepository;
         this.habitoStreakService = habitoStreakService;
         this.tagVinculoService = tagVinculoService;
+        this.objetivoVinculoService = objetivoVinculoService;
         this.clock = clock;
     }
 
@@ -76,7 +81,12 @@ public class HabitoService {
                 salvo.getId(),
                 request.tagIds()
         );
-        return HabitoResponse.from(salvo, tags, null);
+        List<ObjetivoResumoResponse> objetivos = objetivoVinculoService.substituirObjetivosHabito(
+                usuarioId,
+                salvo.getId(),
+                request.objetivoIds()
+        );
+        return HabitoResponse.from(salvo, tags, null, objetivos);
     }
 
     @Transactional
@@ -105,9 +115,10 @@ public class HabitoService {
             habitoRepository.saveAll(alterados);
         }
 
-        Map<UUID, List<TagResumoResponse>> tagsPorHabito = tagVinculoService.mapearTagsPorHabito(
-                pagina.getContent().stream().map(Habito::getId).toList()
-        );
+        List<UUID> idsDaPagina = pagina.getContent().stream().map(Habito::getId).toList();
+        Map<UUID, List<TagResumoResponse>> tagsPorHabito = tagVinculoService.mapearTagsPorHabito(idsDaPagina);
+        Map<UUID, List<ObjetivoResumoResponse>> objetivosPorHabito =
+                objetivoVinculoService.mapearObjetivosPorHabito(idsDaPagina);
 
         List<HabitoResponse> conteudo = new ArrayList<>();
         for (Habito h : pagina.getContent()) {
@@ -118,7 +129,8 @@ public class HabitoService {
                             tags.stream().map(TagResumoResponse::id).toList(),
                             filtroTagIds
                     );
-            conteudo.add(HabitoResponse.from(h, tags, score));
+            conteudo.add(HabitoResponse.from(
+                    h, tags, score, objetivosPorHabito.getOrDefault(h.getId(), List.of())));
         }
 
         if (filtroTagIds.size() >= 2) {
@@ -139,7 +151,8 @@ public class HabitoService {
         return HabitoResponse.from(
                 habito,
                 tagVinculoService.listarTagsHabito(habito.getId()),
-                null
+                null,
+                objetivoVinculoService.listarObjetivosHabito(habito.getId())
         );
     }
 
@@ -158,7 +171,11 @@ public class HabitoService {
         List<TagResumoResponse> tags = request.tagIdsPresente()
                 ? tagVinculoService.substituirTagsHabito(usuarioId, habito.getId(), request.tagIds())
                 : tagVinculoService.listarTagsHabito(habito.getId());
-        return HabitoResponse.from(habito, tags, null);
+        List<ObjetivoResumoResponse> objetivos = request.objetivoIdsPresente()
+                ? objetivoVinculoService.substituirObjetivosHabito(
+                        usuarioId, habito.getId(), request.objetivoIds())
+                : objetivoVinculoService.listarObjetivosHabito(habito.getId());
+        return HabitoResponse.from(habito, tags, null, objetivos);
     }
 
     @Transactional
@@ -171,7 +188,8 @@ public class HabitoService {
         return HabitoResponse.from(
                 habito,
                 tagVinculoService.listarTagsHabito(habito.getId()),
-                null
+                null,
+                objetivoVinculoService.listarObjetivosHabito(habito.getId())
         );
     }
 
@@ -185,7 +203,8 @@ public class HabitoService {
         return HabitoResponse.from(
                 habito,
                 tagVinculoService.listarTagsHabito(habito.getId()),
-                null
+                null,
+                objetivoVinculoService.listarObjetivosHabito(habito.getId())
         );
     }
 
@@ -208,7 +227,8 @@ public class HabitoService {
         return HabitoResponse.from(
                 habito,
                 tagVinculoService.listarTagsHabito(habito.getId()),
-                null
+                null,
+                objetivoVinculoService.listarObjetivosHabito(habito.getId())
         );
     }
 

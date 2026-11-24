@@ -23,6 +23,7 @@ import com.controlerotina.pendencia.service.EsperaService;
 import com.controlerotina.historico.PeriodoBRT;
 import com.controlerotina.planner.service.PropostaGeracaoService;
 import com.controlerotina.projeto.repository.ProjetoRepository;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.tag.service.TagVinculoService;
 import com.controlerotina.tarefa.entity.StatusTarefa;
 import com.controlerotina.tarefa.repository.TarefaRepository;
@@ -49,6 +50,9 @@ class TarefaServiceProcessarAtrasosTest {
     TagVinculoService tagVinculoService;
 
     @Mock
+    ObjetivoVinculoService objetivoVinculoService;
+
+    @Mock
     ItemDecidirRepository itemDecidirRepository;
 
     @Mock
@@ -64,6 +68,7 @@ class TarefaServiceProcessarAtrasosTest {
                 propostaGeracaoService,
                 execucaoRepository,
                 tagVinculoService,
+                objetivoVinculoService,
                 itemDecidirRepository,
                 esperaService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
@@ -136,6 +141,7 @@ class TarefaServiceProcessarAtrasosTest {
                 propostaGeracaoService,
                 execucaoRepository,
                 tagVinculoService,
+                objetivoVinculoService,
                 itemDecidirRepository,
                 esperaService,
                 Clock.fixed(meiaNoite, ZoneOffset.UTC)
@@ -159,6 +165,7 @@ class TarefaServiceProcessarAtrasosTest {
                 propostaGeracaoService,
                 execucaoRepository,
                 tagVinculoService,
+                objetivoVinculoService,
                 itemDecidirRepository,
                 esperaService,
                 Clock.fixed(quaseMeiaNoite, ZoneOffset.UTC)

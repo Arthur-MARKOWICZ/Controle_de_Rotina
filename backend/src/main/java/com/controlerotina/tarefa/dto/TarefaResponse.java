@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
 import com.controlerotina.pendencia.dto.EsperaResumo;
 import com.controlerotina.tag.dto.TagResumoResponse;
 import com.controlerotina.tarefa.entity.Prioridade;
@@ -34,7 +35,8 @@ public record TarefaResponse(
         @Nullable String parentTitulo,
         boolean temFilhos,
         List<EsperaResumo> esperas,
-        boolean bloqueada
+        boolean bloqueada,
+        List<ObjetivoResumoResponse> objetivos
 ) {
     public static TarefaResponse from(Tarefa tarefa) {
         return from(tarefa, null, tarefa.getDuracaoMinutos(), List.of(), null);
@@ -91,8 +93,35 @@ public record TarefaResponse(
             List<EsperaResumo> esperas,
             boolean bloqueada
     ) {
+        return from(
+                tarefa,
+                projetoNome,
+                restanteMinutos,
+                tags,
+                tagMatchScore,
+                parentTitulo,
+                temFilhos,
+                esperas,
+                bloqueada,
+                List.of()
+        );
+    }
+
+    public static TarefaResponse from(
+            Tarefa tarefa,
+            String projetoNome,
+            int restanteMinutos,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore,
+            String parentTitulo,
+            boolean temFilhos,
+            List<EsperaResumo> esperas,
+            boolean bloqueada,
+            List<ObjetivoResumoResponse> objetivos
+    ) {
         List<TagResumoResponse> tagsSafe = tags == null ? List.of() : List.copyOf(tags);
         List<EsperaResumo> esperasSafe = esperas == null ? List.of() : List.copyOf(esperas);
+        List<ObjetivoResumoResponse> objetivosSafe = objetivos == null ? List.of() : List.copyOf(objetivos);
         return new TarefaResponse(
                 tarefa.getId(),
                 tarefa.getTitulo(),
@@ -115,7 +144,8 @@ public record TarefaResponse(
                 parentTitulo,
                 temFilhos,
                 esperasSafe,
-                bloqueada
+                bloqueada,
+                objetivosSafe
         );
     }
 }

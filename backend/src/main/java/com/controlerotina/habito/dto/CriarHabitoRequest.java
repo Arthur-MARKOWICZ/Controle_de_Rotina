@@ -30,7 +30,9 @@ public record CriarHabitoRequest(
 
         LocalTime horarioPreferencial,
 
-        List<UUID> tagIds
+        List<UUID> tagIds,
+
+        List<UUID> objetivoIds
 ) {
     public CriarHabitoRequest {
         if (titulo != null) {

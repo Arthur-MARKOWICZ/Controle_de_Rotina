@@ -5,9 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../auth/api/authApi'
 import { ToastProvider } from '../feedback/ToastProvider'
+import * as objetivoApi from '../objetivo/api/objetivoApi'
+import type { ObjetivoResponse } from '../objetivo/api/objetivoApi'
 import * as habitoApi from './api/habitoApi'
 import type { HabitoResponse } from './api/habitoApi'
 import { HabitoDrawer } from './HabitoDrawer'
+
+vi.mock('../objetivo/api/objetivoApi', () => ({
+  listarObjetivos: vi.fn(),
+}))
 
 vi.mock('../tag/api/tagApi', () => ({
   listarTags: vi.fn().mockResolvedValue([]),
@@ -44,6 +50,19 @@ const habito: HabitoResponse = {
   deletada: false,
 }
 
+const objetivoAtivo: ObjetivoResponse = {
+  id: 'o1',
+  titulo: 'Correr 10 km',
+  descricao: null,
+  prazo: null,
+  status: 'ATIVO',
+  concluidoEm: null,
+  arquivadoEm: null,
+  createdAt: '2026-11-01T12:00:00Z',
+  updatedAt: '2026-11-01T12:00:00Z',
+  progresso: null,
+}
+
 const aoCriar = vi.fn()
 const aoAtualizar = vi.fn()
 
@@ -76,6 +95,11 @@ describe('HabitoDrawer', () => {
     vi.mocked(habitoApi.excluirHabito).mockReset()
     vi.mocked(habitoApi.restaurarHabito).mockReset()
     vi.mocked(habitoApi.buscarHistoricoHabito).mockReset().mockResolvedValue([])
+    vi.mocked(objetivoApi.listarObjetivos).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue({
+      content: [objetivoAtivo],
+      page: { size: 100, number: 0, totalElements: 1, totalPages: 1 },
+    })
   })
 
   it('cria hábito válido e notifica a lista', async () => {
@@ -227,6 +251,100 @@ describe('HabitoDrawer', () => {
         expect(habitoApi.atualizarHabito).toHaveBeenCalled()
       })
       expect(aoAtualizar).toHaveBeenCalled()
+    })
+  })
+  describe('objetivos', () => {
+    it('cria hábito vinculado ao objetivo escolhido', async () => {
+      vi.mocked(habitoApi.criarHabito).mockResolvedValue(habito)
+      const user = userEvent.setup()
+      renderDrawer('/habitos/nova')
+
+      await user.type(screen.getByLabelText('Título'), 'Correr')
+      await user.click(screen.getByRole('checkbox', { name: /segunda/i }))
+      await user.click(screen.getByRole('button', { name: /escolher objetivos/i }))
+      await user.click(await screen.findByRole('button', { name: 'Correr 10 km' }))
+      await user.click(screen.getByRole('button', { name: /criar hábito/i }))
+
+      await waitFor(() => {
+        expect(habitoApi.criarHabito).toHaveBeenCalledWith(
+          expect.objectContaining({ titulo: 'Correr', objetivoIds: ['o1'] }),
+        )
+      })
+    })
+
+    it('remover o chip e salvar desvincula enviando lista vazia', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue({
+        ...habito,
+        objetivos: [{ id: 'o1', titulo: 'Correr 10 km', status: 'ATIVO' }],
+      })
+      vi.mocked(habitoApi.atualizarHabito).mockResolvedValue(habito)
+      const user = userEvent.setup()
+      renderDrawer('/habitos/h-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Remover objetivo Correr 10 km' }))
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(habitoApi.atualizarHabito).toHaveBeenCalledWith(
+          'h-1',
+          expect.objectContaining({ objetivoIds: [] }),
+        )
+      })
+    })
+
+    it('hábito vinculado a objetivo concluído mostra o chip com o status e o mantém ao salvar', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue({
+        ...habito,
+        objetivos: [{ id: 'o9', titulo: 'Perder 5 kg', status: 'CONCLUIDO' }],
+      })
+      vi.mocked(habitoApi.atualizarHabito).mockResolvedValue(habito)
+      const user = userEvent.setup()
+      renderDrawer('/habitos/h-1')
+
+      const chip = await screen.findByRole('button', { name: 'Remover objetivo Perder 5 kg' })
+      expect(chip).toHaveTextContent('Concluído')
+      const titulo = screen.getByLabelText('Título')
+      await user.type(titulo, '!')
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(habitoApi.atualizarHabito).toHaveBeenCalledWith(
+          'h-1',
+          expect.objectContaining({ objetivoIds: ['o9'] }),
+        )
+      })
+    })
+
+    it('mudar só os objetivos pede confirmação de descarte ao fechar', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue(habito)
+      const user = userEvent.setup()
+      renderDrawer('/habitos/h-1')
+      await screen.findByDisplayValue('Correr')
+
+      await user.click(screen.getByRole('button', { name: /escolher objetivos/i }))
+      await user.click(await screen.findByRole('button', { name: 'Correr 10 km' }))
+      await user.keyboard('{Escape}')
+      await user.keyboard('{Escape}')
+
+      expect(await screen.findByRole('dialog', { name: /descartar/i })).toBeInTheDocument()
+      expect(habitoApi.atualizarHabito).not.toHaveBeenCalled()
+    })
+
+    it('409 por objetivo não ativo mostra a mensagem e mantém o drawer aberto', async () => {
+      vi.mocked(habitoApi.buscarHabito).mockResolvedValue(habito)
+      vi.mocked(habitoApi.atualizarHabito).mockRejectedValue(
+        new ApiError(409, 'Só é possível vincular a um objetivo ativo.'),
+      )
+      const user = userEvent.setup()
+      renderDrawer('/habitos/h-1')
+      await screen.findByDisplayValue('Correr')
+
+      await user.click(screen.getByRole('button', { name: /escolher objetivos/i }))
+      await user.click(await screen.findByRole('button', { name: 'Correr 10 km' }))
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      expect(await screen.findByText('Só é possível vincular a um objetivo ativo.')).toBeInTheDocument()
+      expect(screen.getByLabelText('Título')).toHaveValue('Correr')
     })
   })
 })

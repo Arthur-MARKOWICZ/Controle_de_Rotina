@@ -200,6 +200,7 @@ public class DecidirService {
                         body.duracaoMinutos(),
                         item.getProjetoId(),
                         tagIds,
+                        null,
                         null
                 )
         );

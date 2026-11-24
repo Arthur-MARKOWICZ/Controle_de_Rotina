@@ -623,6 +623,99 @@ class TarefaSubtarefaIT {
         assertThat(statusDa(filhoAtrasado)).isEqualTo("ATRASADA");
     }
 
+    @Test
+    void deveGravarFinalizadaEmAoFinalizarPorPatchELimparAoReabrir() {
+        UUID tarefaId = criarTarefa("Finalizar e reabrir");
+        assertThat(finalizadaEmDa(tarefaId)).isNull();
+
+        assertThat(patchStatus(tarefaId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+        assertThat(finalizadaEmDa(tarefaId)).isNotNull();
+
+        assertThat(patchStatus(tarefaId, "PENDENTE").getStatusCode()).isEqualTo(OK);
+        assertThat(finalizadaEmDa(tarefaId)).isNull();
+    }
+
+    @Test
+    void naoDeveMudarFinalizadaEmAoReenviarFinalizadaParaTarefaJaFinalizada() {
+        UUID tarefaId = criarTarefa("Finalizar duas vezes");
+        assertThat(patchStatus(tarefaId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+        Instant primeira = finalizadaEmDa(tarefaId);
+
+        assertThat(patchStatus(tarefaId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+
+        assertThat(finalizadaEmDa(tarefaId)).isEqualTo(primeira);
+    }
+
+    @Test
+    void deveGravarFinalizadaEmNoPaiEmCascataAoFinalizarOUltimoFilho() {
+        UUID paiId = criarTarefa("Pai em cascata");
+        UUID filhoA = criarFilho(paiId, "Filho A");
+        UUID filhoB = criarFilho(paiId, "Filho B");
+        assertThat(patchStatus(filhoA, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+        assertThat(finalizadaEmDa(paiId)).isNull();
+
+        assertThat(patchStatus(filhoB, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+
+        assertThat(statusDa(paiId)).isEqualTo("FINALIZADA");
+        assertThat(finalizadaEmDa(paiId)).isNotNull();
+        assertThat(finalizadaEmDa(filhoB)).isNotNull();
+    }
+
+    @Test
+    void deveGravarFinalizadaEmNosFilhosAoFinalizarOPaiEmCascata() {
+        UUID paiId = criarTarefa("Pai finaliza filhos");
+        UUID filhoA = criarFilho(paiId, "Filho A");
+        UUID filhoB = criarFilho(paiId, "Filho B");
+
+        assertThat(patchStatus(paiId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+
+        assertThat(finalizadaEmDa(paiId)).isNotNull();
+        assertThat(finalizadaEmDa(filhoA)).isNotNull();
+        assertThat(finalizadaEmDa(filhoB)).isNotNull();
+    }
+
+    @Test
+    void deveLimparFinalizadaEmDoPaiAoReabrirOFilho() {
+        UUID paiId = criarTarefa("Pai reaberto pelo filho");
+        UUID filhoId = criarFilho(paiId, "Filho único");
+        assertThat(patchStatus(filhoId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+        assertThat(finalizadaEmDa(paiId)).isNotNull();
+
+        assertThat(patchStatus(filhoId, "PENDENTE").getStatusCode()).isEqualTo(OK);
+
+        assertThat(finalizadaEmDa(filhoId)).isNull();
+        assertThat(finalizadaEmDa(paiId)).isNull();
+    }
+
+    @Test
+    void deveLimparFinalizadaEmDoPaiAoCriarFilhoNaTarefaFinalizada() {
+        UUID paiId = criarTarefa("Pai reaberto por filho novo");
+        assertThat(patchStatus(paiId, "FINALIZADA").getStatusCode()).isEqualTo(OK);
+        assertThat(finalizadaEmDa(paiId)).isNotNull();
+
+        criarFilho(paiId, "Novo passo");
+
+        assertThat(statusDa(paiId)).isEqualTo("PENDENTE");
+        assertThat(finalizadaEmDa(paiId)).isNull();
+    }
+
+    @Test
+    void naoDeveGravarFinalizadaEmAoCancelarTarefa() {
+        UUID tarefaId = criarTarefa("Cancelar");
+
+        assertThat(patchStatus(tarefaId, "CANCELADA").getStatusCode()).isEqualTo(OK);
+
+        assertThat(finalizadaEmDa(tarefaId)).isNull();
+    }
+
+    private Instant finalizadaEmDa(UUID id) {
+        Timestamp valor = jdbcTemplate.queryForObject(
+                "select finalizada_em from tarefa where id = ?",
+                Timestamp.class,
+                id);
+        return valor == null ? null : valor.toInstant();
+    }
+
     private ResponseEntity<Map> patchStatus(UUID id, String status) {
         return restTemplate.exchange(
                 "/tarefas/" + id,

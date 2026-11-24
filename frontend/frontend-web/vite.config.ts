@@ -49,6 +49,7 @@ export default defineConfig({
       '/tags': spaApiSharedProxy,
       '/decidir': spaApiSharedProxy,
       '/tarefas': spaApiSharedProxy,
+      '/objetivos': spaApiSharedProxy,
     },
   },
   test: {
@@ -69,8 +70,8 @@ export default defineConfig({
       ],
       // Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 70/60.
       thresholds: {
-        lines: 87,
-        branches: 82,
+        lines: 88,
+        branches: 84,
       },
     },
   },

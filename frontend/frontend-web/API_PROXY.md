@@ -79,8 +79,9 @@ Após alterar `nginx.conf`: `docker compose up -d --build frontend`.
 | `/habitos`      | CRUD de hábitos (SPA e API no mesmo path; ver nota abaixo) |
 | `/tags`         | CRUD de tags (SPA e API no mesmo path; ver nota abaixo) |
 | `/decidir`      | fila Decidir (SPA e API no mesmo path; ver nota abaixo) |
+| `/objetivos`    | CRUD e ciclo de vida de objetivos (SPA e API no mesmo path; ver nota abaixo) |
 
-**Nota `/calendario`, `/projetos`, `/habitos`, `/tags`, `/decidir` e `/tarefas`:** a tela React e a API compartilham o path.  
+**Nota `/calendario`, `/projetos`, `/habitos`, `/tags`, `/decidir`, `/tarefas` e `/objetivos`:** a tela React e a API compartilham o path.  
 No Vite, o proxy usa `bypass` quando `Accept` contém `text/html` (navegação → SPA).  
 No Nginx, `map $http_accept` + `error_page 418` encaminha só pedidos com `application/json` ao backend.  
 O `apiFetch` já envia `Accept: application/json`.
@@ -125,6 +126,8 @@ Use a UI logada (`/tarefas`, `/capacidade`, `/plano`) ou o DevTools → Network 
 | `/decidir`, `/decidir/{id}`, … (Accept JSON) | API (proxy → backend) |
 | `/tarefas` (navegação HTML) | Tela React (SPA) |
 | `/tarefas`, `/tarefas/{id}`, … (Accept JSON) | API (proxy → backend) |
+| `/objetivos` (navegação HTML) | Tela React (SPA) |
+| `/objetivos`, `/objetivos/{id}`, `/objetivos/{id}/itens`, … (Accept JSON) | API (proxy → backend) |
 
 ## Erro “API devolveu a página do front (SPA)”
 

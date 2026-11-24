@@ -2,6 +2,7 @@ import {
   CalendarBlankIcon,
   ChartLineUpIcon,
   CheckSquareIcon,
+  FlagIcon,
   FolderSimpleIcon,
   GaugeIcon,
   PlusIcon,
@@ -31,6 +32,7 @@ type ItemNav = { to: string; label: string; Icon: Icon; end?: boolean }
 const TAREFAS: ItemNav = { to: '/tarefas', label: 'Tarefas', Icon: CheckSquareIcon }
 const DECIDIR: ItemNav = { to: '/decidir', label: 'Decidir', Icon: ScalesIcon }
 const PROJETOS: ItemNav = { to: '/projetos', label: 'Projetos', Icon: FolderSimpleIcon }
+const OBJETIVOS: ItemNav = { to: '/objetivos', label: 'Objetivos', Icon: FlagIcon }
 const PLANO: ItemNav = { to: '/plano', label: 'Plano', Icon: SunHorizonIcon, end: true }
 const HABITOS: ItemNav = { to: '/habitos', label: 'Hábitos', Icon: RepeatIcon }
 const CAPACIDADE: ItemNav = { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon }
@@ -39,7 +41,7 @@ const HISTORICO: ItemNav = { to: '/historico', label: 'Histórico', Icon: ChartL
 const TAGS: ItemNav = { to: '/tags', label: 'Tags', Icon: TagIcon }
 
 /** Primário → secundário → terciário (sidebar). */
-const NAV_SIDEBAR_PRIMARIO = [TAREFAS, DECIDIR, PROJETOS]
+const NAV_SIDEBAR_PRIMARIO = [TAREFAS, DECIDIR, PROJETOS, OBJETIVOS]
 const NAV_SIDEBAR_SECUNDARIO = [PLANO, HABITOS]
 const NAV_SIDEBAR_TERCIARIO = [CAPACIDADE, CALENDARIO, HISTORICO, TAGS]
 const NAV_BOTTOM = [TAREFAS, DECIDIR, PROJETOS, PLANO, HABITOS]
@@ -104,15 +106,27 @@ const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
   // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
   { base: '/projetos', drawer: /^\/projetos\/nova$/ },
   { base: '/habitos', drawer: /^\/habitos\/[^/]+$/ },
+  // `/objetivos/:id` é a página de detalhe; só a criação abre drawer sobre a lista.
+  { base: '/objetivos', drawer: /^\/objetivos\/nova$/ },
 ]
+
+const OBJETIVO_DETALHE = /^\/objetivos\/([^/]+)(?:\/editar)?$/
+
+/** Detalhe do objetivo e o drawer de edição são a mesma página, desde que o id seja o mesmo. */
+function mesmoObjetivo(anterior: string, atual: string): boolean {
+  const a = OBJETIVO_DETALHE.exec(anterior)
+  const b = OBJETIVO_DETALHE.exec(atual)
+  return a != null && b != null && a[1] !== 'nova' && a[1] === b[1]
+}
 
 function naPagina(pathname: string, pagina: { base: string; drawer: RegExp }): boolean {
   return pathname === pagina.base || pagina.drawer.test(pathname)
 }
 
 function mesmaPaginaComDrawer(anterior: string, atual: string): boolean {
-  return PAGINAS_COM_DRAWER.some(
-    (pagina) => naPagina(anterior, pagina) && naPagina(atual, pagina),
+  return (
+    PAGINAS_COM_DRAWER.some((pagina) => naPagina(anterior, pagina) && naPagina(atual, pagina)) ||
+    mesmoObjetivo(anterior, atual)
   )
 }
 

@@ -106,6 +106,13 @@
             "format" : "time-local",
             "type" : [ "null", "string" ]
           },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
           "tagIds" : {
             "items" : {
               "format" : "uuid",
@@ -145,6 +152,25 @@
         "required" : [ "senhaAtual" ],
         "type" : "object"
       },
+      "AtualizarObjetivoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "null", "string" ]
+          },
+          "prazo" : {
+            "format" : "date",
+            "type" : [ "null", "string" ]
+          },
+          "titulo" : {
+            "maxLength" : 80,
+            "minLength" : 1,
+            "type" : [ "null", "string" ]
+          }
+        },
+        "type" : "object"
+      },
       "AtualizarProjetoRequest" : {
         "properties" : {
           "descricao" : {
@@ -156,6 +182,13 @@
             "maxLength" : 80,
             "minLength" : 1,
             "type" : "string"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
           },
           "tagIds" : {
             "items" : {
@@ -204,6 +237,13 @@
           "duracaoMinutos" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
           },
           "prazo" : {
             "format" : "date-time",
@@ -701,6 +741,13 @@
             "format" : "time-local",
             "type" : "string"
           },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "tagIds" : {
             "items" : {
               "format" : "uuid",
@@ -717,6 +764,26 @@
         "required" : [ "diasSemana", "duracaoMinutos", "titulo" ],
         "type" : "object"
       },
+      "CriarObjetivoRequest" : {
+        "properties" : {
+          "descricao" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "null", "string" ]
+          },
+          "prazo" : {
+            "format" : "date",
+            "type" : [ "null", "string" ]
+          },
+          "titulo" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "titulo" ],
+        "type" : "object"
+      },
       "CriarProjetoRequest" : {
         "properties" : {
           "descricao" : {
@@ -728,6 +795,13 @@
             "maxLength" : 80,
             "minLength" : 0,
             "type" : "string"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "tagIds" : {
             "items" : {
@@ -779,6 +853,13 @@
           "duracaoMinutos" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "objetivoIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "parentId" : {
             "format" : "uuid",
@@ -1048,6 +1129,12 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1078,7 +1165,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "createdAt", "deletada", "deletedAt", "descricao", "diasSemana", "duracaoMinutos", "horarioPreferencial", "id", "melhorStreak", "ordem", "status", "streakAtual", "tagMatchScore", "tags", "titulo", "updatedAt" ],
+        "required" : [ "createdAt", "deletada", "deletedAt", "descricao", "diasSemana", "duracaoMinutos", "horarioPreferencial", "id", "melhorStreak", "objetivos", "ordem", "status", "streakAtual", "tagMatchScore", "tags", "titulo", "updatedAt" ],
         "type" : "object"
       },
       "HabitoResumoResponse" : {
@@ -1245,6 +1332,198 @@
         "required" : [ "amostras", "desvioMedioMinutos", "razao", "suficiente" ],
         "type" : "object"
       },
+      "ObjetivoEvolucaoResponse" : {
+        "properties" : {
+          "antesDoHistorico" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pontos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PontoEvolucaoResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "antesDoHistorico", "pontos" ],
+        "type" : "object"
+      },
+      "ObjetivoItemHabitoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ATIVO", "PAUSADO" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "origem", "status", "titulo" ],
+        "type" : "object"
+      },
+      "ObjetivoItemProjetoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "nome" : {
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "nome", "origem", "status" ],
+        "type" : "object"
+      },
+      "ObjetivoItemTarefaResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "origem" : {
+            "enum" : [ "DIRETO", "VIA_PROJETO" ],
+            "type" : "string"
+          },
+          "projetoId" : {
+            "format" : "uuid",
+            "type" : [ "null", "string" ]
+          },
+          "projetoNome" : {
+            "type" : [ "null", "string" ]
+          },
+          "status" : {
+            "enum" : [ "ATRASADA", "CANCELADA", "EM_PROGRESSO", "FINALIZADA", "PENDENTE" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "origem", "projetoId", "projetoNome", "status", "titulo" ],
+        "type" : "object"
+      },
+      "ObjetivoItensResponse" : {
+        "properties" : {
+          "habitos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemHabitoResponse"
+            },
+            "type" : "array"
+          },
+          "projetos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemProjetoResponse"
+            },
+            "type" : "array"
+          },
+          "tarefas" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoItemTarefaResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "habitos", "projetos", "tarefas" ],
+        "type" : "object"
+      },
+      "ObjetivoProgressoResponse" : {
+        "properties" : {
+          "minutosConcluidos" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosTotais" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "percentual" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "minutosConcluidos", "minutosTotais", "percentual" ],
+        "type" : "object"
+      },
+      "ObjetivoResponse" : {
+        "properties" : {
+          "arquivadoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "concluidoEm" : {
+            "format" : "date-time",
+            "type" : [ "null", "string" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "descricao" : {
+            "type" : [ "null", "string" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "prazo" : {
+            "format" : "date",
+            "type" : [ "null", "string" ]
+          },
+          "progresso" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/ObjetivoProgressoResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "arquivadoEm", "concluidoEm", "createdAt", "descricao", "id", "prazo", "progresso", "status", "titulo", "updatedAt" ],
+        "type" : "object"
+      },
+      "ObjetivoResumoResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
+            "type" : "string"
+          },
+          "titulo" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "status", "titulo" ],
+        "type" : "object"
+      },
       "PageMetadata" : {
         "properties" : {
           "number" : {
@@ -1308,6 +1587,21 @@
           "content" : {
             "items" : {
               "$ref" : "#/components/schemas/HabitoResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "$ref" : "#/components/schemas/PageMetadata"
+          }
+        },
+        "required" : [ "content", "page" ],
+        "type" : "object"
+      },
+      "PagedModelObjetivoResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResponse"
             },
             "type" : "array"
           },
@@ -1456,6 +1750,24 @@
         "required" : [ "blocos", "createdAt", "data", "geradoEm", "id", "itensNaoAlocados", "mensagem", "propostaId", "propostaPendente", "status", "temConflito", "updatedAt", "versao" ],
         "type" : "object"
       },
+      "PontoEvolucaoResponse" : {
+        "properties" : {
+          "data" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "minutosAcumulados" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutosNoDia" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "data", "minutosAcumulados", "minutosNoDia" ],
+        "type" : "object"
+      },
       "ProjetoResponse" : {
         "properties" : {
           "bloqueada" : {
@@ -1481,6 +1793,12 @@
           "nome" : {
             "type" : "string"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1504,7 +1822,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "bloqueada", "createdAt", "descricao", "esperas", "id", "nome", "ordem", "status", "tagMatchScore", "tags", "updatedAt" ],
+        "required" : [ "bloqueada", "createdAt", "descricao", "esperas", "id", "nome", "objetivos", "ordem", "status", "tagMatchScore", "tags", "updatedAt" ],
         "type" : "object"
       },
       "PromoverDecidirRequest" : {
@@ -1746,6 +2064,12 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "objetivos" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ObjetivoResumoResponse"
+            },
+            "type" : "array"
+          },
           "ordem" : {
             "format" : "int32",
             "type" : "integer"
@@ -1801,7 +2125,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "bloqueada", "createdAt", "deletada", "deletedAt", "descricao", "duracaoMinutos", "esperas", "id", "ordem", "parentId", "parentTitulo", "prazo", "prioridade", "projetoId", "projetoNome", "restanteMinutos", "status", "tagMatchScore", "tags", "temFilhos", "titulo", "updatedAt" ],
+        "required" : [ "bloqueada", "createdAt", "deletada", "deletedAt", "descricao", "duracaoMinutos", "esperas", "id", "objetivos", "ordem", "parentId", "parentTitulo", "prazo", "prioridade", "projetoId", "projetoNome", "restanteMinutos", "status", "tagMatchScore", "tags", "temFilhos", "titulo", "updatedAt" ],
         "type" : "object"
       },
       "TarefaResumoResponse" : {
@@ -2061,7 +2385,7 @@
     },
     "/capacidades/overrides" : {
       "get" : {
-        "operationId" : "listar_6",
+        "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
           "name" : "incluirDeletadas",
@@ -2113,7 +2437,7 @@
         "tags" : [ "capacidade-override-controller" ]
       },
       "post" : {
-        "operationId" : "criar_7",
+        "operationId" : "criar_8",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2162,7 +2486,7 @@
         "tags" : [ "capacidade-override-controller" ]
       },
       "get" : {
-        "operationId" : "buscar_5",
+        "operationId" : "buscar_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2187,7 +2511,7 @@
         "tags" : [ "capacidade-override-controller" ]
       },
       "patch" : {
-        "operationId" : "atualizar_8",
+        "operationId" : "atualizar_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2289,7 +2613,7 @@
     },
     "/capacidades/semanal" : {
       "get" : {
-        "operationId" : "listar_5",
+        "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
           "name" : "incluirDeletadas",
@@ -2325,7 +2649,7 @@
         "tags" : [ "capacidade-semanal-controller" ]
       },
       "post" : {
-        "operationId" : "criar_6",
+        "operationId" : "criar_7",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2374,7 +2698,7 @@
         "tags" : [ "capacidade-semanal-controller" ]
       },
       "get" : {
-        "operationId" : "buscar_4",
+        "operationId" : "buscar_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2399,7 +2723,7 @@
         "tags" : [ "capacidade-semanal-controller" ]
       },
       "patch" : {
-        "operationId" : "atualizar_7",
+        "operationId" : "atualizar_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2463,7 +2787,7 @@
     },
     "/decidir" : {
       "get" : {
-        "operationId" : "listar_4",
+        "operationId" : "listar_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "promovidos",
@@ -2506,7 +2830,7 @@
         "tags" : [ "decidir-controller" ]
       },
       "post" : {
-        "operationId" : "criar_5",
+        "operationId" : "criar_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2552,7 +2876,7 @@
         "tags" : [ "decidir-controller" ]
       },
       "get" : {
-        "operationId" : "buscar_3",
+        "operationId" : "buscar_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2577,7 +2901,7 @@
         "tags" : [ "decidir-controller" ]
       },
       "patch" : {
-        "operationId" : "atualizar_6",
+        "operationId" : "atualizar_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2650,7 +2974,7 @@
     },
     "/execucoes" : {
       "get" : {
-        "operationId" : "listar_7",
+        "operationId" : "listar_8",
         "parameters" : [ {
           "in" : "query",
           "name" : "data",
@@ -2750,7 +3074,7 @@
     },
     "/execucoes/{id}/concluir" : {
       "post" : {
-        "operationId" : "concluir",
+        "operationId" : "concluir_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2777,7 +3101,7 @@
     },
     "/habitos" : {
       "get" : {
-        "operationId" : "listar_3",
+        "operationId" : "listar_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "status",
@@ -2836,7 +3160,7 @@
         "tags" : [ "habito-controller" ]
       },
       "post" : {
-        "operationId" : "criar_4",
+        "operationId" : "criar_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2933,7 +3257,7 @@
         "tags" : [ "habito-controller" ]
       },
       "get" : {
-        "operationId" : "buscar_2",
+        "operationId" : "buscar_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2958,7 +3282,7 @@
         "tags" : [ "habito-controller" ]
       },
       "patch" : {
-        "operationId" : "atualizar_5",
+        "operationId" : "atualizar_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -3315,9 +3639,269 @@
         "tags" : [ "me-controller" ]
       }
     },
+    "/objetivos" : {
+      "get" : {
+        "operationId" : "listar_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "ARQUIVADO", "ATIVO", "CONCLUIDO" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedModelObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      },
+      "post" : {
+        "operationId" : "criar_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CriarObjetivoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}" : {
+      "get" : {
+        "operationId" : "buscar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      },
+      "patch" : {
+        "operationId" : "atualizar_5",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AtualizarObjetivoRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/arquivar" : {
+      "post" : {
+        "operationId" : "arquivar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/concluir" : {
+      "post" : {
+        "operationId" : "concluir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/evolucao" : {
+      "get" : {
+        "operationId" : "evolucao",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoEvolucaoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/itens" : {
+      "get" : {
+        "operationId" : "listarItens",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoItensResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
+    "/objetivos/{id}/reabrir" : {
+      "post" : {
+        "operationId" : "reabrir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ObjetivoResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "objetivo-controller" ]
+      }
+    },
     "/planos" : {
       "get" : {
-        "operationId" : "buscar_6",
+        "operationId" : "buscar_7",
         "parameters" : [ {
           "in" : "query",
           "name" : "data",

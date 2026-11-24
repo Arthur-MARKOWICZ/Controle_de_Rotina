@@ -28,7 +28,13 @@ public record AtualizarProjetoRequest(
         List<UUID> tagIds,
 
         @Schema(hidden = true)
-        boolean tagIdsPresente
+        boolean tagIdsPresente,
+
+        @Nullable
+        List<UUID> objetivoIds,
+
+        @Schema(hidden = true)
+        boolean objetivoIdsPresente
 ) {
     public AtualizarProjetoRequest {
         if (nome != null) {
@@ -50,11 +56,18 @@ public record AtualizarProjetoRequest(
             if (tagIdsPresente) {
                 tagIds = uuids(node.get("tagIds"));
             }
+            boolean objetivoIdsPresente = node.has("objetivoIds");
+            List<UUID> objetivoIds = null;
+            if (objetivoIdsPresente) {
+                objetivoIds = uuids(node.get("objetivoIds"));
+            }
             return new AtualizarProjetoRequest(
                     texto(node, "nome"),
                     texto(node, "descricao"),
                     tagIds,
-                    tagIdsPresente
+                    tagIdsPresente,
+                    objetivoIds,
+                    objetivoIdsPresente
             );
         }
 

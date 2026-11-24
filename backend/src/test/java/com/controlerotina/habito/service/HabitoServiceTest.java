@@ -28,6 +28,7 @@ import com.controlerotina.habito.repository.HabitoRepository;
 import com.controlerotina.shared.exception.HabitoJaAtivoException;
 import com.controlerotina.shared.exception.HabitoJaPausadoException;
 import com.controlerotina.shared.exception.HabitoNaoEncontradoException;
+import com.controlerotina.objetivo.service.ObjetivoVinculoService;
 import com.controlerotina.tag.service.TagVinculoService;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +44,8 @@ class HabitoServiceTest {
     HabitoStreakService habitoStreakService;
     @Mock
     TagVinculoService tagVinculoService;
+    @Mock
+    ObjetivoVinculoService objetivoVinculoService;
 
     private HabitoService service;
 
@@ -52,6 +55,7 @@ class HabitoServiceTest {
                 habitoRepository,
                 habitoStreakService,
                 tagVinculoService,
+                objetivoVinculoService,
                 Clock.fixed(AGORA, ZoneOffset.UTC)
         );
     }

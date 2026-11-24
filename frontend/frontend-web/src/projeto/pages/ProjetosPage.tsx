@@ -9,6 +9,7 @@ import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
 import { ArrasteHandle } from '../../lista/ArrasteHandle'
 import { compararOrdem } from '../../lista/listaOrdem'
+import { truncarDescricao } from '../../lista/truncarDescricao'
 import { useListaArrastavel } from '../../lista/useListaArrastavel'
 import {
   arquivarProjeto,
@@ -43,17 +44,6 @@ function lerStatusDaUrl(params: URLSearchParams): StatusProjeto {
 
 function lerPageDaUrl(params: URLSearchParams): number {
   return Math.max(0, Number(params.get('page') ?? 0) || 0)
-}
-
-function truncarDescricao(descricao: string | null, max = 120): string | null {
-  if (!descricao) {
-    return null
-  }
-  const texto = descricao.trim()
-  if (texto.length <= max) {
-    return texto
-  }
-  return `${texto.slice(0, max - 1)}…`
 }
 
 function ProjetosLista({

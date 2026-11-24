@@ -92,6 +92,28 @@ class TarefaResponseTest {
         assertThat(response.tags()).isEmpty();
         assertThat(response.projetoNome()).isEqualTo("Projeto");
         assertThat(response.tagMatchScore()).isNull();
+        assertThat(response.objetivos()).isEmpty();
+    }
+
+    @Test
+    void semVinculoDeObjetivoDevolveListaVazia() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(tarefa);
+
+        assertThat(response.objetivos()).isEmpty();
+    }
+
+    @Test
+    void objetivosNulosDevemVirarListaVazia() {
+        Instant agora = Instant.parse("2026-11-12T12:00:00Z");
+        Tarefa tarefa = raiz(agora);
+
+        TarefaResponse response = TarefaResponse.from(
+                tarefa, null, 60, List.of(), null, null, false, List.of(), false, null);
+
+        assertThat(response.objetivos()).isEmpty();
     }
 
     @Test

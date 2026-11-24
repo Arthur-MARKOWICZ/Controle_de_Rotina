@@ -1,3 +1,5 @@
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
+import { ObjetivoPicker } from '../objetivo/ObjetivoPicker'
 import type { TagResumo } from '../tag/api/tagApi'
 import { TagPicker } from '../tag/TagPicker'
 import type { ProjetoFormValues } from './validation/projetoForm'
@@ -8,6 +10,9 @@ type Props = {
   tagIds?: string[]
   tagsSelecionadas?: TagResumo[]
   onTagsChange?: (tagIds: string[], tags: TagResumo[]) => void
+  objetivoIds?: string[]
+  objetivosSelecionados?: ObjetivoResumo[]
+  onObjetivosChange?: (objetivoIds: string[], objetivos: ObjetivoResumo[]) => void
   desabilitado?: boolean
 }
 
@@ -17,6 +22,9 @@ export function ProjetoCampos({
   tagIds = [],
   tagsSelecionadas,
   onTagsChange,
+  objetivoIds = [],
+  objetivosSelecionados,
+  onObjetivosChange,
   desabilitado = false,
 }: Props) {
   return (
@@ -26,6 +34,14 @@ export function ProjetoCampos({
           selectedIds={tagIds}
           selectedTags={tagsSelecionadas}
           onChange={onTagsChange}
+          disabled={desabilitado}
+        />
+      ) : null}
+      {onObjetivosChange ? (
+        <ObjetivoPicker
+          selectedIds={objetivoIds}
+          selectedObjetivos={objetivosSelecionados}
+          onChange={onObjetivosChange}
           disabled={desabilitado}
         />
       ) : null}

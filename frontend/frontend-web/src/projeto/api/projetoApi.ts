@@ -2,6 +2,7 @@ import type { Pagina } from '../../api/pagina'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch } from '../../auth/session/apiClient'
 import type { CriarEsperaRequest, EsperaResumo } from '../../pendencia/api/espera'
+import type { ObjetivoResumo } from '../../objetivo/api/objetivoApi'
 import type { TagResumo } from '../../tag/api/tagApi'
 
 export type StatusProjeto = 'ATIVO' | 'ARQUIVADO'
@@ -12,6 +13,8 @@ export type ProjetoResponse = {
   descricao: string | null
   status: StatusProjeto
   tags?: TagResumo[]
+  /** Só vínculos diretos; ausente em payloads antigos. */
+  objetivos?: ObjetivoResumo[]
   tagMatchScore?: number | null
   createdAt: string
   updatedAt: string
@@ -36,12 +39,14 @@ export type CriarProjetoRequest = {
   nome: string
   descricao?: string | null
   tagIds?: string[]
+  objetivoIds?: string[]
 }
 
 export type AtualizarProjetoRequest = {
   nome?: string
   descricao?: string | null
   tagIds?: string[]
+  objetivoIds?: string[]
 }
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {

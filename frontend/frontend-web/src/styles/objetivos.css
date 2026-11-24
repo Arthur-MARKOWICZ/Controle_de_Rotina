@@ -1,0 +1,457 @@
+/* ——— Objetivos ——— */
+
+.objetivos-page {
+  min-width: 0;
+}
+
+.objetivos-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.objetivos-header h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 600;
+}
+
+.objetivos-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.objetivos-meta {
+  color: var(--muted);
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+.objetivo-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.objetivo-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.objetivo-card--vencido {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+}
+
+.objetivo-card--arquivado {
+  opacity: 0.75;
+}
+
+.objetivo-card__principal {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+
+.objetivo-card__titulo {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.objetivo-card__titulo:hover {
+  color: var(--accent-hover);
+}
+
+.objetivo-card__prazo {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.objetivo-card__prazo--vencido {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.objetivo-card__descricao {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  word-break: break-word;
+}
+
+/* Barra de progresso do objetivo: no card (compacta) e no detalhe (destaque). */
+.objetivo-progresso {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.objetivo-progresso__track {
+  height: 0.375rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.objetivo-progresso__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cta);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.objetivo-progresso__legenda {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.objetivo-progresso__legenda strong {
+  color: var(--ink);
+}
+
+.objetivo-progresso--vazio {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* Altura fixa no card: a lista não pula quando um card passa a ter barra. */
+.objetivo-card .objetivo-progresso {
+  min-height: 2rem;
+  justify-content: center;
+}
+
+.objetivo-progresso--destaque {
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.objetivo-progresso--destaque .objetivo-progresso__track {
+  height: 0.625rem;
+}
+
+.objetivo-progresso--destaque .objetivo-progresso__legenda,
+.objetivo-progresso--destaque.objetivo-progresso--vazio {
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .objetivo-progresso__fill {
+    transition: none;
+  }
+}
+
+.objetivo-card__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.objetivos-empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-5);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.objetivos-empty__icone {
+  width: 2rem;
+  height: 2rem;
+  color: var(--muted);
+}
+
+.objetivos-empty__titulo {
+  margin: 0;
+  font-weight: 600;
+}
+
+.objetivos-empty p {
+  margin: 0;
+}
+
+.objetivos-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.objetivos-paginacao .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.objetivo-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.objetivo-prazo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ——— Detalhe do objetivo ——— */
+
+.objetivo-detalhe__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+
+.objetivo-detalhe__prazo--vencido {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.objetivo-detalhe__voltar {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+}
+
+.objetivo-detalhe__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Evolução do objetivo: minutos acumulados por dia, em degraus. */
+.objetivo-evolucao {
+  margin-top: var(--space-6);
+}
+
+.objetivo-evolucao__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: 1.15rem;
+}
+
+.objetivo-evolucao__resumo {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.objetivo-evolucao__resumo strong {
+  color: var(--ink);
+}
+
+.objetivo-evolucao__svg {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  height: auto;
+}
+
+.objetivo-evolucao__eixo {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.objetivo-evolucao__grade {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.objetivo-evolucao__linha {
+  stroke: var(--cta);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.objetivo-evolucao__ponto {
+  fill: var(--cta);
+}
+
+.objetivo-evolucao__marcador {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.objetivo-evolucao__rotulo {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.objetivo-evolucao__rotulo--marcador {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+.objetivo-evolucao__legenda {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.objetivo-evolucao__legenda-marca {
+  width: 1rem;
+  border-top: 2px dashed var(--ink);
+}
+
+.objetivo-itens {
+  margin-top: var(--space-6);
+}
+
+.objetivo-itens__titulo {
+  margin: 0 0 var(--space-3);
+  font-size: 1.15rem;
+}
+
+.objetivo-itens__grupo {
+  margin-bottom: var(--space-5);
+}
+
+.objetivo-itens__grupo h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.objetivo-itens__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.objetivo-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.objetivo-item__titulo {
+  font-weight: 600;
+}
+
+.objetivo-item__status {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ——— Seletor de objetivos nos formulários ——— */
+
+.objetivo-picker__selecionados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.objetivo-picker__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.objetivo-picker__chip--encerrado {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.objetivo-picker__chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.objetivo-picker__painel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: min(18rem, 90vw);
+  max-height: 16rem;
+}
+
+.objetivo-picker__busca {
+  width: 100%;
+}
+
+.objetivo-picker__painel p {
+  margin: 0;
+}
+
+.objetivo-picker__opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.objetivo-picker__opcao {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.objetivo-picker__opcao:hover,
+.objetivo-picker__opcao:focus-visible,
+.objetivo-picker__opcao--ativa {
+  background: var(--surface-muted);
+}
+
+.objetivo-picker__opcao--ativa {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .objetivos-header {
+    flex-direction: column;
+  }
+}

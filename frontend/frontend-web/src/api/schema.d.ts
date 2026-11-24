@@ -75,9 +75,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listar_6"];
+        get: operations["listar_7"];
         put?: never;
-        post: operations["criar_7"];
+        post: operations["criar_8"];
         delete?: never;
         options?: never;
         head?: never;
@@ -91,13 +91,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["buscar_5"];
+        get: operations["buscar_6"];
         put?: never;
         post?: never;
         delete: operations["excluir_6"];
         options?: never;
         head?: never;
-        patch: operations["atualizar_8"];
+        patch: operations["atualizar_9"];
         trace?: never;
     };
     "/capacidades/overrides/{id}/restore": {
@@ -139,9 +139,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listar_5"];
+        get: operations["listar_6"];
         put?: never;
-        post: operations["criar_6"];
+        post: operations["criar_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -155,13 +155,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["buscar_4"];
+        get: operations["buscar_5"];
         put?: never;
         post?: never;
         delete: operations["excluir_5"];
         options?: never;
         head?: never;
-        patch: operations["atualizar_7"];
+        patch: operations["atualizar_8"];
         trace?: never;
     };
     "/capacidades/semanal/{id}/restore": {
@@ -187,9 +187,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listar_4"];
+        get: operations["listar_5"];
         put?: never;
-        post: operations["criar_5"];
+        post: operations["criar_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -203,13 +203,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["buscar_3"];
+        get: operations["buscar_4"];
         put?: never;
         post?: never;
         delete: operations["excluir_4"];
         options?: never;
         head?: never;
-        patch: operations["atualizar_6"];
+        patch: operations["atualizar_7"];
         trace?: never;
     };
     "/decidir/{id}/promover": {
@@ -235,7 +235,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listar_7"];
+        get: operations["listar_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -301,7 +301,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["concluir"];
+        post: operations["concluir_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -315,9 +315,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listar_3"];
+        get: operations["listar_4"];
         put?: never;
-        post: operations["criar_4"];
+        post: operations["criar_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -363,13 +363,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["buscar_2"];
+        get: operations["buscar_3"];
         put?: never;
         post?: never;
         delete: operations["excluir_3"];
         options?: never;
         head?: never;
-        patch: operations["atualizar_5"];
+        patch: operations["atualizar_6"];
         trace?: never;
     };
     "/habitos/{id}/concluir-direto": {
@@ -532,6 +532,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objetivos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listar_3"];
+        put?: never;
+        post: operations["criar_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objetivos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["buscar_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["atualizar_5"];
+        trace?: never;
+    };
+    "/objetivos/{id}/arquivar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["arquivar_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objetivos/{id}/concluir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["concluir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objetivos/{id}/evolucao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evolucao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objetivos/{id}/itens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listarItens"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objetivos/{id}/reabrir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reabrir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planos": {
         parameters: {
             query?: never;
@@ -539,7 +651,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["buscar_6"];
+        get: operations["buscar_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1037,6 +1149,7 @@ export interface components {
             duracaoMinutos?: number;
             /** Format: time-local */
             horarioPreferencial?: null | string;
+            objetivoIds?: string[] | null;
             tagIds?: string[] | null;
             titulo?: string;
         };
@@ -1047,9 +1160,16 @@ export interface components {
             novaSenha?: string;
             senhaAtual: string;
         };
+        AtualizarObjetivoRequest: {
+            descricao?: null | string;
+            /** Format: date */
+            prazo?: null | string;
+            titulo?: null | string;
+        };
         AtualizarProjetoRequest: {
             descricao?: string;
             nome?: string;
+            objetivoIds?: string[] | null;
             tagIds?: string[] | null;
         };
         AtualizarReservaProjetoRequest: {
@@ -1066,6 +1186,7 @@ export interface components {
             descricao?: string;
             /** Format: int32 */
             duracaoMinutos?: number;
+            objetivoIds?: string[] | null;
             /** Format: date-time */
             prazo?: string;
             /** @enum {string} */
@@ -1247,12 +1368,20 @@ export interface components {
             duracaoMinutos: number;
             /** Format: time-local */
             horarioPreferencial?: string;
+            objetivoIds?: string[];
             tagIds?: string[];
+            titulo: string;
+        };
+        CriarObjetivoRequest: {
+            descricao?: null | string;
+            /** Format: date */
+            prazo?: null | string;
             titulo: string;
         };
         CriarProjetoRequest: {
             descricao?: string;
             nome: string;
+            objetivoIds?: string[];
             tagIds?: string[];
         };
         CriarReservaProjetoRequest: {
@@ -1269,6 +1398,7 @@ export interface components {
             descricao?: string;
             /** Format: int32 */
             duracaoMinutos?: number;
+            objetivoIds?: string[];
             /** Format: uuid */
             parentId?: string;
             /** Format: date-time */
@@ -1370,6 +1500,7 @@ export interface components {
             id: string;
             /** Format: int32 */
             melhorStreak: number;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** @enum {string} */
@@ -1443,6 +1574,80 @@ export interface components {
             razao: null | number;
             suficiente: boolean;
         };
+        ObjetivoEvolucaoResponse: {
+            /** Format: int32 */
+            antesDoHistorico: number;
+            pontos: components["schemas"]["PontoEvolucaoResponse"][];
+        };
+        ObjetivoItemHabitoResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** @enum {string} */
+            status: "ATIVO" | "PAUSADO";
+            titulo: string;
+        };
+        ObjetivoItemProjetoResponse: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO";
+        };
+        ObjetivoItemTarefaResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            origem: "DIRETO" | "VIA_PROJETO";
+            /** Format: uuid */
+            projetoId: null | string;
+            projetoNome: null | string;
+            /** @enum {string} */
+            status: "ATRASADA" | "CANCELADA" | "EM_PROGRESSO" | "FINALIZADA" | "PENDENTE";
+            titulo: string;
+        };
+        ObjetivoItensResponse: {
+            habitos: components["schemas"]["ObjetivoItemHabitoResponse"][];
+            projetos: components["schemas"]["ObjetivoItemProjetoResponse"][];
+            tarefas: components["schemas"]["ObjetivoItemTarefaResponse"][];
+        };
+        ObjetivoProgressoResponse: {
+            /** Format: int32 */
+            minutosConcluidos: number;
+            /** Format: int32 */
+            minutosTotais: number;
+            /** Format: int32 */
+            percentual: number;
+        };
+        ObjetivoResponse: {
+            /** Format: date-time */
+            arquivadoEm: null | string;
+            /** Format: date-time */
+            concluidoEm: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            descricao: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            prazo: null | string;
+            progresso: components["schemas"]["ObjetivoProgressoResponse"] | null;
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
+            titulo: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ObjetivoResumoResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
+            titulo: string;
+        };
         PageMetadata: {
             /** Format: int64 */
             number: number;
@@ -1466,6 +1671,10 @@ export interface components {
         };
         PagedModelHabitoResponse: {
             content: components["schemas"]["HabitoResponse"][];
+            page: components["schemas"]["PageMetadata"];
+        };
+        PagedModelObjetivoResponse: {
+            content: components["schemas"]["ObjetivoResponse"][];
             page: components["schemas"]["PageMetadata"];
         };
         PagedModelProjetoResponse: {
@@ -1520,6 +1729,14 @@ export interface components {
             /** Format: int32 */
             versao: number;
         };
+        PontoEvolucaoResponse: {
+            /** Format: date */
+            data: string;
+            /** Format: int32 */
+            minutosAcumulados: number;
+            /** Format: int32 */
+            minutosNoDia: number;
+        };
         ProjetoResponse: {
             bloqueada: boolean;
             /** Format: date-time */
@@ -1529,6 +1746,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             nome: string;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** @enum {string} */
@@ -1634,6 +1852,7 @@ export interface components {
             esperas: components["schemas"]["EsperaResumo"][];
             /** Format: uuid */
             id: string;
+            objetivos: components["schemas"]["ObjetivoResumoResponse"][];
             /** Format: int32 */
             ordem: number;
             /** Format: uuid */
@@ -1812,7 +2031,7 @@ export interface operations {
             };
         };
     };
-    listar_6: {
+    listar_7: {
         parameters: {
             query?: {
                 incluirDeletadas?: boolean;
@@ -1837,7 +2056,7 @@ export interface operations {
             };
         };
     };
-    criar_7: {
+    criar_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -1861,7 +2080,7 @@ export interface operations {
             };
         };
     };
-    buscar_5: {
+    buscar_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -1903,7 +2122,7 @@ export interface operations {
             };
         };
     };
-    atualizar_8: {
+    atualizar_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -1974,7 +2193,7 @@ export interface operations {
             };
         };
     };
-    listar_5: {
+    listar_6: {
         parameters: {
             query?: {
                 incluirDeletadas?: boolean;
@@ -1997,7 +2216,7 @@ export interface operations {
             };
         };
     };
-    criar_6: {
+    criar_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -2021,7 +2240,7 @@ export interface operations {
             };
         };
     };
-    buscar_4: {
+    buscar_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -2063,7 +2282,7 @@ export interface operations {
             };
         };
     };
-    atualizar_7: {
+    atualizar_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -2111,7 +2330,7 @@ export interface operations {
             };
         };
     };
-    listar_4: {
+    listar_5: {
         parameters: {
             query: {
                 promovidos?: boolean;
@@ -2135,7 +2354,7 @@ export interface operations {
             };
         };
     };
-    criar_5: {
+    criar_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -2159,7 +2378,7 @@ export interface operations {
             };
         };
     };
-    buscar_3: {
+    buscar_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -2201,7 +2420,7 @@ export interface operations {
             };
         };
     };
-    atualizar_6: {
+    atualizar_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -2253,7 +2472,7 @@ export interface operations {
             };
         };
     };
-    listar_7: {
+    listar_8: {
         parameters: {
             query?: {
                 data?: string;
@@ -2341,7 +2560,7 @@ export interface operations {
             };
         };
     };
-    concluir: {
+    concluir_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2363,7 +2582,7 @@ export interface operations {
             };
         };
     };
-    listar_3: {
+    listar_4: {
         parameters: {
             query: {
                 status?: "ATIVO" | "PAUSADO";
@@ -2389,7 +2608,7 @@ export interface operations {
             };
         };
     };
-    criar_4: {
+    criar_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -2457,7 +2676,7 @@ export interface operations {
             };
         };
     };
-    buscar_2: {
+    buscar_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2499,7 +2718,7 @@ export interface operations {
             };
         };
     };
-    atualizar_5: {
+    atualizar_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -2776,7 +2995,212 @@ export interface operations {
             };
         };
     };
-    buscar_6: {
+    listar_3: {
+        parameters: {
+            query: {
+                status?: ("ARQUIVADO" | "ATIVO" | "CONCLUIDO")[];
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedModelObjetivoResponse"];
+                };
+            };
+        };
+    };
+    criar_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CriarObjetivoRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    buscar_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    atualizar_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtualizarObjetivoRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    arquivar_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    concluir: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    evolucao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoEvolucaoResponse"];
+                };
+            };
+        };
+    };
+    listarItens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoItensResponse"];
+                };
+            };
+        };
+    };
+    reabrir: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ObjetivoResponse"];
+                };
+            };
+        };
+    };
+    buscar_7: {
         parameters: {
             query: {
                 data: string;

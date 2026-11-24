@@ -1002,6 +1002,174 @@ class TarefaIT {
         assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void deveCriarTarefaRaizComDoisObjetivos() {
+        UUID objetivoA = criarObjetivo("Meta A");
+        UUID objetivoB = criarObjetivo("Meta B");
+        Map<String, Object> body = tarefaValida();
+        body.put("objetivoIds", List.of(objetivoA.toString(), objetivoB.toString()));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) response.getBody().get("objetivos");
+        assertThat(objetivos).extracting(o -> o.get("id"))
+                .containsExactly(objetivoA.toString(), objetivoB.toString());
+        assertThat(objetivos).extracting(o -> o.get("titulo")).containsExactly("Meta A", "Meta B");
+        assertThat(objetivos).extracting(o -> o.get("status")).containsExactly("ATIVO", "ATIVO");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void patchSubstituiConjuntoDeObjetivos() {
+        UUID objetivoA = criarObjetivo("A");
+        UUID objetivoB = criarObjetivo("B");
+        Map<String, Object> body = tarefaValida();
+        body.put("objetivoIds", List.of(objetivoA.toString(), objetivoB.toString()));
+        UUID tarefaId = UUID.fromString(restTemplate.exchange(
+                "/tarefas", HttpMethod.POST, autenticadoJson(body), Map.class)
+                .getBody().get("id").toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("objetivoIds", List.of(objetivoB.toString()))),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) response.getBody().get("objetivos");
+        assertThat(objetivos).extracting(o -> o.get("id")).containsExactly(objetivoB.toString());
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from objetivo_tarefa where tarefa_id = ? and objetivo_id = ?",
+                Integer.class, tarefaId, objetivoA)).isEqualTo(0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void patchSemObjetivoIdsMantemVinculos() {
+        UUID objetivo = criarObjetivo("Manter");
+        Map<String, Object> body = tarefaValida();
+        body.put("objetivoIds", List.of(objetivo.toString()));
+        UUID tarefaId = UUID.fromString(restTemplate.exchange(
+                "/tarefas", HttpMethod.POST, autenticadoJson(body), Map.class)
+                .getBody().get("id").toString());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas/" + tarefaId,
+                HttpMethod.PATCH,
+                autenticadoJson(Map.of("titulo", "Só título")),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(OK);
+        assertThat(response.getBody().get("titulo")).isEqualTo("Só título");
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) response.getBody().get("objetivos");
+        assertThat(objetivos).extracting(o -> o.get("id")).containsExactly(objetivo.toString());
+    }
+
+    @Test
+    void criarSubtarefaComObjetivoIdsRetorna400SemPersistir() {
+        UUID paiId = criarTarefaAutenticada("Pai", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 60);
+        UUID objetivo = criarObjetivo("Sub");
+        int tarefasAntes = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("titulo", "Filha com objetivo");
+        body.put("parentId", paiId.toString());
+        body.put("objetivoIds", List.of(objetivo.toString()));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+        assertThat(response.getBody().get("title")).isEqualTo("Subtarefa não pode ser vinculada a objetivo");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId))
+                .isEqualTo(tarefasAntes);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from objetivo_tarefa where objetivo_id = ?", Integer.class, objetivo))
+                .isEqualTo(0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listagemTrazSoObjetivoDiretoNaoODoProjeto() {
+        UUID objetivoA = criarObjetivo("Direto");
+        UUID objetivoB = criarObjetivo("Do projeto");
+        UUID projetoId = criarProjeto("Com objetivo");
+        jdbcTemplate.update(
+                "insert into objetivo_projeto (objetivo_id, projeto_id) values (?, ?)",
+                objetivoB, projetoId);
+
+        Map<String, Object> body = tarefaValida("Filha do projeto", Instant.now().plus(2, ChronoUnit.DAYS), "MEDIA", 30);
+        body.put("projetoId", projetoId.toString());
+        body.put("objetivoIds", List.of(objetivoA.toString()));
+        UUID tarefaId = UUID.fromString(restTemplate.exchange(
+                "/tarefas", HttpMethod.POST, autenticadoJson(body), Map.class)
+                .getBody().get("id").toString());
+
+        ResponseEntity<Map> lista = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.GET,
+                autenticado(),
+                Map.class);
+
+        assertThat(lista.getStatusCode()).isEqualTo(OK);
+        Map<String, Object> item = content(lista).stream()
+                .filter(m -> tarefaId.toString().equals(m.get("id").toString()))
+                .findFirst()
+                .orElseThrow();
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) item.get("objetivos");
+        assertThat(objetivos).extracting(o -> o.get("id")).containsExactly(objetivoA.toString());
+    }
+
+    @Test
+    void criarComObjetivoDeOutroUsuarioRetorna404SemPersistirTarefa() {
+        String outroToken = tokenDeNovoUsuario();
+        UUID objetivoOutro = UUID.fromString(restTemplate.exchange(
+                "/objetivos",
+                HttpMethod.POST,
+                autenticadoJsonCom(outroToken, Map.of("titulo", "Do outro")),
+                Map.class).getBody().get("id").toString());
+        int tarefasAntes = jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId);
+
+        Map<String, Object> body = tarefaValida();
+        body.put("objetivoIds", List.of(objetivoOutro.toString()));
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/tarefas",
+                HttpMethod.POST,
+                autenticadoJson(body),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+        assertThat(response.getBody().get("title")).isEqualTo("Objetivo não encontrado");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from tarefa where usuario_id = ?", Integer.class, usuarioId))
+                .isEqualTo(tarefasAntes);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from objetivo_tarefa where objetivo_id = ?", Integer.class, objetivoOutro))
+                .isEqualTo(0);
+    }
+
+    private UUID criarObjetivo(String titulo) {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/objetivos",
+                HttpMethod.POST,
+                autenticadoJson(Map.of("titulo", titulo)),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        return UUID.fromString(response.getBody().get("id").toString());
+    }
+
     private UUID criarTag(String nome) {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/tags",

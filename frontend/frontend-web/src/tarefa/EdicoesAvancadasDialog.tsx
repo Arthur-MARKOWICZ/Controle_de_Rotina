@@ -4,6 +4,8 @@ import { STATUS_TAREFA_LABEL } from '../home/labels'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import { TagPicker } from '../tag/TagPicker'
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
+import { ObjetivoPicker } from '../objetivo/ObjetivoPicker'
 import type { StatusTarefa, TarefaFormValues } from './validation/tarefaForm'
 
 const STATUS: StatusTarefa[] = ['PENDENTE', 'EM_PROGRESSO', 'FINALIZADA', 'ATRASADA', 'CANCELADA']
@@ -20,6 +22,11 @@ type Props = {
   tagIds: string[]
   tagsSelecionadas?: TagResumo[]
   onTagsChange: (tagIds: string[], tags: TagResumo[]) => void
+  /** Subtarefa não pode ter objetivo: o seletor some. */
+  mostrarObjetivos?: boolean
+  objetivoIds?: string[]
+  objetivosSelecionados?: ObjetivoResumo[]
+  onObjetivosChange?: (objetivoIds: string[], objetivos: ObjetivoResumo[]) => void
   onDesvincular?: () => void
   desvinculando?: boolean
   disabled: boolean
@@ -38,6 +45,10 @@ export function EdicoesAvancadasDialog({
   tagIds,
   tagsSelecionadas,
   onTagsChange,
+  mostrarObjetivos = false,
+  objetivoIds = [],
+  objetivosSelecionados,
+  onObjetivosChange,
   onDesvincular,
   desvinculando = false,
   disabled,
@@ -104,7 +115,7 @@ export function EdicoesAvancadasDialog({
         <h2 id={titleId} className="confirm-dialog__title">
           Edições avançadas
         </h2>
-        <p className="confirm-dialog__message">Status, tags e o projeto da tarefa.</p>
+        <p className="confirm-dialog__message">Status, tags, objetivos e o projeto da tarefa.</p>
 
         {modo === 'editar' ? (
           <div className="field">
@@ -135,6 +146,15 @@ export function EdicoesAvancadasDialog({
           onChange={onTagsChange}
           disabled={disabled}
         />
+
+        {mostrarObjetivos && onObjetivosChange ? (
+          <ObjetivoPicker
+            selectedIds={objetivoIds}
+            selectedObjetivos={objetivosSelecionados}
+            onChange={onObjetivosChange}
+            disabled={disabled}
+          />
+        ) : null}
 
         <div className="field">
           <label htmlFor="projetoId">Projeto (opcional)</label>

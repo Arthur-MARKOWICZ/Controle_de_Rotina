@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.controlerotina.objetivo.dto.ObjetivoResumoResponse;
 import com.controlerotina.pendencia.dto.EsperaResumo;
 import com.controlerotina.projeto.entity.Projeto;
 import com.controlerotina.projeto.entity.StatusProjeto;
@@ -22,7 +23,8 @@ public record ProjetoResponse(
         Instant createdAt,
         Instant updatedAt,
         List<EsperaResumo> esperas,
-        boolean bloqueada
+        boolean bloqueada,
+        List<ObjetivoResumoResponse> objetivos
 ) {
     public static ProjetoResponse from(Projeto projeto) {
         return from(projeto, List.of(), null);
@@ -43,8 +45,20 @@ public record ProjetoResponse(
             List<EsperaResumo> esperas,
             boolean bloqueada
     ) {
+        return from(projeto, tags, tagMatchScore, esperas, bloqueada, List.of());
+    }
+
+    public static ProjetoResponse from(
+            Projeto projeto,
+            List<TagResumoResponse> tags,
+            Integer tagMatchScore,
+            List<EsperaResumo> esperas,
+            boolean bloqueada,
+            List<ObjetivoResumoResponse> objetivos
+    ) {
         List<TagResumoResponse> tagsSafe = tags == null ? List.of() : List.copyOf(tags);
         List<EsperaResumo> esperasSafe = esperas == null ? List.of() : List.copyOf(esperas);
+        List<ObjetivoResumoResponse> objetivosSafe = objetivos == null ? List.of() : List.copyOf(objetivos);
         return new ProjetoResponse(
                 projeto.getId(),
                 projeto.getNome(),
@@ -56,7 +70,8 @@ public record ProjetoResponse(
                 projeto.getCreatedAt(),
                 projeto.getUpdatedAt(),
                 esperasSafe,
-                bloqueada
+                bloqueada,
+                objetivosSafe
         );
     }
 }

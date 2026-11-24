@@ -3,6 +3,7 @@ import {
   ChartLineUpIcon,
   ClipboardTextIcon,
   DotsThreeIcon,
+  FlagIcon,
   GaugeIcon,
   SignOutIcon,
   TagIcon,
@@ -15,6 +16,7 @@ import { useAuth } from '../auth/session/AuthContext'
 import { ThemePreferenceField } from '../theme/ThemePreferenceField'
 
 const ITENS = [
+  { to: '/objetivos', label: 'Objetivos', Icon: FlagIcon },
   { to: '/capacidade', label: 'Capacidade', Icon: GaugeIcon },
   { to: '/calendario', label: 'Calendário', Icon: CalendarBlankIcon },
   { to: '/historico', label: 'Histórico', Icon: ChartLineUpIcon },
