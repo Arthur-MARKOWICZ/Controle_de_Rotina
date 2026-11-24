@@ -92,7 +92,7 @@
     height: 2rem;
     --logo-body: var(--on-accent);
     --logo-check: var(--accent);
-    --logo-cta: var(--cta);
+    --logo-cta: var(--xp);
   }
 
   .auth-marca__frase {
@@ -224,20 +224,20 @@
 .perfil-xp__nivel > svg {
   width: var(--icon-lg);
   height: var(--icon-lg);
-  color: var(--cta);
+  color: var(--xp);
 }
 
 .perfil-xp__track {
   height: 0.625rem;
   border-radius: var(--radius-full);
-  background: var(--surface-muted);
+  background: var(--raised);
   overflow: hidden;
 }
 
 .perfil-xp__fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cta);
+  background: var(--xp);
   transition: width var(--dur-slow) var(--ease-out);
 }
 

@@ -17,6 +17,7 @@ import { useToast } from '../feedback/ToastProvider'
 import { useSessaoAtiva } from '../execucao/SessaoAtivaContext'
 import { listarExecucoes } from '../execucao/api/execucaoApi'
 import { PRIORIDADE_LABEL, STATUS_TAREFA_LABEL } from '../home/labels'
+import { PrioridadeIcone } from './PrioridadeIcone'
 import { rotuloEspera } from '../pendencia/api/espera'
 import { dataHojeIso } from '../planner/data'
 import { mensagensFeedbackXp } from '../xp/feedbackXp'
@@ -92,7 +93,6 @@ export function TarefaCard({
     ? { pathname: `/tarefas/${tarefa.parentId}`, search }
     : null
   const mostrarStatus = tarefa.status !== STATUS_PADRAO_DA_VISAO[visao]
-  const prioridade = tarefa.prioridade.toLowerCase()
   const restante = tarefa.restanteMinutos ?? tarefa.duracaoMinutos
   const bloqueada = tarefa.bloqueada ?? false
   const espera = rotuloEspera(tarefa.esperas)
@@ -189,11 +189,9 @@ export function TarefaCard({
       ) : null}
       <div className="tarefa-card__principal">
         <Link to={destino} state={DRAWER_STATE} className="tarefa-card__titulo">
-          <span
-            className={`prioridade-ponto prioridade-ponto--${prioridade}`}
-            title={`Prioridade ${PRIORIDADE_LABEL[tarefa.prioridade]}`}
-            aria-hidden
-          />
+          <span className="tarefa-card__prioridade" title={`Prioridade ${PRIORIDADE_LABEL[tarefa.prioridade]}`}>
+            <PrioridadeIcone prioridade={tarefa.prioridade} />
+          </span>
           <span className="visually-hidden">Prioridade {PRIORIDADE_LABEL[tarefa.prioridade]}: </span>
           <span>{tarefa.titulo}</span>
         </Link>

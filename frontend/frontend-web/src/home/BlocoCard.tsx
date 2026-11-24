@@ -1,10 +1,12 @@
 import { CheckIcon, PlayIcon, XIcon } from '@phosphor-icons/react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { StatusExecucao } from '../execucao/api/execucaoApi'
 import { formatarCapacidadeMinutos } from '../planner/data'
+import { corDaLinha } from '../planner/linhaCor'
 import type { Prioridade } from '../tarefa/validation/tarefaForm'
+import { PrioridadeIcone } from '../tarefa/PrioridadeIcone'
 import { formatarJustificativaBloco } from './justificativa'
 import { labelPrioridade, labelStatusExecucao } from './labels'
 
@@ -109,7 +111,11 @@ export function BlocoCard({
     .join(' ')
 
   return (
-    <li className={className} aria-busy={pendente || undefined}>
+    <li
+      className={className}
+      aria-busy={pendente || undefined}
+      style={{ '--linha-cor': corDaLinha({ origem, projetoNome }) } as CSSProperties}
+    >
       <Marcador ordem={ordem} status={statusExecucao} />
       <div className="plano-bloco-corpo">
         <p className="plano-bloco-titulo">
@@ -125,6 +131,7 @@ export function BlocoCard({
           <span className="plano-bloco-duracao">{formatarCapacidadeMinutos(duracaoMinutos)}</span>
           {origem === 'TAREFA' && prioridade ? (
             <span className={`plano-bloco-prioridade plano-bloco-prioridade--${prioridade.toLowerCase()}`}>
+              <PrioridadeIcone prioridade={prioridade} />
               {labelPrioridade(prioridade)}
             </span>
           ) : null}

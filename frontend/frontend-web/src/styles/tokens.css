@@ -1,41 +1,58 @@
 :root {
   color-scheme: light;
 
-  /* Surfaces & text */
-  --bg: #f8fafc;
-  --bg-accent: #f1f5f9;
+  /*
+   * Paleta "híbrido 1 + 4" (reports/paleta-cores-2026-11-24.md, .impeccable/mocks/decision/hibrido.html).
+   * Base neutra calma; azul só para ação/seleção; laranja só para XP; cores de linha por projeto no plano do dia.
+   */
+
+  /* Superfícies e texto */
+  --bg: #f5f6f7;
+  --chrome: #eceef0; /* barra lateral */
   --panel: #ffffff;
   --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --ink: #0f172a;
-  --muted: #475569;
-  --line: #e2e8f0;
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-soft: #ccfbf1;
+  --raised: #eef0f2; /* hover de linha, trilhas, superfície elevada dentro do painel */
+  --ink: #16181b;
+  --muted: #535a62;
+  --line: #dfe2e6; /* divisores decorativos */
+  --line-strong: #868c93; /* borda de campo e controle: ≥ 3:1 */
+  --accent: #1f5fd6;
+  --accent-hover: #1a4fb4;
+  --accent-soft: #e3ecfd;
   --on-accent: #ffffff;
-  --focus: #0d9488;
-  --cta: #ea580c;
-  --cta-hover: #c2410c;
-  --on-cta: #0f172a;
+  --focus: #1f5fd6;
 
-  /* Semantic */
-  --success: #15803d;
-  --success-bg: #dcfce7;
-  --warning: #b45309;
-  --warning-bg: #fef3c7;
-  --danger: #b91c1c;
-  --danger-bg: #fee2e2;
-  --danger-border: #fecaca;
-  --neutral-soft: var(--surface-muted);
+  /* XP e recompensa: o único uso do laranja */
+  --xp: #b04e0a;
+  --xp-hover: #974308;
+  --xp-soft: #fdebdc;
+  --on-xp: #ffffff;
+
+  /* Linhas do plano do dia: uma cor por projeto (estações de metrô) */
+  --linha-1: #2f6fe0;
+  --linha-2: #1f8a5b;
+  --linha-3: #16849a;
+  --linha-4: #64748b;
+  --linha-habito: var(--line-strong);
+
+  /* Semântica */
+  --success: #1d7d3e;
+  --success-bg: #e1f4e7;
+  --warning: #8a6000; /* ocre, longe do matiz do XP */
+  --warning-bg: #feedc5;
+  --danger: #b52524;
+  --danger-bg: #fde8e7;
+  --danger-border: #f3c1be;
+  --neutral-soft: var(--raised);
+  --bg-accent: var(--raised);
 
   /* Priority */
   --priority-alta: var(--danger);
   --priority-alta-bg: var(--danger-bg);
   --priority-media: var(--warning);
   --priority-media-bg: var(--warning-bg);
-  --priority-baixa: var(--success);
-  --priority-baixa-bg: var(--success-bg);
+  --priority-baixa: var(--muted);
+  --priority-baixa-bg: var(--raised);
 
   /* Status tarefa */
   --status-pendente-bg: var(--warning-bg);
@@ -52,7 +69,7 @@
   --status-deletada: var(--muted);
 
   /* Status plano */
-  --status-plano-rascunho-bg: var(--surface-muted);
+  --status-plano-rascunho-bg: var(--raised);
   --status-plano-rascunho: var(--ink);
   --status-plano-aprovado-bg: var(--success-bg);
   --status-plano-aprovado: var(--success);
@@ -124,30 +141,39 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0b1220;
-  --bg-accent: #0f172a;
-  --panel: #111a2e;
-  --surface: #111a2e;
-  --surface-muted: #1e293b;
-  --ink: #f1f5f9;
-  --muted: #94a3b8;
-  --line: #1e293b;
-  --accent: #2dd4bf;
-  --accent-hover: #5eead4;
-  --accent-soft: #134e4a;
-  --on-accent: #0b1220;
-  --focus: #2dd4bf;
-  --cta: #fb923c;
-  --cta-hover: #fdba74;
-  --on-cta: #0f172a;
+  /* Grafite neutro (sem azul-marinho) e acentos de croma moderado, sem efeito neon */
+  --bg: #161718;
+  --chrome: #0f1011;
+  --panel: #1d1f21;
+  --surface: #1d1f21;
+  --raised: #26282b;
+  --ink: #ececec;
+  --muted: #a4a8ad;
+  --line: #2e3134;
+  --line-strong: #6b7075;
+  --accent: #86aaf2;
+  --accent-hover: #a7c1f6;
+  --accent-soft: #22304a;
+  --on-accent: #0f1011;
+  --focus: #86aaf2;
 
-  --success: #4ade80;
-  --success-bg: #14321f;
-  --warning: #fbbf24;
-  --warning-bg: #3a2a0b;
-  --danger: #f87171;
-  --danger-bg: #3b1414;
-  --danger-border: #7f1d1d;
+  --xp: #f0915a;
+  --xp-hover: #f5ab7f;
+  --xp-soft: #3d2414;
+  --on-xp: #0f1011;
+
+  --linha-1: #6f9ef0;
+  --linha-2: #5fbf8f;
+  --linha-3: #5ab8c8;
+  --linha-4: #95a3b8;
+
+  --success: #6fc596;
+  --success-bg: #1a2e22;
+  --warning: #e6cf72;
+  --warning-bg: #382c11;
+  --danger: #ef837b;
+  --danger-bg: #3a1f1d;
+  --danger-border: #6b2f2b;
 
   /* Sombras um pouco mais densas: --ink é claro no escuro */
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--bg) 60%, transparent);

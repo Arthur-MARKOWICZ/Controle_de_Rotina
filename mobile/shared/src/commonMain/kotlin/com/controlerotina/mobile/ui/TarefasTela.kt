@@ -212,8 +212,8 @@ internal fun TarefaCard(
                 t.prioridade?.let {
                     val cor = when (it) {
                         Prioridade.ALTA -> cores.error
-                        Prioridade.MEDIA -> cores.secondary
-                        Prioridade.BAIXA -> cores.onSurface
+                        Prioridade.MEDIA -> Rotina.cores.aviso
+                        Prioridade.BAIXA -> cores.onSurfaceVariant
                     }
                     Etiqueta(rotuloPrioridade(it), cor.copy(alpha = 0.12f), cor)
                 }
@@ -223,8 +223,8 @@ internal fun TarefaCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.semantics { contentDescription = "Bloqueada por espera" },
                     ) {
-                        Icon(Icons.Filled.Lock, null, Modifier.size(14.dp), tint = cores.secondary)
-                        Text(" Bloqueada", style = MaterialTheme.typography.labelSmall, color = cores.secondary)
+                        Icon(Icons.Filled.Lock, null, Modifier.size(14.dp), tint = cores.onSurfaceVariant)
+                        Text(" Bloqueada", style = MaterialTheme.typography.labelSmall, color = cores.onSurfaceVariant)
                     }
                 }
             }

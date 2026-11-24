@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,6 +56,8 @@ class ObjetivoProgressoServiceTest {
     private static final UUID FILHO_A = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
     private static final UUID FILHO_B = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
     private static final UUID HABITO_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID HABITO_B = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID OBJETIVO_B = UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final UUID PROJETO_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     @Mock
@@ -362,6 +365,116 @@ class ObjetivoProgressoServiceTest {
 
         assertThat(progresso).isEqualTo(new ObjetivoProgressoResponse(0, 0, 90));
         assertThat(objetivo.getStatus()).isEqualTo(StatusObjetivo.CONCLUIDO);
+    }
+
+    @Test
+    void deveCongelarJanelaNoDiaDoArquivamento() {
+        Instant inicio = instanteBrt(LocalDate.of(2026, 11, 15));
+        Objetivo objetivo = objetivo();
+        objetivo.arquivar(instanteBrt(LocalDate.of(2026, 11, 17)));
+
+        ObjetivoProgressoResponse progresso = service.calcular(
+                objetivo,
+                conjuntoHabito(habito(StatusHabito.ATIVO, 30, todosOsDias()), inicio)
+        );
+
+        assertThat(progresso).isEqualTo(new ObjetivoProgressoResponse(0, 0, 90));
+        assertThat(objetivo.getStatus()).isEqualTo(StatusObjetivo.ARQUIVADO);
+    }
+
+    @Test
+    void deveUsarArquivamentoQuandoAnteriorAConclusao() {
+        Instant inicio = instanteBrt(LocalDate.of(2026, 11, 15));
+        Objetivo objetivo = objetivo();
+        objetivo.concluir(instanteBrt(LocalDate.of(2026, 11, 17)));
+        objetivo.arquivar(instanteBrt(LocalDate.of(2026, 11, 16)));
+
+        ObjetivoProgressoResponse progresso = service.calcular(
+                objetivo,
+                conjuntoHabito(habito(StatusHabito.ATIVO, 30, todosOsDias()), inicio)
+        );
+
+        assertThat(progresso).isEqualTo(new ObjetivoProgressoResponse(0, 0, 60));
+    }
+
+    @Test
+    void deveManterCongelamentoDaConclusaoQuandoArquivadoDepois() {
+        Instant inicio = instanteBrt(LocalDate.of(2026, 11, 15));
+        Objetivo objetivo = objetivo();
+        objetivo.concluir(instanteBrt(LocalDate.of(2026, 11, 16)));
+        objetivo.arquivar(instanteBrt(LocalDate.of(2026, 11, 17)));
+
+        ObjetivoProgressoResponse progresso = service.calcular(
+                objetivo,
+                conjuntoHabito(habito(StatusHabito.ATIVO, 30, todosOsDias()), inicio)
+        );
+
+        assertThat(progresso).isEqualTo(new ObjetivoProgressoResponse(0, 0, 60));
+    }
+
+    @Test
+    void naoDeveContarHabitoQuandoVinculoEhPosteriorAoArquivamento() {
+        Objetivo objetivo = objetivo();
+        objetivo.arquivar(instanteBrt(LocalDate.of(2026, 11, 17)));
+
+        assertThat(service.calcular(
+                objetivo,
+                conjuntoHabito(habito(StatusHabito.ATIVO, 30, todosOsDias()), AGORA)
+        )).isNull();
+        verify(execucaoRepository, never()).listarCumprimentosHabitosNoIntervalo(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void deveDevolverMapaVazioQuandoLoteEhNulo() {
+        assertThat(service.calcularLote(null, Map.of())).isEmpty();
+    }
+
+    @Test
+    void deveDevolverMapaVazioQuandoLoteSoTemNulos() {
+        List<Objetivo> lote = new ArrayList<>();
+        lote.add(null);
+
+        assertThat(service.calcularLote(lote, Map.of())).isEmpty();
+    }
+
+    @Test
+    void deveConsultarCumprimentosNoEnvelopeDasJanelasDoLote() {
+        Objetivo comPrazo = new Objetivo(OBJETIVO_ID, USUARIO, "A", null, LocalDate.of(2026, 11, 16), ANTES);
+        Objetivo ativo = new Objetivo(OBJETIVO_B, USUARIO, "B", null, null, ANTES);
+        Habito habitoB = new Habito(
+                HABITO_B,
+                USUARIO,
+                "H2",
+                null,
+                30,
+                todosOsDias(),
+                null,
+                StatusHabito.ATIVO,
+                0,
+                0,
+                ANTES,
+                ANTES
+        );
+        when(execucaoRepository.listarCumprimentosHabitosNoIntervalo(any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        Map<UUID, ObjetivoProgressoResponse> lote = service.calcularLote(
+                List.of(comPrazo, ativo),
+                Map.of(
+                        OBJETIVO_ID, conjuntoHabito(habito(StatusHabito.ATIVO, 30, todosOsDias()), instanteBrt(LocalDate.of(2026, 11, 15))),
+                        OBJETIVO_B, conjuntoHabito(habitoB, instanteBrt(LocalDate.of(2026, 11, 10)))
+                )
+        );
+
+        assertThat(lote.get(OBJETIVO_ID)).isEqualTo(new ObjetivoProgressoResponse(0, 0, 60));
+        assertThat(lote.get(OBJETIVO_B)).isEqualTo(new ObjetivoProgressoResponse(0, 0, 270));
+        verify(execucaoRepository).listarCumprimentosHabitosNoIntervalo(
+                eq(USUARIO),
+                any(),
+                eq(LocalDate.of(2026, 11, 10)),
+                eq(LocalDate.of(2026, 11, 18)),
+                eq(StatusExecucao.CONCLUIDO)
+        );
     }
 
     @Test

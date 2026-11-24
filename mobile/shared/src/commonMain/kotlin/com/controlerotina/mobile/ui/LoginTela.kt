@@ -50,7 +50,7 @@ fun LoginTela(vm: SessaoViewModel, aviso: String?) {
         Text("Entre com a conta que você usa na web.", style = MaterialTheme.typography.bodyMedium)
 
         if (aviso != null) {
-            Text(aviso, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            Text(aviso, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }
 
         OutlinedTextField(

@@ -9,7 +9,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.5;
-  background: var(--surface-muted);
+  background: var(--raised);
   color: var(--ink);
 }
 
@@ -92,4 +92,28 @@
 .badge.priority-baixa {
   background: var(--priority-baixa-bg);
   color: var(--priority-baixa);
+}
+
+/* Prioridade por forma e cor (PrioridadeIcone): ⇈ alta, ↑ média, − baixa. */
+.prioridade-icone {
+  flex-shrink: 0;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.prioridade-icone--alta {
+  color: var(--priority-alta);
+}
+
+.prioridade-icone--media {
+  color: var(--priority-media);
+}
+
+.prioridade-icone--baixa {
+  color: var(--priority-baixa);
+}
+
+/* Dentro de um contêiner que já define a cor (pílula do calendário), herda. */
+.calendario-pilula__icone.prioridade-icone {
+  color: var(--pilula-cor);
 }

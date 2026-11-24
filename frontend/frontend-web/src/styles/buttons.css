@@ -65,12 +65,12 @@
 }
 
 .btn--secondary:hover:not(:disabled) {
-  background: var(--surface-muted);
+  background: var(--raised);
   color: var(--ink);
 }
 
 .btn--secondary:active:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-muted) 85%, var(--ink));
+  background: color-mix(in srgb, var(--raised) 85%, var(--ink));
 }
 
 .btn--ghost {
@@ -80,12 +80,12 @@
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: var(--surface-muted);
+  background: var(--raised);
   color: var(--ink);
 }
 
 .btn--ghost:active:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-muted) 85%, var(--ink));
+  background: color-mix(in srgb, var(--raised) 85%, var(--ink));
 }
 
 .btn--danger {
@@ -117,19 +117,16 @@
   color: var(--danger);
 }
 
-.btn--cta {
-  background: var(--cta);
-  color: var(--on-cta);
-  border-color: transparent;
-}
-
-.btn--cta:hover:not(:disabled) {
-  background: var(--cta-hover);
-  color: var(--on-cta);
-}
-
-.btn--cta:active:not(:disabled) {
-  background: color-mix(in srgb, var(--cta-hover) 88%, var(--ink));
+/*
+ * Preenchido e desabilitado: superfície neutra, para não parecer clicável.
+ * Enquanto carrega (aria-busy), mantém a cor da ação em andamento.
+ */
+.btn--primary:disabled:not([aria-busy='true']),
+.btn--danger:not(.btn--ghost):disabled:not([aria-busy='true']) {
+  opacity: 1;
+  background: var(--raised);
+  color: var(--muted);
+  border-color: var(--line);
 }
 
 .btn--sm {
@@ -163,6 +160,73 @@
   min-height: var(--touch-min);
   min-width: var(--touch-min);
   padding-inline: 0.85rem;
+}
+
+/* ——— Controle segmentado ——— */
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-self: start;
+  max-width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+
+.segmented__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.segmented__item:hover {
+  color: var(--ink);
+}
+
+.segmented__item > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.segmented__item--ativo,
+.segmented__item--ativo:hover {
+  background: var(--panel);
+  color: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Toque: os botões compactos sobem para o alvo mínimo de 44px. */
+@media (pointer: coarse) {
+  .btn,
+  .btn--sm,
+  .segmented__item {
+    min-height: var(--touch-min);
+  }
+
+  .btn--icon {
+    min-width: var(--touch-min);
+  }
+
+  .btn--icon.btn--sm {
+    min-width: var(--touch-min);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
