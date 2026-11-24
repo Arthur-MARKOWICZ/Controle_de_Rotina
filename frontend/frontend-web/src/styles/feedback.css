@@ -105,9 +105,9 @@
   border-radius: var(--radius-md);
   background: linear-gradient(
     90deg,
-    var(--surface-muted) 0%,
+    var(--raised) 0%,
     color-mix(in srgb, var(--line) 55%, var(--surface)) 50%,
-    var(--surface-muted) 100%
+    var(--raised) 100%
   );
   background-size: 200% 100%;
   animation: skeleton-shine 1.2s ease-in-out infinite;
@@ -390,7 +390,7 @@
   padding: 0.15rem 0.4rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface-muted);
+  background: var(--raised);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -582,7 +582,7 @@
 }
 
 .prazo-chip:hover {
-  background: var(--surface-muted);
+  background: var(--raised);
 }
 
 @media (prefers-reduced-motion: reduce) {

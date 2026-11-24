@@ -79,7 +79,7 @@ describe('design system CSS contract (T2)', () => {
     expect(sidebarBlock).not.toMatch(/height:\s*100vh/)
     expect(sidebarBlock).not.toMatch(/max-height:\s*100vh/)
     expect(shellCss).toMatch(
-      /--app-shell-sidebar-bg:\s*var\(--panel\)/,
+      /--app-shell-sidebar-bg:\s*var\(--chrome\)/,
     )
     expect(shellCss).toMatch(
       /\.app-shell\s*\{[^}]*background-color:\s*var\(--bg\)/s,

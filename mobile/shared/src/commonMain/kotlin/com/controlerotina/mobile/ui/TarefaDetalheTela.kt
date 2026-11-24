@@ -70,7 +70,7 @@ fun TarefaDetalheTela(id: String, deps: AppDependencias, modifier: Modifier) {
             ) {
                 val c = estado.campos
                 original.parentTitulo?.let {
-                    Text("Subtarefa de $it", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                    Text("Subtarefa de $it", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedTextField(
                     value = c.titulo,

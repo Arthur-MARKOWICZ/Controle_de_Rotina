@@ -93,7 +93,7 @@
   padding: var(--space-5);
   border: 1px dashed var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  background: var(--raised);
 }
 
 .decidir-filtros {

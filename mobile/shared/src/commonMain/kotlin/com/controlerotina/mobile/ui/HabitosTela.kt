@@ -82,7 +82,7 @@ private fun HabitoCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(h.titulo, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 when {
-                    h.cumprido -> Etiqueta("Cumprido", CorSucesso.copy(alpha = 0.15f), CorSucesso)
+                    h.cumprido -> Etiqueta("Cumprido", Rotina.cores.sucessoFundo, Rotina.cores.sucesso)
                     h.emAndamento != null -> Etiqueta("Em andamento", cores.primary.copy(alpha = 0.15f), cores.primary)
                 }
             }

@@ -63,7 +63,7 @@ fun SessaoBarra(sessao: SessaoAtiva, store: SessaoAtivaStore) {
                 Text(
                     texto,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (excedido > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = if (excedido > 0) Rotina.cores.aviso else MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
             TextButton(onClick = { confirmarAbortar = true }, enabled = !ocupado) { Text("Abortar") }

@@ -6,10 +6,20 @@
 
 .projetos-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-4);
   margin-bottom: var(--space-6);
+}
+
+.projetos-header > div:first-child {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.projetos-header .btn {
+  white-space: nowrap;
 }
 
 .projetos-header h1 {
@@ -107,7 +117,7 @@
   padding: var(--space-5);
   border: 1px dashed var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  background: var(--raised);
 }
 
 .projetos-paginacao {

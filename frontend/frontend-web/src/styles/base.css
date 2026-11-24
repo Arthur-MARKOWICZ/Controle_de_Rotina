@@ -31,3 +31,24 @@ textarea:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/* Superfícies do navegador tingidas pela paleta (não ficam no padrão do sistema). */
+:root {
+  accent-color: var(--accent);
+  caret-color: var(--accent);
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+a {
+  text-underline-offset: 0.18em;
+}

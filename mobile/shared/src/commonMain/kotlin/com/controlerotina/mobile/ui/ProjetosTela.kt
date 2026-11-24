@@ -122,7 +122,7 @@ private fun ProjetoCard(p: Projeto, onAbrir: () -> Unit) {
                 Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (p.bloqueada) {
-                Text("Bloqueado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                Text("Bloqueado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -207,7 +207,7 @@ fun ProjetoDetalheTela(id: String, deps: AppDependencias, modifier: Modifier) {
             ) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (projeto.status == StatusProjeto.ARQUIVADO) {
-                        Text("Arquivado", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                        Text("Arquivado", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     CamposProjeto(estado.form, vm::alterarForm)
                     if (projeto.status == StatusProjeto.ATIVO) {
