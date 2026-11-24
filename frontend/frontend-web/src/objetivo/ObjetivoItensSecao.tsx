@@ -48,10 +48,15 @@ function Linha({ to, titulo, status, viaProjeto }: LinhaProps) {
   )
 }
 
+/** Quantos itens o objetivo tem, somando tarefas, hábitos e projetos. */
+export function totalItens(itens: ObjetivoItens | null): number {
+  return itens ? itens.tarefas.length + itens.habitos.length + itens.projetos.length : 0
+}
+
 /** Itens ligados ao objetivo, agrupados em tarefas, hábitos e projetos. */
 export function ObjetivoItensSecao({ itens, carregando, erro }: Props) {
   const tituloId = useId()
-  const total = itens ? itens.tarefas.length + itens.habitos.length + itens.projetos.length : 0
+  const total = totalItens(itens)
   const vazio = !carregando && erro == null && itens != null && total === 0
 
   return (

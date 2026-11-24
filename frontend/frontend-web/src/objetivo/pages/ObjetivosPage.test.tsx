@@ -92,6 +92,28 @@ describe('ObjetivosPage', () => {
     expect(screen.getByText('1 objetivo')).toBeInTheDocument()
   })
 
+  it('mostra a barra só no card que tem progresso, com o nome do objetivo certo', async () => {
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(
+      pagina([
+        objetivo({
+          id: 'obj-1',
+          titulo: 'Perder 5 kg',
+          progresso: { percentual: 40, minutosConcluidos: 120, minutosTotais: 300 },
+        }),
+        objetivo({ id: 'obj-2', titulo: 'Ler 12 livros', progresso: null }),
+      ]),
+    )
+    renderPagina()
+
+    await screen.findByRole('link', { name: 'Ler 12 livros' })
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(
+      within(card('Perder 5 kg')).getByRole('progressbar', { name: 'Progresso de Perder 5 kg' }),
+    ).toHaveAttribute('aria-valuenow', '40')
+    expect(within(card('Ler 12 livros')).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(card('Ler 12 livros')).toHaveTextContent('Vincule tarefas, hábitos ou projetos')
+  })
+
   it('mostra o placeholder de carregamento sem cards enquanto busca', () => {
     vi.mocked(objetivoApi.listarObjetivos).mockReturnValue(new Promise(() => {}))
     renderPagina()

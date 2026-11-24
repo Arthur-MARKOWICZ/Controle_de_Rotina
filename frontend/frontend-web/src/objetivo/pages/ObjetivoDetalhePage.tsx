@@ -25,7 +25,8 @@ import {
   type StatusObjetivo,
 } from '../api/objetivoApi'
 import type { ObjetivoDrawerState, ObjetivosOutletContext } from '../ObjetivoDrawer'
-import { ObjetivoItensSecao } from '../ObjetivoItensSecao'
+import { ObjetivoItensSecao, totalItens } from '../ObjetivoItensSecao'
+import { ObjetivoProgresso } from '../ObjetivoProgresso'
 import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from '../prazoObjetivo'
 
 const STATUS_LABEL: Record<StatusObjetivo, string> = {
@@ -35,6 +36,9 @@ const STATUS_LABEL: Record<StatusObjetivo, string> = {
 }
 
 const ERRO_ITENS = 'Não foi possível carregar os itens vinculados.'
+
+const TEXTO_NAO_SOMAM =
+  'Os itens vinculados ainda não somam tempo. Tarefas canceladas e hábitos pausados não contam.'
 
 /** O estado é keyed por `id`: trocar de objetivo remonta e recomeça do carregando. */
 export function ObjetivoDetalhePage() {
@@ -157,6 +161,10 @@ function ObjetivoDetalhe({ id }: { id: string }) {
   const voltar = { pathname: '/objetivos', search: estado.listaSearch ?? '' }
   const ativo = objetivo?.status === 'ATIVO'
   const vencido = objetivo != null && ativo && situacaoPrazo(objetivo.prazo, hojeIso) === 'vencido'
+  // Progresso nulo também acontece com itens que não somam tempo. Só dá para explicar isso
+  // com os itens carregados; sem itens a seção abaixo já convida a vincular.
+  const itensCarregados = !carregandoItens && erroItens == null && itens != null
+  const semProgresso = itensCarregados && totalItens(itens) > 0 ? TEXTO_NAO_SOMAM : null
   const linhaData = objetivo
     ? ativo
       ? rotuloPrazo(objetivo.prazo, hojeIso)
@@ -216,6 +224,13 @@ function ObjetivoDetalhe({ id }: { id: string }) {
           </header>
 
           {erroAcao ? <InlineAlert>{erroAcao}</InlineAlert> : null}
+
+          <ObjetivoProgresso
+            titulo={objetivo.titulo}
+            progresso={objetivo.progresso}
+            tamanho="destaque"
+            semProgresso={semProgresso}
+          />
 
           <ObjetivoItensSecao itens={itens} carregando={carregandoItens} erro={erroItens} />
         </>

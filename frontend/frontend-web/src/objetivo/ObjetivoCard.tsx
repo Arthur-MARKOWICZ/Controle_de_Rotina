@@ -5,6 +5,7 @@ import { truncarDescricao } from '../lista/truncarDescricao'
 import type { ObjetivoResponse } from './api/objetivoApi'
 import { ACOES_POR_STATUS, ROTULO_ACAO, type AcaoObjetivo } from './acoesObjetivo'
 import type { ObjetivoDrawerState } from './ObjetivoDrawer'
+import { ObjetivoProgresso } from './ObjetivoProgresso'
 import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
 
 type Props = {
@@ -54,9 +55,12 @@ export function ObjetivoCard({ objetivo, hojeIso, acaoEmAndamento, bloqueado, on
           </p>
         ) : null}
         {descricao ? <p className="objetivo-card__descricao">{descricao}</p> : null}
-        <div className="objetivo-card__progresso" data-testid="objetivo-progresso">
-          Progresso aparece quando houver itens vinculados
-        </div>
+        <ObjetivoProgresso
+          titulo={objetivo.titulo}
+          progresso={objetivo.progresso}
+          tamanho="compacto"
+          semProgresso="Vincule tarefas, hábitos ou projetos para medir o progresso."
+        />
       </div>
       <div className="objetivo-card__acoes">
         <Link to={`${detalhe}/editar`} state={estado} className="btn btn--ghost btn--sm">

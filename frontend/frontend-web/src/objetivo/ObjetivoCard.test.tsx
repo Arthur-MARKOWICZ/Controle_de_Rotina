@@ -122,14 +122,65 @@ describe('ObjetivoCard', () => {
     expect(nomesDosBotoes(card)).toEqual(['Reabrir'])
   })
 
-  it('espaço de progresso não mostra percentual nem barra de progresso', () => {
+  it('progresso nulo mostra o convite a vincular, sem barra nem percentual', () => {
     const { card } = renderCard(objetivo())
 
-    expect(within(card).getByTestId('objetivo-progresso')).toHaveTextContent(
-      'Progresso aparece quando houver itens vinculados',
-    )
+    expect(card).toHaveTextContent('Vincule tarefas, hábitos ou projetos para medir o progresso.')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(card).not.toHaveTextContent('%')
+  })
+
+  it('com progresso mostra a barra com o percentual e o tempo em texto', () => {
+    const { card } = renderCard(
+      objetivo({ progresso: { percentual: 40, minutosConcluidos: 120, minutosTotais: 300 } }),
+    )
+
+    const barra = within(card).getByRole('progressbar', { name: 'Progresso de Perder 5 kg' })
+    expect(barra).toHaveAttribute('aria-valuenow', '40')
+    expect(barra).toHaveAttribute('aria-valuetext', '40%, 2h de 5h concluídas')
+    expect(card).not.toHaveTextContent('Vincule tarefas')
+  })
+
+  it('concluído mantém a barra com o progresso congelado', () => {
+    const { card } = renderCard(
+      objetivo({
+        status: 'CONCLUIDO',
+        concluidoEm: '2026-11-12T15:00:00Z',
+        progresso: { percentual: 60, minutosConcluidos: 90, minutosTotais: 150 },
+      }),
+    )
+
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60')
+  })
+
+  it('arquivado mostra a barra dentro do card atenuado', () => {
+    const { card } = renderCard(
+      objetivo({
+        status: 'ARQUIVADO',
+        arquivadoEm: '2026-11-12T15:00:00Z',
+        progresso: { percentual: 25, minutosConcluidos: 30, minutosTotais: 120 },
+      }),
+    )
+
+    expect(card).toHaveClass('objetivo-card--arquivado')
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('percentual fora de 0–100 vindo da API não estoura a barra', () => {
+    const { card } = renderCard(
+      objetivo({ progresso: { percentual: 130, minutosConcluidos: 45, minutosTotais: 30 } }),
+    )
+
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('progresso com total zero conta como nulo e mostra o convite', () => {
+    const { card } = renderCard(
+      objetivo({ progresso: { percentual: 0, minutosConcluidos: 0, minutosTotais: 0 } }),
+    )
+
+    expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(card).toHaveTextContent('Vincule tarefas, hábitos ou projetos')
   })
 
   it('com ação em andamento desabilita todos os botões e mostra o rótulo de progresso', () => {

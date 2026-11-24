@@ -394,6 +394,130 @@ describe('ObjetivoDetalhePage', () => {
     })
   })
 
+  describe('progresso', () => {
+    const TEXTO_NAO_SOMAM = /Os itens vinculados ainda não somam tempo/
+
+    it('mostra a barra com o tempo antes da seção de itens', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ progresso: { percentual: 80, minutosConcluidos: 120, minutosTotais: 150 } }),
+      )
+      renderDetalhe()
+
+      const barra = await screen.findByRole('progressbar', {
+        name: 'Progresso de Passar na certificação',
+      })
+      expect(barra).toHaveAttribute('aria-valuenow', '80')
+      expect(barra).toHaveAttribute('aria-valuetext', '80%, 2h de 2h 30min concluídas')
+      const secao = await screen.findByRole('heading', { name: 'Itens vinculados' })
+      expect(
+        barra.compareDocumentPosition(secao) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('progresso nulo com itens carregados explica que eles não somam tempo, sem barra', async () => {
+      renderDetalhe()
+
+      expect(await screen.findByText(TEXTO_NAO_SOMAM)).toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+
+    it('objetivo sem itens não mostra texto de progresso nem repete o convite', async () => {
+      vi.mocked(objetivoApi.listarItensObjetivo).mockResolvedValue(SEM_ITENS)
+      renderDetalhe()
+
+      expect(await screen.findByText('Nenhum item vinculado')).toBeInTheDocument()
+      expect(screen.queryByText(TEXTO_NAO_SOMAM)).not.toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+      expect(screen.getAllByText(/Vincule/)).toHaveLength(1)
+    })
+
+    it('falha nos itens não inventa explicação para o progresso nulo', async () => {
+      vi.mocked(objetivoApi.listarItensObjetivo).mockRejectedValue(new TypeError('Failed to fetch'))
+      renderDetalhe()
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Não foi possível carregar os itens vinculados.',
+      )
+      expect(screen.queryByText(TEXTO_NAO_SOMAM)).not.toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+
+    it('itens ainda carregando não mostram texto de progresso', async () => {
+      const itens = deferred<ObjetivoItens>()
+      vi.mocked(objetivoApi.listarItensObjetivo).mockReturnValue(itens.promise)
+      renderDetalhe()
+
+      await h1('Passar na certificação')
+      expect(screen.queryByText(TEXTO_NAO_SOMAM)).not.toBeInTheDocument()
+      itens.resolve(ITENS)
+      expect(await screen.findByText(TEXTO_NAO_SOMAM)).toBeInTheDocument()
+    })
+
+    it('progresso com total zero conta como nulo e não mostra barra', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ progresso: { percentual: 0, minutosConcluidos: 0, minutosTotais: 0 } }),
+      )
+      renderDetalhe()
+
+      expect(await screen.findByText(TEXTO_NAO_SOMAM)).toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+
+    it('concluir atualiza a barra com o progresso da resposta', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(
+        objetivo({ progresso: { percentual: 50, minutosConcluidos: 60, minutosTotais: 120 } }),
+      )
+      vi.mocked(objetivoApi.concluirObjetivo).mockResolvedValue(
+        objetivo({
+          status: 'CONCLUIDO',
+          concluidoEm: '2026-11-17T15:00:00Z',
+          progresso: { percentual: 55, minutosConcluidos: 66, minutosTotais: 120 },
+        }),
+      )
+      const user = userEvent.setup()
+      renderDetalhe()
+      expect(await screen.findByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+
+      await user.click(screen.getByRole('button', { name: 'Concluir' }))
+      await confirmar('Concluir')
+
+      await waitFor(() => {
+        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '55')
+      })
+    })
+
+    it('salvar no drawer de edição relê o objetivo e mostra o novo progresso', async () => {
+      vi.mocked(objetivoApi.buscarObjetivo)
+        .mockResolvedValueOnce(
+          objetivo({ progresso: { percentual: 10, minutosConcluidos: 12, minutosTotais: 120 } }),
+        )
+        .mockResolvedValue(
+          objetivo({
+            titulo: 'Passar na prova',
+            progresso: { percentual: 30, minutosConcluidos: 36, minutosTotais: 120 },
+          }),
+        )
+      vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(
+        objetivo({ titulo: 'Passar na prova' }),
+      )
+      const user = userEvent.setup()
+      renderDetalhe()
+      expect(await screen.findByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
+
+      await user.click(screen.getByRole('link', { name: /editar/i }))
+      const campo = await screen.findByLabelText('Título')
+      await user.clear(campo)
+      await user.type(campo, 'Passar na prova')
+      await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('progressbar', { name: 'Progresso de Passar na prova' }),
+        ).toHaveAttribute('aria-valuenow', '30')
+      })
+    })
+  })
+
   describe('edição pelo drawer', () => {
     it('salvar no drawer volta ao detalhe com o novo título e relê os itens', async () => {
       vi.mocked(objetivoApi.buscarObjetivo)
