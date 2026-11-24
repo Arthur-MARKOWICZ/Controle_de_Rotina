@@ -138,4 +138,24 @@ describe('BlocoCard (T2)', () => {
 
     expect(screen.queryByText(/espera/i)).not.toBeInTheDocument()
   })
+
+  it('pinta a estação com a cor de linha do projeto', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <BlocoCard ordem={1} titulo="Revisar" tarefaId="t-1" duracaoMinutos={60} projetoNome="TCC" />
+      </MemoryRouter>,
+    )
+
+    expect(container.querySelector('li')?.style.getPropertyValue('--linha-cor')).toMatch(/^var\(--linha-[1-4]\)$/)
+  })
+
+  it('usa a linha cinza de hábito para bloco de hábito', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <BlocoCard ordem={2} titulo="Leitura" origem="HABITO" habitoId="h-1" duracaoMinutos={30} />
+      </MemoryRouter>,
+    )
+
+    expect(container.querySelector('li')?.style.getPropertyValue('--linha-cor')).toBe('var(--linha-habito)')
+  })
 })

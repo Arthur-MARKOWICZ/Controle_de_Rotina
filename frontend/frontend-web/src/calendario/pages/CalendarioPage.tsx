@@ -12,6 +12,7 @@ import { PageHeader } from '../../layout/PageHeader'
 import { PeriodoNav } from '../../layout/PeriodoNav'
 import { formatarCapacidadeMinutos } from '../../planner/data'
 import type { TarefaDrawerState } from '../../tarefa/TarefaDrawer'
+import { PrioridadeIcone } from '../../tarefa/PrioridadeIcone'
 import type { Prioridade } from '../../tarefa/validation/tarefaForm'
 import { HabitoDoDiaLista } from '../../habito/HabitoDoDiaLista'
 import type { HabitoDoDia } from '../../habito/api/habitoApi'
@@ -293,7 +294,7 @@ function PilulaTarefa({
       {prazo ? (
         <FlagIcon className="calendario-pilula__icone" aria-hidden weight="fill" />
       ) : (
-        <span className="calendario-pilula__ponto" aria-hidden="true" />
+        <PrioridadeIcone prioridade={prioridade} className="calendario-pilula__icone" />
       )}
       <span className="calendario-pilula__titulo">{titulo}</span>
       {duracaoMinutos != null ? (

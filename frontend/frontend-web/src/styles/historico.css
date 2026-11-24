@@ -97,8 +97,9 @@
   color: var(--success);
 }
 
+/* Queda não é erro: a seta e o sinal já carregam a direção. */
 .historico-variacao--queda {
-  color: var(--danger);
+  color: var(--muted);
 }
 
 .historico-vazio a {
@@ -161,7 +162,7 @@
 }
 
 .historico-grafico__barra--hoje {
-  background: var(--cta);
+  background: var(--accent);
 }
 
 .historico-grafico__barra--vazia {

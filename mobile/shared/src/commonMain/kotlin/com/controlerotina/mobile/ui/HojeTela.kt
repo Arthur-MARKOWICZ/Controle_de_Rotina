@@ -28,6 +28,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.controlerotina.mobile.AppDependencias
@@ -111,8 +120,9 @@ private fun PlanoConteudo(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
+                        // "Não coube" é aviso (ocre), não erro nem laranja de XP.
                         containerColor = if (plano.temConflito) {
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+                            Rotina.cores.avisoFundo
                         } else {
                             MaterialTheme.colorScheme.surfaceVariant
                         },
@@ -138,8 +148,10 @@ private fun PlanoConteudo(
                 }
             }
         }
-        items(e.blocos, key = { it.bloco.id }) { item ->
+        itemsIndexed(e.blocos, key = { _, it -> it.bloco.id }) { indice, item ->
             BlocoCard(item, desabilitado = ocupado != null, carregando = ocupado == item.bloco.id,
+                primeiro = indice == 0,
+                ultimo = indice == e.blocos.lastIndex,
                 onIniciar = { lancar { vm.iniciar(item) } },
                 onConcluir = { lancar { vm.concluir(item) } },
                 onAbortar = { onAbortar(item) },
@@ -162,53 +174,84 @@ private fun BlocoCard(
     item: BlocoNaTela,
     desabilitado: Boolean,
     carregando: Boolean,
+    primeiro: Boolean,
+    ultimo: Boolean,
     onIniciar: () -> Unit,
     onConcluir: () -> Unit,
     onAbortar: () -> Unit,
 ) {
     val cores = MaterialTheme.colorScheme
     val concluido = item.status == StatusExecucao.CONCLUIDO
-    Card(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (item.status == StatusExecucao.EM_ANDAMENTO) cores.primaryContainer else cores.surface,
-        ),
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${item.bloco.ordem}.", style = MaterialTheme.typography.labelLarge, color = cores.primary)
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        item.bloco.titulo,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (concluido) cores.onSurface.copy(alpha = 0.5f) else cores.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        listOfNotNull(
-                            formatarMinutos(item.bloco.duracaoMinutos),
-                            if (item.bloco.origem == OrigemBloco.HABITO) "hábito" else null,
-                            item.bloco.habito?.horarioPreferencial?.take(5),
-                        ).joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                when (item.status) {
-                    StatusExecucao.CONCLUIDO -> Etiqueta("Concluído", CorSucesso.copy(alpha = 0.15f), CorSucesso)
-                    StatusExecucao.EM_ANDAMENTO -> Etiqueta("Em andamento", cores.primary.copy(alpha = 0.15f), cores.primary)
-                    StatusExecucao.ABORTADO -> Etiqueta("Abortado", cores.surfaceVariant, cores.onSurface)
-                    StatusExecucao.NAO_INICIADO -> Unit
-                }
-            }
-            if (item.acoes.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
-                    if (AcaoBloco.ABORTAR in item.acoes) TextButton(onClick = onAbortar, enabled = !desabilitado) { Text("Abortar") }
-                    if (AcaoBloco.CONCLUIR in item.acoes) Button(onClick = onConcluir, enabled = !desabilitado) { Text("Concluir") }
-                    if (AcaoBloco.INICIAR in item.acoes) {
-                        FilledTonalButton(onClick = onIniciar, enabled = !desabilitado) { Text(if (carregando) "Iniciando…" else "Iniciar") }
+    val linha = corDaLinha(item.bloco.origem, item.bloco.tarefa?.projetoNome, Rotina.cores)
+    // Plano como linha de metrô: a estação à esquerda, o trecho na cor do projeto liga os blocos.
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(start = 12.dp, end = 16.dp)) {
+        Estacao(linha, item.status, primeiro, ultimo, Modifier.width(28.dp).fillMaxHeight())
+        Card(
+            Modifier.weight(1f).padding(vertical = 4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (item.status == StatusExecucao.EM_ANDAMENTO) cores.primaryContainer else cores.surface,
+            ),
+        ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            item.bloco.titulo,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (concluido) cores.onSurface.copy(alpha = 0.5f) else cores.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            listOfNotNull(
+                                formatarMinutos(item.bloco.duracaoMinutos),
+                                if (item.bloco.origem == OrigemBloco.HABITO) "hábito" else null,
+                                item.bloco.habito?.horarioPreferencial?.take(5),
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    when (item.status) {
+                        StatusExecucao.CONCLUIDO -> Etiqueta("Concluído", Rotina.cores.sucessoFundo, Rotina.cores.sucesso)
+                        StatusExecucao.EM_ANDAMENTO -> Etiqueta("Em andamento", cores.primary.copy(alpha = 0.15f), cores.primary)
+                        StatusExecucao.ABORTADO -> Etiqueta("Abortado", cores.surfaceVariant, cores.onSurface)
+                        StatusExecucao.NAO_INICIADO -> Unit
                     }
                 }
+                if (item.acoes.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
+                        if (AcaoBloco.ABORTAR in item.acoes) TextButton(onClick = onAbortar, enabled = !desabilitado) { Text("Abortar") }
+                        if (AcaoBloco.CONCLUIR in item.acoes) Button(onClick = onConcluir, enabled = !desabilitado) { Text("Concluir") }
+                        if (AcaoBloco.INICIAR in item.acoes) {
+                            FilledTonalButton(onClick = onIniciar, enabled = !desabilitado) { Text(if (carregando) "Iniciando…" else "Iniciar") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Estação da linha do plano: vazia = pendente, aro grosso = em andamento, cheia = concluída. */
+@Composable
+private fun Estacao(cor: Color, status: StatusExecucao, primeiro: Boolean, ultimo: Boolean, modifier: Modifier) {
+    val fundo = MaterialTheme.colorScheme.surface
+    Canvas(modifier) {
+        val x = size.width / 2
+        val y = 30.dp.toPx()
+        val traco = 4.dp.toPx()
+        if (!primeiro) drawLine(cor, Offset(x, 0f), Offset(x, y), traco)
+        if (!ultimo) drawLine(cor, Offset(x, y), Offset(x, size.height), traco)
+        val raio = 9.dp.toPx()
+        when (status) {
+            StatusExecucao.CONCLUIDO -> drawCircle(cor, raio, Offset(x, y))
+            StatusExecucao.EM_ANDAMENTO -> {
+                drawCircle(fundo, raio, Offset(x, y))
+                drawCircle(cor, raio - 2.5.dp.toPx(), Offset(x, y), style = Stroke(5.dp.toPx()))
+            }
+            else -> {
+                drawCircle(fundo, raio, Offset(x, y))
+                drawCircle(cor, raio - 1.5.dp.toPx(), Offset(x, y), style = Stroke(3.dp.toPx()))
             }
         }
     }

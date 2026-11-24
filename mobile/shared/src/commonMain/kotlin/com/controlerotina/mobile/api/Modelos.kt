@@ -51,6 +51,7 @@ data class TarefaResumo(
     val duracaoMinutos: Int = 0,
     val prazo: String? = null,
     val bloqueada: Boolean = false,
+    val projetoNome: String? = null,
 )
 
 @Serializable
