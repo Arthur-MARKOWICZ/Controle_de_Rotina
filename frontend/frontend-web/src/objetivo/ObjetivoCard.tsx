@@ -3,24 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 
 import { truncarDescricao } from '../lista/truncarDescricao'
 import type { ObjetivoResponse } from './api/objetivoApi'
+import { ACOES_POR_STATUS, ROTULO_ACAO, type AcaoObjetivo } from './acoesObjetivo'
 import type { ObjetivoDrawerState } from './ObjetivoDrawer'
 import { rotuloConclusao, rotuloPrazo, situacaoPrazo } from './prazoObjetivo'
-
-export type AcaoObjetivo = 'concluir' | 'arquivar' | 'reabrir'
-
-const DRAWER_STATE: ObjetivoDrawerState = { daLista: true }
-
-const ROTULO_ACAO: Record<AcaoObjetivo, { label: string; andamento: string }> = {
-  concluir: { label: 'Concluir', andamento: 'Concluindo…' },
-  arquivar: { label: 'Arquivar', andamento: 'Arquivando…' },
-  reabrir: { label: 'Reabrir', andamento: 'Reabrindo…' },
-}
-
-const ACOES_POR_STATUS: Record<ObjetivoResponse['status'], AcaoObjetivo[]> = {
-  ATIVO: ['concluir', 'arquivar'],
-  CONCLUIDO: ['arquivar', 'reabrir'],
-  ARQUIVADO: ['reabrir'],
-}
 
 type Props = {
   objetivo: ObjetivoResponse
@@ -34,7 +19,9 @@ type Props = {
 
 export function ObjetivoCard({ objetivo, hojeIso, acaoEmAndamento, bloqueado, onAcao }: Props) {
   const location = useLocation()
-  const editar = { pathname: `/objetivos/${objetivo.id}`, search: location.search }
+  const detalhe = `/objetivos/${objetivo.id}`
+  // A visão da lista vai em `state` (não na URL do detalhe, que pode ser compartilhada).
+  const estado: ObjetivoDrawerState = { listaSearch: location.search }
 
   const ativo = objetivo.status === 'ATIVO'
   const vencido = ativo && situacaoPrazo(objetivo.prazo, hojeIso) === 'vencido'
@@ -54,7 +41,7 @@ export function ObjetivoCard({ objetivo, hojeIso, acaoEmAndamento, bloqueado, on
   return (
     <li className={classes} data-vencido={vencido ? 'true' : undefined}>
       <div className="objetivo-card__principal">
-        <Link to={editar} state={DRAWER_STATE} className="objetivo-card__titulo">
+        <Link to={detalhe} state={estado} className="objetivo-card__titulo">
           {objetivo.titulo}
         </Link>
         {linhaData ? (
@@ -72,7 +59,7 @@ export function ObjetivoCard({ objetivo, hojeIso, acaoEmAndamento, bloqueado, on
         </div>
       </div>
       <div className="objetivo-card__acoes">
-        <Link to={editar} state={DRAWER_STATE} className="btn btn--ghost btn--sm">
+        <Link to={`${detalhe}/editar`} state={estado} className="btn btn--ghost btn--sm">
           <PencilSimpleIcon aria-hidden />
           Editar
         </Link>

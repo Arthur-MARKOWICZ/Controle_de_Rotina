@@ -1,4 +1,6 @@
 import type { DiaSemana } from '../capacidade/api/capacidadeSemanalApi'
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
+import { ObjetivoPicker } from '../objetivo/ObjetivoPicker'
 import type { TagResumo } from '../tag/api/tagApi'
 import { TagPicker } from '../tag/TagPicker'
 import { DIAS_SEMANA_ORDEM, type HabitoFormValues } from './validation/habitoForm'
@@ -10,6 +12,9 @@ type Props = {
   tagIds: string[]
   tagsSelecionadas?: TagResumo[]
   onTagsChange: (tagIds: string[], tags: TagResumo[]) => void
+  objetivoIds: string[]
+  objetivosSelecionados?: ObjetivoResumo[]
+  onObjetivosChange: (objetivoIds: string[], objetivos: ObjetivoResumo[]) => void
 }
 
 function alternarDia(dias: DiaSemana[], dia: DiaSemana): DiaSemana[] {
@@ -23,6 +28,9 @@ export function HabitoCampos({
   tagIds,
   tagsSelecionadas,
   onTagsChange,
+  objetivoIds,
+  objetivosSelecionados,
+  onObjetivosChange,
 }: Props) {
   return (
     <>
@@ -30,6 +38,12 @@ export function HabitoCampos({
         selectedIds={tagIds}
         selectedTags={tagsSelecionadas}
         onChange={onTagsChange}
+        disabled={desabilitado}
+      />
+      <ObjetivoPicker
+        selectedIds={objetivoIds}
+        selectedObjetivos={objetivosSelecionados}
+        onChange={onObjetivosChange}
         disabled={desabilitado}
       />
       <div className="field">

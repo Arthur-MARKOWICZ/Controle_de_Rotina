@@ -13,6 +13,13 @@ function LocationProbe() {
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
 }
 
+vi.mock('../../objetivo/api/objetivoApi', () => ({
+  listarObjetivos: vi.fn().mockResolvedValue({
+    content: [],
+    page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
+  }),
+}))
+
 vi.mock('../../tag/api/tagApi', () => ({
   listarTags: vi.fn().mockResolvedValue([]),
   criarTag: vi.fn(),
@@ -274,6 +281,7 @@ describe('ProjetosPage', () => {
         nome: 'Novo',
         descricao: null,
         tagIds: [],
+        objetivoIds: [],
       })
     })
     expect(await screen.findByText('página editar projeto')).toBeInTheDocument()

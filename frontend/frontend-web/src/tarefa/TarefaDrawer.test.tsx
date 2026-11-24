@@ -7,11 +7,13 @@ import { ApiError } from '../auth/api/authApi'
 import { SessaoAtivaProvider } from '../execucao/SessaoAtivaContext'
 import { ToastProvider } from '../feedback/ToastProvider'
 import { QuickAddProvider, useQuickAdd } from '../layout/QuickAddContext'
+import * as objetivoApi from '../objetivo/api/objetivoApi'
 import * as projetoApi from '../projeto/api/projetoApi'
 import * as tagApi from '../tag/api/tagApi'
 import { XpProgressProvider } from '../xp/XpProgressContext'
 import * as tarefaApi from './api/tarefaApi'
 import type { TarefaResponse } from './api/tarefaApi'
+import type { ObjetivoResponse } from '../objetivo/api/objetivoApi'
 import { adicionarDiasCivil, fimDoDiaBrtIso, partesCivisBrt } from './dataCivilBrt'
 import { TarefasPage } from './pages/TarefasPage'
 import { TarefaDrawer } from './TarefaDrawer'
@@ -34,6 +36,10 @@ vi.mock('./api/tarefaApi', () => ({
 
 vi.mock('../projeto/api/projetoApi', () => ({
   listarProjetos: vi.fn(),
+}))
+
+vi.mock('../objetivo/api/objetivoApi', () => ({
+  listarObjetivos: vi.fn(),
 }))
 
 vi.mock('../tag/api/tagApi', () => ({
@@ -75,6 +81,30 @@ const projetosAtivos = {
     },
   ],
   page: { size: 20, number: 0, totalElements: 1, totalPages: 1 },
+}
+
+const OBJ_ATIVO = objetivoFake('o1', 'Passar na certificação')
+
+function objetivoFake(id: string, titulo: string): ObjetivoResponse {
+  return {
+    id,
+    titulo,
+    descricao: null,
+    prazo: null,
+    status: 'ATIVO',
+    concluidoEm: null,
+    arquivadoEm: null,
+    createdAt: '2026-11-01T12:00:00Z',
+    updatedAt: '2026-11-01T12:00:00Z',
+    progresso: null,
+  }
+}
+
+function paginaObjetivos(content: ObjetivoResponse[]) {
+  return {
+    content,
+    page: { size: 100, number: 0, totalElements: content.length, totalPages: 1 },
+  }
 }
 
 const tarefa: TarefaResponse = tarefaFake({
@@ -200,6 +230,8 @@ describe('TarefaDrawer', () => {
     vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(tarefa)
     vi.mocked(projetoApi.listarProjetos).mockReset()
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue(projetosAtivos)
+    vi.mocked(objetivoApi.listarObjetivos).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(paginaObjetivos([OBJ_ATIVO]))
   })
 
   describe('rotas', () => {
@@ -988,6 +1020,149 @@ describe('TarefaDrawer', () => {
       renderApp('/tarefas/t-1')
       await screen.findByDisplayValue('Estudar')
       expect(within(secaoEspera()).queryByText(/pendente/i)).not.toBeInTheDocument()
+    })
+  })
+  describe('objetivos', () => {
+    const arquivado = { id: 'o9', titulo: 'Perder 5 kg', status: 'ARQUIVADO' as const }
+
+    async function escolherObjetivo(
+      user: ReturnType<typeof userEvent.setup>,
+      dialogo: HTMLElement,
+      titulo: string,
+    ) {
+      await user.click(within(dialogo).getByRole('button', { name: /escolher objetivos/i }))
+      await user.click(await within(dialogo).findByRole('button', { name: titulo }))
+    }
+
+    it('cria tarefa vinculada ao objetivo escolhido nas edições avançadas', async () => {
+      vi.mocked(tarefaApi.criarTarefa).mockResolvedValue({ ...tarefa, id: 't-9' })
+      const user = userEvent.setup()
+      renderApp('/tarefas/nova')
+      await screen.findByRole('region', { name: /nova tarefa/i })
+
+      await user.type(screen.getByLabelText(/^título$/i), 'Estudar')
+      await user.selectOptions(screen.getByLabelText(/^prioridade$/i), 'MEDIA')
+      await user.type(screen.getByLabelText(/duração/i), '120')
+      await noDialogoAvancadas(user, (dialogo) =>
+        escolherObjetivo(user, dialogo, 'Passar na certificação'),
+      )
+      await user.click(screen.getByRole('button', { name: /criar tarefa/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.criarTarefa).toHaveBeenCalledWith(
+          expect.objectContaining({ titulo: 'Estudar', objetivoIds: ['o1'] }),
+        )
+      })
+    })
+
+    it('editar mantém o chip de objetivo arquivado, sem opção, e reenvia o vínculo', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({ ...tarefa, objetivos: [arquivado] })
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue(tarefa)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+
+      await user.click(screen.getByRole('button', { name: /edições avançadas/i }))
+      const dialogo = screen.getByRole('dialog', { name: /edições avançadas/i })
+      expect(
+        within(dialogo).getByRole('button', { name: 'Remover objetivo Perder 5 kg' }),
+      ).toHaveTextContent('Arquivado')
+      await user.click(within(dialogo).getByRole('button', { name: /^pronto$/i }))
+      await user.clear(screen.getByLabelText(/^título$/i))
+      await user.type(screen.getByLabelText(/^título$/i), 'Estudar API')
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ titulo: 'Estudar API', objetivoIds: ['o9'] }),
+        )
+      })
+    })
+
+    it('remover o chip e salvar envia lista vazia para desvincular', async () => {
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue({
+        ...tarefa,
+        objetivos: [{ id: 'o1', titulo: 'Passar na certificação', status: 'ATIVO' }],
+      })
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue(tarefa)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+
+      await noDialogoAvancadas(user, async (dialogo) => {
+        await user.click(
+          within(dialogo).getByRole('button', { name: 'Remover objetivo Passar na certificação' }),
+        )
+      })
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => {
+        expect(tarefaApi.atualizarTarefa).toHaveBeenCalledWith(
+          't-1',
+          expect.objectContaining({ objetivoIds: [] }),
+        )
+      })
+    })
+
+    it('mudar só os objetivos já conta como alteração e pede descarte ao fechar', async () => {
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+
+      await noDialogoAvancadas(user, (dialogo) =>
+        escolherObjetivo(user, dialogo, 'Passar na certificação'),
+      )
+      await user.keyboard('{Escape}')
+
+      expect(await screen.findByRole('dialog', { name: /descartar/i })).toBeInTheDocument()
+      expect(tarefaApi.atualizarTarefa).not.toHaveBeenCalled()
+    })
+
+    it('subtarefa não mostra o seletor e o PATCH não leva objetivoIds', async () => {
+      const subtarefa: TarefaResponse = {
+        ...tarefa,
+        id: 't-filho',
+        titulo: 'Capítulo 1',
+        duracaoMinutos: 60,
+        parentId: 't-1',
+        parentTitulo: 'Estudar',
+        temFilhos: false,
+      }
+      vi.mocked(tarefaApi.buscarTarefa).mockResolvedValue(subtarefa)
+      vi.mocked(tarefaApi.atualizarTarefa).mockResolvedValue(subtarefa)
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-filho')
+      await screen.findByDisplayValue('Capítulo 1')
+
+      await user.click(screen.getByRole('button', { name: /edições avançadas/i }))
+      const dialogo = screen.getByRole('dialog', { name: /edições avançadas/i })
+      expect(within(dialogo).queryByRole('button', { name: /escolher objetivos/i })).not.toBeInTheDocument()
+      await user.click(within(dialogo).getByRole('button', { name: /^pronto$/i }))
+      await user.type(screen.getByLabelText(/^título$/i), '!')
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      await waitFor(() => expect(tarefaApi.atualizarTarefa).toHaveBeenCalled())
+      expect(vi.mocked(tarefaApi.atualizarTarefa).mock.calls[0][1]).not.toHaveProperty('objetivoIds')
+    })
+
+    it('409 por objetivo não ativo mostra a mensagem e mantém o drawer aberto', async () => {
+      vi.mocked(tarefaApi.atualizarTarefa).mockRejectedValue(
+        new ApiError(409, 'Só é possível vincular a um objetivo ativo.'),
+      )
+      const user = userEvent.setup()
+      renderApp('/tarefas/t-1')
+      await screen.findByDisplayValue('Estudar')
+
+      await noDialogoAvancadas(user, (dialogo) =>
+        escolherObjetivo(user, dialogo, 'Passar na certificação'),
+      )
+      await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Só é possível vincular a um objetivo ativo.',
+      )
+      expect(drawer(/editar tarefa/i)).toBeInTheDocument()
     })
   })
 })

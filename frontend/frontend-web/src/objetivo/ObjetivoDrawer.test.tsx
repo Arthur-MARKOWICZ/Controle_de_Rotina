@@ -40,6 +40,7 @@ function ListaFake() {
   return (
     <>
       <p data-testid="location">{`${location.pathname}${location.search}`}</p>
+      <p data-testid="state">{JSON.stringify(location.state)}</p>
       <Outlet context={{ aoSalvar }} />
     </>
   )
@@ -52,7 +53,9 @@ function renderDrawer(entries: InitialEntry[]) {
         <Routes>
           <Route path="/objetivos" element={<ListaFake />}>
             <Route path="nova" element={<ObjetivoDrawer />} />
-            <Route path=":id" element={<ObjetivoDrawer />} />
+          </Route>
+          <Route path="/objetivos/:id" element={<ListaFake />}>
+            <Route path="editar" element={<ObjetivoDrawer />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -113,7 +116,7 @@ describe('ObjetivoDrawer', () => {
     vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ prazo: '2099-12-31' }))
     vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(objetivo({ titulo: 'Perder 6 kg' }))
     const user = userEvent.setup()
-    renderDrawer(['/objetivos/obj-1'])
+    renderDrawer(['/objetivos/obj-1/editar'])
 
     const titulo = await screen.findByDisplayValue('Perder 5 kg')
     await user.clear(titulo)
@@ -133,7 +136,7 @@ describe('ObjetivoDrawer', () => {
     vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ prazo: '2099-12-31' }))
     vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(objetivo())
     const user = userEvent.setup()
-    renderDrawer(['/objetivos/obj-1'])
+    renderDrawer(['/objetivos/obj-1/editar'])
 
     await screen.findByDisplayValue('Perder 5 kg')
     await user.click(screen.getByRole('button', { name: 'Remover prazo' }))
@@ -153,7 +156,7 @@ describe('ObjetivoDrawer', () => {
     vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ prazo: '2020-01-01' }))
     vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(objetivo())
     const user = userEvent.setup()
-    renderDrawer(['/objetivos/obj-1'])
+    renderDrawer(['/objetivos/obj-1/editar'])
 
     const titulo = await screen.findByDisplayValue('Perder 5 kg')
     expect(screen.getByLabelText('Prazo (opcional)')).not.toHaveAttribute('min')
@@ -223,7 +226,7 @@ describe('ObjetivoDrawer', () => {
     vi.mocked(objetivoApi.buscarObjetivo).mockRejectedValue(
       new ApiError(404, 'Objetivo inexistente ou sem permissão de acesso.'),
     )
-    renderDrawer(['/objetivos/sumiu'])
+    renderDrawer(['/objetivos/sumiu/editar'])
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Objetivo inexistente ou sem permissão de acesso.',
@@ -246,12 +249,27 @@ describe('ObjetivoDrawer', () => {
     expect(screen.getByLabelText('Título')).toHaveValue('Aprender Kotlin')
   })
 
-  it('fechar sem alteração volta à mesma visão sem confirmação', async () => {
-    vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ status: 'CONCLUIDO' }))
+  it('fechar a criação sem alteração volta à mesma visão sem confirmação', async () => {
     const user = userEvent.setup()
     renderDrawer([
       '/objetivos?status=CONCLUIDO',
-      { pathname: '/objetivos/obj-1', search: '?status=CONCLUIDO', state: { daLista: true } },
+      { pathname: '/objetivos/nova', search: '?status=CONCLUIDO', state: { daLista: true } },
+    ])
+
+    await user.click(screen.getAllByRole('button', { name: 'Cancelar' })[0])
+
+    expect(screen.queryByRole('dialog', { name: /descartar/i })).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?status=CONCLUIDO')
+    })
+  })
+
+  it('fechar a edição sem alteração volta ao detalhe, repassando a visão da lista', async () => {
+    vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ status: 'CONCLUIDO' }))
+    const user = userEvent.setup()
+    renderDrawer([
+      '/objetivos/obj-1',
+      { pathname: '/objetivos/obj-1/editar', state: { listaSearch: '?status=CONCLUIDO&page=1' } },
     ])
 
     await screen.findByDisplayValue('Perder 5 kg')
@@ -259,7 +277,61 @@ describe('ObjetivoDrawer', () => {
 
     expect(screen.queryByRole('dialog', { name: /descartar/i })).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/objetivos?status=CONCLUIDO')
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos\/obj-1$/)
     })
+    expect(screen.getByTestId('state')).toHaveTextContent(
+      '{"listaSearch":"?status=CONCLUIDO&page=1"}',
+    )
+  })
+
+  it('salvar a edição volta ao detalhe e recarrega', async () => {
+    vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo({ prazo: '2099-12-31' }))
+    vi.mocked(objetivoApi.atualizarObjetivo).mockResolvedValue(objetivo({ titulo: 'Perder 6 kg' }))
+    const user = userEvent.setup()
+    renderDrawer(['/objetivos/obj-1/editar'])
+
+    const titulo = await screen.findByDisplayValue('Perder 5 kg')
+    await user.type(titulo, '!')
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos\/obj-1$/)
+    })
+    expect(aoSalvar).toHaveBeenCalledOnce()
+  })
+
+  it('Esc na edição com alteração pede descarte e descartar volta ao detalhe', async () => {
+    vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo())
+    const user = userEvent.setup()
+    renderDrawer(['/objetivos/obj-1/editar'])
+
+    await user.type(await screen.findByDisplayValue('Perder 5 kg'), '!')
+    await user.keyboard('{Escape}')
+    const confirmacao = await screen.findByRole('dialog', { name: /descartar alterações/i })
+    await user.click(within(confirmacao).getByRole('button', { name: 'Descartar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/objetivos\/obj-1$/)
+    })
+    expect(objetivoApi.atualizarObjetivo).not.toHaveBeenCalled()
+  })
+
+  it('erro 409 ao salvar a edição mantém o drawer aberto e não recarrega', async () => {
+    vi.mocked(objetivoApi.buscarObjetivo).mockResolvedValue(objetivo())
+    vi.mocked(objetivoApi.atualizarObjetivo).mockRejectedValue(
+      new ApiError(409, 'Objetivo arquivado não pode ser alterado.'),
+    )
+    const user = userEvent.setup()
+    renderDrawer(['/objetivos/obj-1/editar'])
+
+    await user.type(await screen.findByDisplayValue('Perder 5 kg'), '!')
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Objetivo arquivado não pode ser alterado.',
+    )
+    expect(drawer(/editar objetivo/i)).toBeInTheDocument()
+    expect(aoSalvar).not.toHaveBeenCalled()
+    expect(screen.getByTestId('location')).toHaveTextContent('/objetivos/obj-1/editar')
   })
 })

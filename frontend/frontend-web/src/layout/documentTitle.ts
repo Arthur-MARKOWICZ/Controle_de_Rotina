@@ -14,6 +14,7 @@ const ROTULOS: [RegExp, string][] = [
   [/^\/objetivos$/, 'Objetivos'],
   [/^\/objetivos\/nova$/, 'Novo objetivo'],
   [/^\/objetivos\/[^/]+$/, 'Objetivo'],
+  [/^\/objetivos\/[^/]+\/editar$/, 'Editar objetivo'],
   [/^\/habitos$/, 'Hábitos'],
   [/^\/habitos\/nova$/, 'Novo hábito'],
   [/^\/habitos\/[^/]+$/, 'Editar hábito'],

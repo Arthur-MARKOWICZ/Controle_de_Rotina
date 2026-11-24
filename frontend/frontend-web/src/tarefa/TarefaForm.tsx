@@ -3,6 +3,7 @@ import { useState, type Dispatch, type FormEvent, type Ref, type SetStateAction 
 
 import { InlineAlert } from '../feedback/InlineAlert'
 import { PRIORIDADE_LABEL } from '../home/labels'
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import { datetimeLocalParaInstant, formatarDataHora } from './datetime'
@@ -33,6 +34,11 @@ type Props = {
   tagIds: string[]
   tagsSelecionadas?: TagResumo[]
   onTagsChange: (tagIds: string[], tags: TagResumo[]) => void
+  /** Subtarefa não pode ter objetivo: o seletor some. */
+  mostrarObjetivos?: boolean
+  objetivoIds?: string[]
+  objetivosSelecionados?: ObjetivoResumo[]
+  onObjetivosChange?: (objetivoIds: string[], objetivos: ObjetivoResumo[]) => void
 }
 
 function rotuloPrazo(prazoLocal: string): { aria: string; texto: string } {
@@ -63,6 +69,10 @@ export function TarefaForm({
   tagIds,
   tagsSelecionadas,
   onTagsChange,
+  mostrarObjetivos = false,
+  objetivoIds,
+  objetivosSelecionados,
+  onObjetivosChange,
 }: Props) {
   const [prazoAberto, setPrazoAberto] = useState(false)
   const [avancadasAberto, setAvancadasAberto] = useState(false)
@@ -209,6 +219,10 @@ export function TarefaForm({
         tagIds={tagIds}
         tagsSelecionadas={tagsSelecionadas}
         onTagsChange={onTagsChange}
+        mostrarObjetivos={mostrarObjetivos}
+        objetivoIds={objetivoIds}
+        objetivosSelecionados={objetivosSelecionados}
+        onObjetivosChange={onObjetivosChange}
         onDesvincular={onDesvincular}
         desvinculando={desvinculando}
         disabled={disabled}

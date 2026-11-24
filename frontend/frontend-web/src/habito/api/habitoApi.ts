@@ -1,6 +1,7 @@
 import type { Pagina } from '../../api/pagina'
 import { lerErroApi } from '../../auth/api/lerErroApi'
 import { apiFetch, readApiJson } from '../../auth/session/apiClient'
+import type { ObjetivoResumo } from '../../objetivo/api/objetivoApi'
 import type { TagResumo } from '../../tag/api/tagApi'
 import type { DiaSemana } from '../../capacidade/api/capacidadeSemanalApi'
 import type { ExecucaoResponse, StatusExecucao } from '../../execucao/api/execucaoApi'
@@ -22,6 +23,8 @@ export type HabitoResponse = {
   deletedAt: string | null
   deletada: boolean
   tags?: TagResumo[]
+  /** Só vínculos diretos; ausente em payloads antigos. */
+  objetivos?: ObjetivoResumo[]
   tagMatchScore?: number | null
   /** Posição manual na lista. Ausente em payloads antigos. */
   ordem?: number
@@ -45,6 +48,7 @@ export type CriarHabitoRequest = {
   diasSemana: DiaSemana[]
   horarioPreferencial?: string | null
   tagIds?: string[]
+  objetivoIds?: string[]
 }
 
 export type AtualizarHabitoRequest = {
@@ -54,6 +58,7 @@ export type AtualizarHabitoRequest = {
   diasSemana?: DiaSemana[]
   horarioPreferencial?: string | null
   tagIds?: string[]
+  objetivoIds?: string[]
 }
 
 function appendAll(params: URLSearchParams, key: string, values?: string[]) {

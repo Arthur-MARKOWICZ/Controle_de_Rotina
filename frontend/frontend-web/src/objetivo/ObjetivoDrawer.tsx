@@ -31,6 +31,8 @@ export type ObjetivosOutletContext = {
 export type ObjetivoDrawerState = {
   /** Aberto a partir da lista: fechar volta no histórico em vez de empilhar `/objetivos`. */
   daLista?: boolean
+  /** Query da lista de origem: o detalhe e a edição a repassam para "Voltar a Objetivos". */
+  listaSearch?: string
 }
 
 const FORM_ID = 'objetivo-drawer-form'
@@ -73,7 +75,12 @@ export function ObjetivoDrawer() {
   const alterado = JSON.stringify(values) !== JSON.stringify(inicial)
   const prazoOriginalVencido = prazoOriginal != null && prazoOriginal < hojeIso
 
-  const voltarParaLista = useCallback(() => {
+  const fechar = useCallback(() => {
+    if (modo === 'editar' && id) {
+      // A edição abre sobre o detalhe: fecha nele, repassando a visão da lista de origem.
+      navigate(`/objetivos/${id}`, { replace: true, state: { listaSearch: estado.listaSearch } })
+      return
+    }
     if (criadoRef.current) {
       // Objetivo novo nasce ativo: mostra a visão onde ele aparece, venha de onde vier.
       navigate('/objetivos', { replace: true })
@@ -84,7 +91,7 @@ export function ObjetivoDrawer() {
       return
     }
     navigate({ pathname: '/objetivos', search: location.search }, { replace: true })
-  }, [estado.daLista, location.search, navigate])
+  }, [estado.daLista, estado.listaSearch, id, location.search, modo, navigate])
 
   useEffect(() => {
     if (modo !== 'editar' || !id) {
@@ -213,7 +220,7 @@ export function ObjetivoDrawer() {
         open={aberto}
         title={modo === 'criar' ? 'Novo objetivo' : 'Editar objetivo'}
         onClose={() => void pedirFechar()}
-        onExited={voltarParaLista}
+        onExited={fechar}
         footer={rodape}
       >
         {modo === 'criar' ? (

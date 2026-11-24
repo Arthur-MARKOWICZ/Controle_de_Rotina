@@ -14,6 +14,9 @@ describe('tituloPorRota (T4)', () => {
     expect(tituloPorRota('/objetivos')).toBe('Objetivos · Controle de Rotina')
     expect(tituloPorRota('/objetivos/nova')).toBe('Novo objetivo · Controle de Rotina')
     expect(tituloPorRota('/objetivos/abc-123')).toBe('Objetivo · Controle de Rotina')
+    expect(tituloPorRota('/objetivos/abc-123/editar')).toBe(
+      'Editar objetivo · Controle de Rotina',
+    )
     expect(tituloPorRota('/habitos')).toBe('Hábitos · Controle de Rotina')
     expect(tituloPorRota('/habitos/nova')).toBe('Novo hábito · Controle de Rotina')
     expect(tituloPorRota('/habitos/abc-123')).toBe('Editar hábito · Controle de Rotina')
@@ -34,6 +37,12 @@ describe('tituloPorRota (T4)', () => {
     expect(tituloPorRota('/xyz/abc')).toBe('Controle de Rotina')
     expect(rotuloPorRota('/xyz/abc')).toBeNull()
     expect(rotuloPorRota('/capacidade')).toBe('Capacidade')
+  })
+
+  it('objetivo: detalhe e edição têm rótulos distintos e subpath extra é desconhecido', () => {
+    expect(rotuloPorRota('/objetivos/abc-123')).toBe('Objetivo')
+    expect(rotuloPorRota('/objetivos/abc-123/editar')).toBe('Editar objetivo')
+    expect(tituloPorRota('/objetivos/abc-123/outro')).toBe('Controle de Rotina')
   })
 
   it('não trata subpath extra como detalhe conhecido', () => {

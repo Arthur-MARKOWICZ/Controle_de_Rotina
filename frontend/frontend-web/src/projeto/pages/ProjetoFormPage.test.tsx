@@ -3,11 +3,18 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../../auth/api/authApi'
 import { ToastProvider } from '../../feedback/ToastProvider'
+import * as objetivoApi from '../../objetivo/api/objetivoApi'
+import type { ObjetivoResponse } from '../../objetivo/api/objetivoApi'
 import * as tarefaApi from '../../tarefa/api/tarefaApi'
 import * as projetoApi from '../api/projetoApi'
 import { ProjetoFormPage } from './ProjetoFormPage'
 import { tarefa as tarefaFake } from '../../test/revisaoFixtures'
+
+vi.mock('../../objetivo/api/objetivoApi', () => ({
+  listarObjetivos: vi.fn(),
+}))
 
 vi.mock('../../tag/api/tagApi', () => ({
   listarTags: vi.fn().mockResolvedValue([]),
@@ -30,6 +37,26 @@ vi.mock('../api/projetoApi', () => ({
 vi.mock('../../tarefa/api/tarefaApi', () => ({
   listarTarefas: vi.fn(),
 }))
+
+const objetivoAtivo: ObjetivoResponse = {
+  id: 'o1',
+  titulo: 'Passar na certificação',
+  descricao: null,
+  prazo: null,
+  status: 'ATIVO',
+  concluidoEm: null,
+  arquivadoEm: null,
+  createdAt: '2026-11-01T12:00:00Z',
+  updatedAt: '2026-11-01T12:00:00Z',
+  progresso: null,
+}
+
+function paginaObjetivos(content: ObjetivoResponse[]) {
+  return {
+    content,
+    page: { size: 100, number: 0, totalElements: content.length, totalPages: 1 },
+  }
+}
 
 const projetoExistente = {
   id: 'p-tcc',
@@ -64,6 +91,8 @@ describe('ProjetoFormPage (F1)', () => {
     vi.mocked(projetoApi.reativarProjeto).mockReset()
     vi.mocked(projetoApi.criarEsperaProjeto).mockReset()
     vi.mocked(projetoApi.excluirEsperaProjeto).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(paginaObjetivos([objetivoAtivo]))
     vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
       content: [],
       page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
@@ -123,12 +152,121 @@ describe('ProjetoFormPage (F1)', () => {
         nome: 'TCC atualizado',
         descricao: 'Trabalho de conclusão',
         tagIds: [],
+        objetivoIds: [],
       })
     })
 
     expect(await screen.findByRole('status')).toHaveTextContent(/projeto atualizado|salvo/i)
     expect(screen.queryByText(/lista de projetos/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^nome$/i)).toBeInTheDocument()
+  })
+})
+
+describe('ProjetoFormPage — objetivos', () => {
+  beforeEach(() => {
+    vi.mocked(projetoApi.buscarProjeto).mockReset()
+    vi.mocked(projetoApi.atualizarProjeto).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockReset()
+    vi.mocked(objetivoApi.listarObjetivos).mockResolvedValue(paginaObjetivos([objetivoAtivo]))
+    vi.mocked(projetoApi.listarProjetos).mockResolvedValue({
+      content: [],
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+    })
+    vi.mocked(tarefaApi.listarTarefas).mockResolvedValue({
+      content: [],
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+    })
+  })
+
+  it('vincula um objetivo ativo e envia objetivoIds no salvar', async () => {
+    vi.mocked(projetoApi.buscarProjeto).mockResolvedValue(projetoExistente)
+    vi.mocked(projetoApi.atualizarProjeto).mockResolvedValue({
+      ...projetoExistente,
+      objetivos: [{ id: 'o1', titulo: 'Passar na certificação', status: 'ATIVO' }],
+    })
+    const user = userEvent.setup()
+    renderEditar()
+
+    await screen.findByDisplayValue('TCC')
+    await user.click(screen.getByRole('button', { name: /escolher objetivos/i }))
+    await user.click(await screen.findByRole('button', { name: 'Passar na certificação' }))
+    await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+    await waitFor(() => {
+      expect(projetoApi.atualizarProjeto).toHaveBeenCalledWith(
+        'p-tcc',
+        expect.objectContaining({ objetivoIds: ['o1'] }),
+      )
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Remover objetivo Passar na certificação' }),
+    ).toBeInTheDocument()
+  })
+
+  it('remover o chip e salvar desvincula com lista vazia', async () => {
+    vi.mocked(projetoApi.buscarProjeto).mockResolvedValue({
+      ...projetoExistente,
+      objetivos: [{ id: 'o1', titulo: 'Passar na certificação', status: 'ATIVO' }],
+    })
+    vi.mocked(projetoApi.atualizarProjeto).mockResolvedValue(projetoExistente)
+    const user = userEvent.setup()
+    renderEditar()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Remover objetivo Passar na certificação' }),
+    )
+    await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+    await waitFor(() => {
+      expect(projetoApi.atualizarProjeto).toHaveBeenCalledWith(
+        'p-tcc',
+        expect.objectContaining({ objetivoIds: [] }),
+      )
+    })
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Remover objetivo Passar na certificação' }),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it('projeto ligado a objetivo arquivado mostra o chip com o status e o mantém ao salvar', async () => {
+    vi.mocked(projetoApi.buscarProjeto).mockResolvedValue({
+      ...projetoExistente,
+      objetivos: [{ id: 'o9', titulo: 'Perder 5 kg', status: 'ARQUIVADO' }],
+    })
+    vi.mocked(projetoApi.atualizarProjeto).mockResolvedValue(projetoExistente)
+    const user = userEvent.setup()
+    renderEditar()
+
+    const chip = await screen.findByRole('button', { name: 'Remover objetivo Perder 5 kg' })
+    expect(chip).toHaveTextContent('Arquivado')
+    await user.type(screen.getByLabelText(/^nome$/i), '!')
+    await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+    await waitFor(() => {
+      expect(projetoApi.atualizarProjeto).toHaveBeenCalledWith(
+        'p-tcc',
+        expect.objectContaining({ objetivoIds: ['o9'] }),
+      )
+    })
+  })
+
+  it('409 por objetivo não ativo mostra a mensagem e mantém o formulário', async () => {
+    vi.mocked(projetoApi.buscarProjeto).mockResolvedValue(projetoExistente)
+    vi.mocked(projetoApi.atualizarProjeto).mockRejectedValue(
+      new ApiError(409, 'Só é possível vincular a um objetivo ativo.'),
+    )
+    const user = userEvent.setup()
+    renderEditar()
+
+    await screen.findByDisplayValue('TCC')
+    await user.click(screen.getByRole('button', { name: /escolher objetivos/i }))
+    await user.click(await screen.findByRole('button', { name: 'Passar na certificação' }))
+    await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+
+    expect(await screen.findByText('Só é possível vincular a um objetivo ativo.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^nome$/i)).toHaveValue('TCC')
   })
 })
 

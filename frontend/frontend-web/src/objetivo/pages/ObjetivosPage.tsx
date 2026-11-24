@@ -9,15 +9,19 @@ import { useConfirmDialog } from '../../feedback/useConfirmDialog'
 import { useToast } from '../../feedback/ToastProvider'
 import { dataHojeIso } from '../../planner/data'
 import {
-  arquivarObjetivo,
-  concluirObjetivo,
   listarObjetivos,
-  reabrirObjetivo,
   type ObjetivoResponse,
   type PageObjetivo,
   type StatusObjetivo,
 } from '../api/objetivoApi'
-import { ObjetivoCard, type AcaoObjetivo } from '../ObjetivoCard'
+import {
+  CONFIRMACAO_ACAO,
+  EXECUTAR_ACAO,
+  FALHA_ACAO,
+  SUCESSO_ACAO,
+  type AcaoObjetivo,
+} from '../acoesObjetivo'
+import { ObjetivoCard } from '../ObjetivoCard'
 import type { ObjetivoDrawerState, ObjetivosOutletContext } from '../ObjetivoDrawer'
 
 const DRAWER_STATE: ObjetivoDrawerState = { daLista: true }
@@ -31,33 +35,6 @@ const VISOES: { id: StatusObjetivo; label: string }[] = [
 const VAZIO_POR_VISAO: Record<Exclude<StatusObjetivo, 'ATIVO'>, string> = {
   CONCLUIDO: 'Nenhum objetivo concluído.',
   ARQUIVADO: 'Nenhum objetivo arquivado.',
-}
-
-const EXECUTAR: Record<AcaoObjetivo, (id: string) => Promise<ObjetivoResponse>> = {
-  concluir: concluirObjetivo,
-  arquivar: arquivarObjetivo,
-  reabrir: reabrirObjetivo,
-}
-
-const SUCESSO: Record<AcaoObjetivo, string> = {
-  concluir: 'Objetivo concluído',
-  arquivar: 'Objetivo arquivado',
-  reabrir: 'Objetivo reaberto',
-}
-
-const CONFIRMACAO: Partial<
-  Record<AcaoObjetivo, (titulo: string) => { title: string; message: string; confirmLabel: string }>
-> = {
-  concluir: (titulo) => ({
-    title: 'Concluir objetivo?',
-    message: `“${titulo}” sai dos ativos. Você pode reabrir depois.`,
-    confirmLabel: 'Concluir',
-  }),
-  arquivar: (titulo) => ({
-    title: 'Arquivar objetivo?',
-    message: `“${titulo}” fica arquivado. Você pode reabrir depois.`,
-    confirmLabel: 'Arquivar',
-  }),
 }
 
 function lerStatusDaUrl(params: URLSearchParams): StatusObjetivo {
@@ -137,18 +114,18 @@ export function ObjetivosPage() {
     }
     acaoRef.current = true
     try {
-      const pedirConfirmacao = CONFIRMACAO[tipo]
+      const pedirConfirmacao = CONFIRMACAO_ACAO[tipo]
       if (pedirConfirmacao && !(await confirm(pedirConfirmacao(objetivo.titulo)))) {
         return
       }
       setErroAcao(null)
       setAcao({ id: objetivo.id, acao: tipo })
       try {
-        await EXECUTAR[tipo](objetivo.id)
-        toast.success(SUCESSO[tipo])
+        await EXECUTAR_ACAO[tipo](objetivo.id)
+        toast.success(SUCESSO_ACAO[tipo])
       } catch (error) {
         setErroAcao(
-          error instanceof ApiError ? error.message : `Não foi possível ${tipo} o objetivo.`,
+          error instanceof ApiError ? error.message : FALHA_ACAO[tipo],
         )
       }
       setRecarregarEm((n) => n + 1)

@@ -6,6 +6,7 @@ import { Drawer } from '../feedback/Drawer'
 import { InlineAlert } from '../feedback/InlineAlert'
 import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import {
   atualizarHabito,
@@ -53,6 +54,11 @@ function mensagemErro(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
 }
 
+function objetivosDoHabito(habito: HabitoResponse): { ids: string[]; objetivos: ObjetivoResumo[] } {
+  const objetivos = habito.objetivos ?? []
+  return { ids: objetivos.map((objetivo) => objetivo.id), objetivos }
+}
+
 function tagsDoHabito(habito: HabitoResponse): { ids: string[]; tags: TagResumo[] } {
   const tags = habito.tags ?? []
   return { ids: tags.map((tag) => tag.id), tags }
@@ -73,6 +79,9 @@ export function HabitoDrawer() {
   const [tagIds, setTagIds] = useState<string[]>([])
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>([])
   const [tagIdsInicial, setTagIdsInicial] = useState<string[]>([])
+  const [objetivoIds, setObjetivoIds] = useState<string[]>([])
+  const [objetivosSelecionados, setObjetivosSelecionados] = useState<ObjetivoResumo[]>([])
+  const [objetivoIdsInicial, setObjetivoIdsInicial] = useState<string[]>([])
   const [habito, setHabito] = useState<HabitoResponse | null>(null)
   const [carregando, setCarregando] = useState(modo === 'editar')
   const [enviando, setEnviando] = useState(false)
@@ -85,7 +94,8 @@ export function HabitoDrawer() {
   const deletada = habito?.deletada ?? false
   const alterado =
     JSON.stringify(values) !== JSON.stringify(inicial) ||
-    JSON.stringify(tagIds) !== JSON.stringify(tagIdsInicial)
+    JSON.stringify(tagIds) !== JSON.stringify(tagIdsInicial) ||
+    JSON.stringify(objetivoIds) !== JSON.stringify(objetivoIdsInicial)
 
   const voltarParaLista = useCallback(() => {
     if (estado.daLista) {
@@ -117,6 +127,10 @@ export function HabitoDrawer() {
         setTagIds(ids)
         setTagIdsInicial(ids)
         setTagsSelecionadas(data.tags ?? [])
+        const vinculos = objetivosDoHabito(data)
+        setObjetivoIds(vinculos.ids)
+        setObjetivoIdsInicial(vinculos.ids)
+        setObjetivosSelecionados(vinculos.objetivos)
       } catch (error) {
         if (ativo) {
           setErro(mensagemErro(error, 'Não foi possível carregar o hábito.'))
@@ -173,6 +187,7 @@ export function HabitoDrawer() {
       diasSemana: values.diasSemana,
       horarioPreferencial: horario,
       tagIds,
+      objetivoIds,
     }
 
     setEnviando(true)
@@ -198,6 +213,10 @@ export function HabitoDrawer() {
       setTagIds(ids)
       setTagIdsInicial(ids)
       setTagsSelecionadas(tags)
+      const vinculos = objetivosDoHabito(atualizado)
+      setObjetivoIds(vinculos.ids)
+      setObjetivoIdsInicial(vinculos.ids)
+      setObjetivosSelecionados(vinculos.objetivos)
     } catch (error) {
       setErro(mensagemErro(error, 'Não foi possível salvar o hábito. Tente novamente.'))
     } finally {
@@ -249,6 +268,10 @@ export function HabitoDrawer() {
       setTagIds(ids)
       setTagIdsInicial(ids)
       setTagsSelecionadas(tags)
+      const vinculos = objetivosDoHabito(restaurado)
+      setObjetivoIds(vinculos.ids)
+      setObjetivoIdsInicial(vinculos.ids)
+      setObjetivosSelecionados(vinculos.objetivos)
     } catch (error) {
       setErro(mensagemErro(error, 'Não foi possível restaurar o hábito.'))
     } finally {
@@ -319,6 +342,12 @@ export function HabitoDrawer() {
               onTagsChange={(ids, tags) => {
                 setTagIds(ids)
                 setTagsSelecionadas(tags)
+              }}
+              objetivoIds={objetivoIds}
+              objetivosSelecionados={objetivosSelecionados}
+              onObjetivosChange={(ids, objetivos) => {
+                setObjetivoIds(ids)
+                setObjetivosSelecionados(objetivos)
               }}
             />
             {habito && !deletada ? (

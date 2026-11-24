@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { HABITO_FORM_VAZIO, type HabitoFormValues } from './validation/habitoForm'
 import { HabitoCampos } from './HabitoCampos'
 
+vi.mock('../objetivo/api/objetivoApi', () => ({
+  listarObjetivos: vi.fn().mockResolvedValue({
+    content: [],
+    page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
+  }),
+}))
+
 vi.mock('../tag/api/tagApi', () => ({
   listarTags: vi.fn().mockResolvedValue([]),
   criarTag: vi.fn(),
@@ -28,6 +35,8 @@ function Harness({
         desabilitado={desabilitado}
         tagIds={[]}
         onTagsChange={() => undefined}
+        objetivoIds={[]}
+        onObjetivosChange={() => undefined}
       />
       <output data-testid="titulo">{values.titulo}</output>
       <output data-testid="dias">{values.diasSemana.join(',')}</output>

@@ -8,6 +8,7 @@ import { useConfirmDialog } from '../feedback/useConfirmDialog'
 import { useToast } from '../feedback/ToastProvider'
 import { EsperaSection } from '../pendencia/EsperaSection'
 import type { CriarEsperaRequest, EsperaResumo } from '../pendencia/api/espera'
+import type { ObjetivoResumo } from '../objetivo/api/objetivoApi'
 import type { ProjetoResponse } from '../projeto/api/projetoApi'
 import type { TagResumo } from '../tag/api/tagApi'
 import {
@@ -54,7 +55,12 @@ export type TarefaDrawerState = {
   tags?: TagResumo[]
 }
 
-type Snapshot = { values: TarefaFormValues; projetoId: string; tagIds: string[] }
+type Snapshot = {
+  values: TarefaFormValues
+  projetoId: string
+  tagIds: string[]
+  objetivoIds: string[]
+}
 
 const FORM_ID = 'tarefa-drawer-form'
 
@@ -102,12 +108,15 @@ export function TarefaDrawer() {
     },
     projetoId: '',
     tagIds: estado.tags?.map((tag) => tag.id) ?? [],
+    objetivoIds: [],
   }))
   const [values, setValues] = useState<TarefaFormValues>(inicial.values)
   const [projetoId, setProjetoId] = useState('')
   const [projetoNomeVinculado, setProjetoNomeVinculado] = useState<string | null>(null)
   const [tagIds, setTagIds] = useState<string[]>(inicial.tagIds)
   const [tagsSelecionadas, setTagsSelecionadas] = useState<TagResumo[]>(estado.tags ?? [])
+  const [objetivoIds, setObjetivoIds] = useState<string[]>(inicial.objetivoIds)
+  const [objetivosSelecionados, setObjetivosSelecionados] = useState<ObjetivoResumo[]>([])
   const [tarefa, setTarefa] = useState<TarefaResponse | null>(null)
   const [esperas, setEsperas] = useState<EsperaResumo[]>([])
   const [carregando, setCarregando] = useState(modo === 'editar')
@@ -127,7 +136,8 @@ export function TarefaDrawer() {
   const alterado =
     JSON.stringify(values) !== JSON.stringify(inicial.values) ||
     projetoId !== inicial.projetoId ||
-    JSON.stringify(tagIds) !== JSON.stringify(inicial.tagIds)
+    JSON.stringify(tagIds) !== JSON.stringify(inicial.tagIds) ||
+    JSON.stringify(objetivoIds) !== JSON.stringify(inicial.objetivoIds)
 
   const voltarAoMeta = useCallback(() => {
     focarDescricaoAoVoltarRef.current = true
@@ -150,8 +160,17 @@ export function TarefaDrawer() {
     const ids = carregada.tags?.map((tag) => tag.id) ?? []
     setTagIds(ids)
     setTagsSelecionadas(carregada.tags ?? [])
+    const objetivos = carregada.objetivos ?? []
+    const idsObjetivos = objetivos.map((objetivo) => objetivo.id)
+    setObjetivoIds(idsObjetivos)
+    setObjetivosSelecionados(objetivos)
     setEsperas(carregada.esperas ?? [])
-    setInicial({ values: valores, projetoId: carregada.projetoId ?? '', tagIds: ids })
+    setInicial({
+      values: valores,
+      projetoId: carregada.projetoId ?? '',
+      tagIds: ids,
+      objetivoIds: idsObjetivos,
+    })
   }
 
   useEffect(() => {
@@ -297,6 +316,7 @@ export function TarefaDrawer() {
           ...corpo,
           projetoId: projetoId || undefined,
           tagIds,
+          objetivoIds,
         })
         toast.success('Tarefa criada', {
           action: { label: 'Abrir', onClick: () => navigate(`/tarefas/${criada.id}`) },
@@ -308,6 +328,8 @@ export function TarefaDrawer() {
           status: values.status as StatusTarefa,
           ...(projetoId ? { projetoId } : {}),
           tagIds,
+          // Subtarefa não tem objetivo: o backend recusa; omitir não mexe nos vínculos.
+          ...(tarefa?.parentId ? {} : { objetivoIds }),
         })
         toast.success('Tarefa salva')
         aoAtualizar(atualizada)
@@ -554,6 +576,13 @@ export function TarefaDrawer() {
                     onTagsChange={(ids, tags) => {
                       setTagIds(ids)
                       setTagsSelecionadas(tags)
+                    }}
+                    mostrarObjetivos={!tarefa?.parentId}
+                    objetivoIds={objetivoIds}
+                    objetivosSelecionados={objetivosSelecionados}
+                    onObjetivosChange={(ids, objetivos) => {
+                      setObjetivoIds(ids)
+                      setObjetivosSelecionados(objetivos)
                     }}
                     duracaoSomenteLeitura={Boolean(tarefa?.temFilhos)}
                   />

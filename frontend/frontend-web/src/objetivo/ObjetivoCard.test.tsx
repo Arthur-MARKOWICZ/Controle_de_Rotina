@@ -1,10 +1,11 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ObjetivoResponse } from './api/objetivoApi'
-import { ObjetivoCard, type AcaoObjetivo } from './ObjetivoCard'
+import type { AcaoObjetivo } from './acoesObjetivo'
+import { ObjetivoCard } from './ObjetivoCard'
 
 const HOJE = '2026-11-17'
 
@@ -68,7 +69,7 @@ describe('ObjetivoCard', () => {
     expect(nomesDosBotoes(card)).toEqual(['Concluir', 'Arquivar'])
     expect(within(card).getByRole('link', { name: /editar/i })).toHaveAttribute(
       'href',
-      '/objetivos/obj-1?status=CONCLUIDO',
+      '/objetivos/obj-1/editar',
     )
 
     await user.click(within(card).getByRole('button', { name: 'Concluir' }))
@@ -152,5 +153,80 @@ describe('ObjetivoCard', () => {
 
     expect(card).toHaveTextContent(`${'x'.repeat(119)}…`)
     expect(card).not.toHaveTextContent('x'.repeat(120))
+  })
+
+  it('título é link para o detalhe do objetivo', () => {
+    const { card } = renderCard(objetivo())
+
+    expect(within(card).getByRole('link', { name: 'Perder 5 kg' })).toHaveAttribute(
+      'href',
+      '/objetivos/obj-1',
+    )
+  })
+
+  describe('navegação carrega a visão da lista em state', () => {
+    function Destino() {
+      const location = useLocation()
+      return (
+        <p data-testid="destino">
+          {location.pathname}|{JSON.stringify(location.state)}
+        </p>
+      )
+    }
+
+    function renderComRotas(inicial: string) {
+      render(
+        <MemoryRouter initialEntries={[inicial]}>
+          <Routes>
+            <Route
+              path="/objetivos"
+              element={
+                <ul>
+                  <ObjetivoCard
+                    objetivo={objetivo()}
+                    hojeIso={HOJE}
+                    acaoEmAndamento={null}
+                    bloqueado={false}
+                    onAcao={vi.fn()}
+                  />
+                </ul>
+              }
+            />
+            <Route path="/objetivos/:id/*" element={<Destino />} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    }
+
+    it('título abre o detalhe com a query da lista no state', async () => {
+      const user = userEvent.setup()
+      renderComRotas('/objetivos?status=ARQUIVADO&page=2')
+
+      await user.click(screen.getByRole('link', { name: 'Perder 5 kg' }))
+
+      expect(screen.getByTestId('destino')).toHaveTextContent(
+        '/objetivos/obj-1|{"listaSearch":"?status=ARQUIVADO&page=2"}',
+      )
+    })
+
+    it('Editar abre /editar com a query da lista no state', async () => {
+      const user = userEvent.setup()
+      renderComRotas('/objetivos?status=CONCLUIDO')
+
+      await user.click(screen.getByRole('link', { name: /editar/i }))
+
+      expect(screen.getByTestId('destino')).toHaveTextContent(
+        '/objetivos/obj-1/editar|{"listaSearch":"?status=CONCLUIDO"}',
+      )
+    })
+
+    it('lista sem query leva listaSearch vazio, sem quebrar', async () => {
+      const user = userEvent.setup()
+      renderComRotas('/objetivos')
+
+      await user.click(screen.getByRole('link', { name: 'Perder 5 kg' }))
+
+      expect(screen.getByTestId('destino')).toHaveTextContent('/objetivos/obj-1|{"listaSearch":""}')
+    })
   })
 })

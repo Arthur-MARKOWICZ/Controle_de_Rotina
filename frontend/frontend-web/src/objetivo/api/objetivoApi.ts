@@ -14,6 +14,10 @@ export type AtualizarObjetivoRequest = Schemas['AtualizarObjetivoRequest']
 
 export type PageObjetivo = Schemas['PagedModelObjetivoResponse']
 
+export type ObjetivoResumo = Schemas['ObjetivoResumoResponse']
+
+export type ObjetivoItens = Schemas['ObjetivoItensResponse']
+
 export type ListarObjetivosParams = {
   status?: StatusObjetivo
   page?: number
@@ -56,6 +60,14 @@ export async function buscarObjetivo(id: string): Promise<ObjetivoResponse> {
     throw await lerErroApi(response, 'Não foi possível carregar o objetivo.')
   }
   return readApiJson<ObjetivoResponse>(response)
+}
+
+export async function listarItensObjetivo(id: string): Promise<ObjetivoItens> {
+  const response = await apiFetch(`/objetivos/${id}/itens`)
+  if (!response.ok) {
+    throw await lerErroApi(response, 'Não foi possível carregar os itens vinculados.')
+  }
+  return readApiJson<ObjetivoItens>(response)
 }
 
 export async function atualizarObjetivo(

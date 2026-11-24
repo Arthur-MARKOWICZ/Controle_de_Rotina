@@ -9,8 +9,10 @@ import {
   buscarObjetivo,
   concluirObjetivo,
   criarObjetivo,
+  listarItensObjetivo,
   listarObjetivos,
   reabrirObjetivo,
+  type ObjetivoItens,
   type ObjetivoResponse,
 } from './objetivoApi'
 
@@ -173,6 +175,91 @@ describe('objetivoApi', () => {
     )
     await expect(buscarObjetivo('obj-1')).rejects.toMatchObject({
       message: 'Resposta inválida da API (não é JSON).',
+    })
+  })
+
+  describe('listarItensObjetivo', () => {
+    const itens: ObjetivoItens = {
+      tarefas: [
+        {
+          id: 't-1',
+          titulo: 'Simulado 1',
+          status: 'PENDENTE',
+          origem: 'VIA_PROJETO',
+          projetoId: 'p-1',
+          projetoNome: 'Estudos AWS',
+        },
+      ],
+      habitos: [{ id: 'h-1', titulo: 'Flashcards', status: 'ATIVO', origem: 'DIRETO' }],
+      projetos: [{ id: 'p-1', nome: 'Estudos AWS', status: 'ATIVO', origem: 'DIRETO' }],
+    }
+
+    it('busca os itens via GET /objetivos/{id}/itens', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json(itens))
+
+      await expect(listarItensObjetivo('obj-1')).resolves.toEqual(itens)
+      expect(apiClient.apiFetch).toHaveBeenCalledWith('/objetivos/obj-1/itens')
+    })
+
+    it('aceita objetivo sem itens (três grupos vazios)', async () => {
+      const vazio: ObjetivoItens = { tarefas: [], habitos: [], projetos: [] }
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json(vazio))
+
+      await expect(listarItensObjetivo('obj-1')).resolves.toEqual(vazio)
+    })
+
+    it('propaga 401 quando o refresh falhou', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(401, 'Não autorizado', 'Sessão expirada.'),
+      )
+
+      await expect(listarItensObjetivo('obj-1')).rejects.toMatchObject({ status: 401 })
+    })
+
+    it('propaga 404 de objetivo inexistente ou de outro usuário', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        problem(404, 'Objetivo não encontrado', 'Objetivo inexistente ou sem permissão de acesso.'),
+      )
+
+      await expect(listarItensObjetivo('alheio')).rejects.toMatchObject({
+        status: 404,
+        message: 'Objetivo inexistente ou sem permissão de acesso.',
+      })
+    })
+
+    it('usa a mensagem padrão em 500 sem corpo útil', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(json({}, 500))
+
+      await expect(listarItensObjetivo('obj-1')).rejects.toMatchObject({
+        status: 500,
+        message: 'Não foi possível carregar os itens vinculados.',
+      })
+    })
+
+    it('propaga falha de rede/timeout do fetch', async () => {
+      vi.mocked(apiClient.apiFetch).mockRejectedValue(new TypeError('Failed to fetch'))
+
+      await expect(listarItensObjetivo('obj-1')).rejects.toBeInstanceOf(TypeError)
+    })
+
+    it('rejeita HTML do proxy e JSON inválido', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('<!doctype html><html><div id="root"></div></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+      await expect(listarItensObjetivo('obj-1')).rejects.toBeInstanceOf(ApiError)
+
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('não-é-json', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      await expect(listarItensObjetivo('obj-1')).rejects.toMatchObject({
+        message: 'Resposta inválida da API (não é JSON).',
+      })
     })
   })
 })

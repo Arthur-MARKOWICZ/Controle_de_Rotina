@@ -106,16 +106,27 @@ const PAGINAS_COM_DRAWER: { base: string; drawer: RegExp }[] = [
   // `/projetos/:id` é o hub (página própria); só a criação abre drawer.
   { base: '/projetos', drawer: /^\/projetos\/nova$/ },
   { base: '/habitos', drawer: /^\/habitos\/[^/]+$/ },
-  { base: '/objetivos', drawer: /^\/objetivos\/[^/]+$/ },
+  // `/objetivos/:id` é a página de detalhe; só a criação abre drawer sobre a lista.
+  { base: '/objetivos', drawer: /^\/objetivos\/nova$/ },
 ]
+
+const OBJETIVO_DETALHE = /^\/objetivos\/([^/]+)(?:\/editar)?$/
+
+/** Detalhe do objetivo e o drawer de edição são a mesma página, desde que o id seja o mesmo. */
+function mesmoObjetivo(anterior: string, atual: string): boolean {
+  const a = OBJETIVO_DETALHE.exec(anterior)
+  const b = OBJETIVO_DETALHE.exec(atual)
+  return a != null && b != null && a[1] !== 'nova' && a[1] === b[1]
+}
 
 function naPagina(pathname: string, pagina: { base: string; drawer: RegExp }): boolean {
   return pathname === pagina.base || pagina.drawer.test(pathname)
 }
 
 function mesmaPaginaComDrawer(anterior: string, atual: string): boolean {
-  return PAGINAS_COM_DRAWER.some(
-    (pagina) => naPagina(anterior, pagina) && naPagina(atual, pagina),
+  return (
+    PAGINAS_COM_DRAWER.some((pagina) => naPagina(anterior, pagina) && naPagina(atual, pagina)) ||
+    mesmoObjetivo(anterior, atual)
   )
 }
 

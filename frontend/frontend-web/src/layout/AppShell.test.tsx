@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
-import { Link, MemoryRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as meApi from '../auth/api/meApi'
@@ -71,6 +71,21 @@ function PaginaObjetivos() {
     <div>
       <h1>página objetivos</h1>
       <Link to="/objetivos/nova">Novo objetivo</Link>
+      <Link to="/objetivos/abc">Abrir objetivo</Link>
+      <Outlet />
+    </div>
+  )
+}
+
+function PaginaObjetivoDetalhe() {
+  const { id } = useParams<{ id: string }>()
+  return (
+    <div>
+      <h1>detalhe do objetivo {id}</h1>
+      <Link to={`/objetivos/${id}/editar`}>Editar objetivo</Link>
+      <Link to={`/objetivos/${id}`}>Ver detalhe</Link>
+      <Link to="/objetivos/outro">Outro objetivo</Link>
+      <Link to="/objetivos">Voltar a Objetivos</Link>
       <Outlet />
     </div>
   )
@@ -91,6 +106,9 @@ function renderShell(path: string) {
             <Route path="/projetos" element={<p>página projetos</p>} />
             <Route path="/objetivos" element={<PaginaObjetivos />}>
               <Route path="nova" element={<input aria-label="Campo do drawer" autoFocus />} />
+            </Route>
+            <Route path="/objetivos/:id" element={<PaginaObjetivoDetalhe />}>
+              <Route path="editar" element={<input aria-label="Campo do drawer" autoFocus />} />
             </Route>
             <Route path="/calendario" element={<p>página calendário</p>} />
             <Route path="/capacidade" element={<p>página capacidade</p>} />
@@ -417,6 +435,56 @@ describe('AppShell', () => {
     const campo = await screen.findByLabelText('Campo do drawer')
     expect(campo).toHaveFocus()
     expect(screen.getByRole('heading', { level: 1, name: 'página objetivos' })).not.toHaveFocus()
+  })
+
+  it('da lista ao detalhe do objetivo o foco vai ao h1 do detalhe', async () => {
+    const user = userEvent.setup()
+    renderShell('/objetivos')
+
+    await user.click(screen.getByRole('link', { name: 'Abrir objetivo' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'detalhe do objetivo abc' }),
+    ).toHaveFocus()
+  })
+
+  it('do detalhe ao drawer de edição e de volta o foco não pula para o h1', async () => {
+    const user = userEvent.setup()
+    renderShell('/objetivos/abc')
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'detalhe do objetivo abc' })
+
+    await user.click(screen.getByRole('link', { name: 'Editar objetivo' }))
+    const campo = await screen.findByLabelText('Campo do drawer')
+    expect(campo).toHaveFocus()
+    expect(h1).not.toHaveFocus()
+
+    await user.click(screen.getByRole('link', { name: 'Voltar a Objetivos' }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'página objetivos' }),
+    ).toHaveFocus()
+  })
+
+  it('de editar de volta ao detalhe do mesmo objetivo o foco não pula para o h1', async () => {
+    const user = userEvent.setup()
+    renderShell('/objetivos/abc/editar')
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'detalhe do objetivo abc' })
+
+    await user.click(screen.getByRole('link', { name: 'Ver detalhe' }))
+
+    expect(screen.queryByLabelText('Campo do drawer')).not.toBeInTheDocument()
+    expect(h1).not.toHaveFocus()
+  })
+
+  it('de um objetivo para outro o foco vai ao h1 do novo detalhe', async () => {
+    const user = userEvent.setup()
+    renderShell('/objetivos/abc')
+    await screen.findByRole('heading', { level: 1, name: 'detalhe do objetivo abc' })
+
+    await user.click(screen.getByRole('link', { name: 'Outro objetivo' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'detalhe do objetivo outro' }),
+    ).toHaveFocus()
   })
 
   it('T5: ? abre dialog de ajuda descrevendo Ir para Plano', async () => {
