@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.controlerotina.capacidade.service.CapacidadeSemanalService;
 import com.controlerotina.shared.exception.CredenciaisInvalidasException;
 import com.controlerotina.shared.exception.EmailJaCadastradoException;
 import com.controlerotina.usuario.dto.AtualizarMeRequest;
@@ -22,15 +23,18 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CapacidadeSemanalService capacidadeSemanalService;
     private final Clock clock;
 
     public UsuarioService(
             UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
+            CapacidadeSemanalService capacidadeSemanalService,
             Clock clock
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.capacidadeSemanalService = capacidadeSemanalService;
         this.clock = clock;
     }
 
@@ -52,8 +56,9 @@ public class UsuarioService {
                 agora
         );
 
+        Usuario salvo;
         try {
-            return UsuarioResponse.from(usuarioRepository.saveAndFlush(usuario));
+            salvo = usuarioRepository.saveAndFlush(usuario);
         } catch (DataIntegrityViolationException ex) {
             // Corrida check-then-act: unique uk_usuario_email → 409, nunca 500.
             if (violaUniqueEmail(ex)) {
@@ -61,6 +66,9 @@ public class UsuarioService {
             }
             throw ex;
         }
+        // Sem capacidade, o primeiro plano nasceria vazio (plans/negocio/capacidade-inicial-plano-vazio.md).
+        capacidadeSemanalService.criarPadraoInicial(salvo.getId());
+        return UsuarioResponse.from(salvo);
     }
 
     @Transactional(readOnly = true)

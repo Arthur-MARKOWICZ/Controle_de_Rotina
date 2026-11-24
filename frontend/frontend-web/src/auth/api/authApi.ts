@@ -25,11 +25,14 @@ export type UsuarioResponse = {
 
 export class ApiError extends Error {
   readonly status: number
+  /** `title` do ProblemDetail, quando a API mandou um. */
+  readonly title?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, title?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.title = title
   }
 }
 

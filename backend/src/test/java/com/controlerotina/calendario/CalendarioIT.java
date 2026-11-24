@@ -111,6 +111,8 @@ class CalendarioIT {
                 "select id from usuario where email = ?",
                 UUID.class,
                 email);
+        // Premissa destes testes: conta sem capacidade (o cadastro cria seg–sex 4h por padrão).
+        jdbcTemplate.update("delete from capacidade_semanal where usuario_id = ?", usuarioId);
     }
 
     @Test

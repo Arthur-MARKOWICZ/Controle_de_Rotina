@@ -136,6 +136,24 @@ class PlanoGeracaoIT {
     }
 
     @Test
+    void contaRecemCadastradaDeveGerarPlanoComBlocosSemConfigurarCapacidade() {
+        // DIA_D (2026-10-20) é terça: coberta pelo padrão seg–sex 4h criado no cadastro.
+        salvarTarefa("Primeira tarefa", Prioridade.MEDIA, 60, AGORA);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/planos/gerar?data=" + DIA_D,
+                HttpMethod.POST,
+                autenticado(),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(CREATED);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocos = (List<Map<String, Object>>) response.getBody().get("blocos");
+        assertThat(blocos).isNotEmpty();
+        assertThat(blocos.get(0).get("duracaoMinutos")).isEqualTo(60);
+    }
+
+    @Test
     void deveGerarPlanoCom201EBlocos() {
         salvarOverride(3);
         Tarefa baixa = salvarTarefa("Baixa", Prioridade.BAIXA, 60, AGORA);

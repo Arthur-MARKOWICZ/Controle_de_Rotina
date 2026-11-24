@@ -294,6 +294,20 @@ describe("createMcpServer tool errors", () => {
     });
   });
 
+  it("devePropagar409PlanoVazioComDetailAoAprovarPlanoSemBlocos", async () => {
+    const problem = {
+      title: "Plano vazio",
+      detail: "Não há blocos para aprovar. Ajuste a capacidade ou adicione tarefas e gere uma nova versão.",
+    };
+    const client = fakeClient({
+      aprovarPlano: vi.fn().mockRejectedValue(new ApiError(409, JSON.stringify(problem))),
+    });
+    const handler = registeredHandler(createMcpServer(client), "aprovar_plano");
+    const result = await handler({ planoId: PLANO_ID });
+    expect(result.isError).toBe(true);
+    expect(payloadOf(result)).toEqual({ status: 409, body: problem });
+  });
+
   it("devePropagar401DaApiComTitleNoLogin", async () => {
     const client = fakeClient({
       login: vi.fn().mockRejectedValue(new ApiError(401, '{"title":"Unauthorized"}')),

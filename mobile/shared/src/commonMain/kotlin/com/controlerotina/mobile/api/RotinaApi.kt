@@ -42,6 +42,11 @@ interface RotinaApi {
     suspend fun atualizarDecidir(id: String, campos: JsonObject): ItemDecidir
     suspend fun excluirDecidir(id: String)
     suspend fun promoverDecidir(id: String, pedido: PromoverDecidirRequest): ItemDecidir
+
+    suspend fun capacidadesSemanais(): List<CapacidadeSemanal>
+    suspend fun criarCapacidadesSemanais(itens: List<CriarCapacidadeSemanalItem>): List<CapacidadeSemanal>
+    suspend fun atualizarCapacidadeSemanal(id: String, horas: Int): CapacidadeSemanal
+    suspend fun capacidadeResolvida(dataDe: String, dataAte: String): List<CapacidadeResolvida>
 }
 
 /** Listas curtas (projetos, Decidir) vêm numa página só, grande o bastante para o uso real. */
@@ -199,5 +204,31 @@ class KtorRotinaApi(private val http: ApiHttp) : RotinaApi {
         "/decidir/$id/promover",
         ItemDecidir.serializer(),
         corpo = jsonApi.encodeToString(PromoverDecidirRequest.serializer(), pedido),
+    )
+
+    // ---- Capacidade ----
+
+    override suspend fun capacidadesSemanais() =
+        http.requisitar(HttpMethod.Get, "/capacidades/semanal", ListSerializer(CapacidadeSemanal.serializer()))
+
+    override suspend fun criarCapacidadesSemanais(itens: List<CriarCapacidadeSemanalItem>) = http.requisitar(
+        HttpMethod.Post,
+        "/capacidades/semanal",
+        ListSerializer(CapacidadeSemanal.serializer()),
+        corpo = jsonApi.encodeToString(CriarCapacidadeSemanalRequest.serializer(), CriarCapacidadeSemanalRequest(itens)),
+    )
+
+    override suspend fun atualizarCapacidadeSemanal(id: String, horas: Int) = http.requisitar(
+        HttpMethod.Patch,
+        "/capacidades/semanal/$id",
+        CapacidadeSemanal.serializer(),
+        corpo = jsonApi.encodeToString(AtualizarCapacidadeSemanalRequest.serializer(), AtualizarCapacidadeSemanalRequest(horas)),
+    )
+
+    override suspend fun capacidadeResolvida(dataDe: String, dataAte: String) = http.requisitar(
+        HttpMethod.Get,
+        "/capacidades/resolvida",
+        ListSerializer(CapacidadeResolvida.serializer()),
+        mapOf("dataDe" to dataDe, "dataAte" to dataAte),
     )
 }

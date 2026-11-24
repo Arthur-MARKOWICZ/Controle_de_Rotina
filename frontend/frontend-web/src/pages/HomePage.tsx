@@ -1,5 +1,5 @@
 import { CheckIcon, PlayIcon } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { tituloDoItemExecucao } from '../execucao/api/execucaoApi'
@@ -17,6 +17,7 @@ import { useMinutosHabito } from '../habito/useMinutosHabito'
 import { AdicionarTarefaForm } from '../home/AdicionarTarefaForm'
 import { AjustarCapacidadeHoje } from '../home/AjustarCapacidadeHoje'
 import { BlocoCard } from '../home/BlocoCard'
+import { CapacidadeInicialDialog } from '../home/CapacidadeInicialDialog'
 import { concluirTarefaDireto } from '../tarefa/api/tarefaApi'
 import { CapacidadeBar } from '../home/CapacidadeBar'
 import { ConflitoBanner } from '../home/ConflitoBanner'
@@ -55,6 +56,7 @@ export function HomePage() {
   const { pedirMinutos, dialog: minutosDialog } = useMinutosHabito()
   const { refrescarDoDia, registrarInicio } = useSessaoAtiva()
   const home = usePlanoDoDia()
+  const explicacaoNadaParaAprovarId = useId()
   const {
     plano,
     capacidade,
@@ -160,6 +162,14 @@ export function HomePage() {
     <main className="home-page">
       {home.confirmDialog}
       {minutosDialog}
+      <CapacidadeInicialDialog
+        aberto={home.capacidadeInicialAberta}
+        salvando={home.salvandoCapacidadeInicial}
+        erro={home.erroCapacidadeInicial}
+        onUsarDiasUteis={() => void home.handleUsarDiasUteis()}
+        onSoHoje={(horas) => void home.handleCapacidadeSoHoje(horas)}
+        onFechar={home.fecharCapacidadeInicial}
+      />
       <PageHeader
         title={formatarDataIsoPorExtenso(dataSelecionada)}
         description={descricaoCabecalho(visao, dataSelecionada, dataHoje)}
@@ -355,6 +365,23 @@ export function HomePage() {
                         Descartar
                       </button>
                     </>
+                  ) : ehRascunho && plano.blocos.length === 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled
+                        aria-describedby={explicacaoNadaParaAprovarId}
+                      >
+                        Nada para aprovar
+                      </button>
+                      <p
+                        id={explicacaoNadaParaAprovarId}
+                        className="plano-dia-acoes__explicacao"
+                      >
+                        Nenhum bloco coube. Ajuste a capacidade ou adicione tarefas.
+                      </p>
+                    </>
                   ) : ehRascunho ? (
                     <button
                       type="button"
@@ -368,6 +395,8 @@ export function HomePage() {
                   ) : null}
                 </div>
               ) : null}
+
+              {home.erroAprovar ? <InlineAlert>{home.erroAprovar}</InlineAlert> : null}
 
               {ehAprovado ? (
                 itensExecucao.length === 0 ? (
@@ -516,9 +545,12 @@ export function HomePage() {
                   </ol>
                 )
               ) : plano.blocos.length === 0 && !home.tarefaEmAdicao ? (
-                <p className="plano-dia-vazio" role="status">
-                  Nenhum bloco neste plano.
-                </p>
+                // Rascunho sem proposta já explica o vazio ao lado de "Nada para aprovar".
+                propostaPendente ? (
+                  <p className="plano-dia-vazio" role="status">
+                    Nenhum bloco neste plano.
+                  </p>
+                ) : null
               ) : (
                 <ol className="plano-blocos">
                   {plano.blocos.map((bloco) => {

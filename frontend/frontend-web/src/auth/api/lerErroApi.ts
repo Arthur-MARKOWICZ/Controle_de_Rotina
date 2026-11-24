@@ -13,7 +13,7 @@ export async function lerErroApi(response: Response, fallback: string): Promise<
     const body = await readApiJson<ProblemDetailBody>(response)
     const deCampos = mensagemDeErrors(body.errors)
     const mensagem = body.detail || body.title || deCampos || fallback
-    return new ApiError(response.status, mensagem)
+    return new ApiError(response.status, mensagem, body.title)
   } catch (error) {
     if (error instanceof ApiError) {
       return error

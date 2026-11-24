@@ -4,6 +4,11 @@ import com.controlerotina.mobile.api.ApiErro
 import com.controlerotina.mobile.api.Autenticador
 import com.controlerotina.mobile.api.BlocoExecucao
 import com.controlerotina.mobile.api.BlocoPlano
+import com.controlerotina.mobile.api.CapacidadeResolvida
+import com.controlerotina.mobile.api.CapacidadeSemanal
+import com.controlerotina.mobile.api.CriarCapacidadeSemanalItem
+import com.controlerotina.mobile.api.DiaSemana
+import com.controlerotina.mobile.api.OrigemCapacidade
 import com.controlerotina.mobile.api.CriarDecidirRequest
 import com.controlerotina.mobile.api.CriarProjetoRequest
 import com.controlerotina.mobile.api.CriarTarefaRequest
@@ -30,6 +35,7 @@ import com.controlerotina.mobile.api.Tarefa
 import com.controlerotina.mobile.api.TarefaResumo
 import com.controlerotina.mobile.api.XpConclusao
 import com.controlerotina.mobile.sessao.PreferenciasEmMemoria
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -70,7 +76,11 @@ fun projeto(id: String, status: StatusProjeto = StatusProjeto.ATIVO) = Projeto(i
 fun itemDecidir(id: String, decidirAte: String? = null, tarefaId: String? = null) =
     ItemDecidir(id = id, titulo = "Item $id", decidirAte = decidirAte, tarefaId = tarefaId)
 
-fun erroHttp(status: Int, detalhe: String = "Recusado") = ApiErro.Http(status, ProblemDetail(status = status, detail = detalhe))
+fun erroHttp(status: Int, detalhe: String = "Recusado", titulo: String? = null) =
+    ApiErro.Http(status, ProblemDetail(status = status, title = titulo, detail = detalhe))
+
+fun capacidade(dia: DiaSemana, horas: Int, ativo: Boolean = true) =
+    CapacidadeSemanal(id = "c-${dia.name}", diaSemana = dia, horas = horas, ativo = ativo)
 
 /** API em memória; cada campo pode ser trocado pelo teste. */
 class FakeRotinaApi : RotinaApi {
@@ -244,6 +254,40 @@ class FakeRotinaApi : RotinaApi {
         registrar("promover:$id")
         promocoes += id to pedido
         return ItemDecidir(id = id, titulo = "Item $id", tarefaId = "t-$id")
+    }
+
+    // ---- Capacidade ----
+    /** Padrão: o dia tem 4h (a guarda não dispara). */
+    var horasResolvidas: Int? = 4
+    var semana: List<CapacidadeSemanal> = emptyList()
+    val criadasSemana = mutableListOf<List<CriarCapacidadeSemanalItem>>()
+    val atualizadasSemana = mutableListOf<Pair<String, Int>>()
+    /** Atraso virtual na gravação, para simular chamada concorrente. */
+    var atrasoGravacaoMs = 0L
+
+    override suspend fun capacidadesSemanais(): List<CapacidadeSemanal> { registrar("semana"); return semana }
+
+    override suspend fun criarCapacidadesSemanais(itens: List<CriarCapacidadeSemanalItem>): List<CapacidadeSemanal> {
+        if (atrasoGravacaoMs > 0) delay(atrasoGravacaoMs)
+        registrar("criarSemana")
+        criadasSemana += itens
+        val novas = itens.map { capacidade(it.diaSemana, it.horas) }
+        semana = semana + novas
+        return novas
+    }
+
+    override suspend fun atualizarCapacidadeSemanal(id: String, horas: Int): CapacidadeSemanal {
+        registrar("patchSemana:$id")
+        atualizadasSemana += id to horas
+        val atual = semana.first { it.id == id }.copy(horas = horas)
+        semana = semana.map { if (it.id == id) atual else it }
+        return atual
+    }
+
+    override suspend fun capacidadeResolvida(dataDe: String, dataAte: String): List<CapacidadeResolvida> {
+        registrar("resolvida:$dataDe")
+        val origem = if (horasResolvidas == null) OrigemCapacidade.VAZIO else OrigemCapacidade.SEMANAL
+        return listOf(CapacidadeResolvida(dataDe, horasResolvidas, origem))
     }
 }
 

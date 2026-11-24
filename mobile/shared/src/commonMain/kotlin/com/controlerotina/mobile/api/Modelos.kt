@@ -289,3 +289,35 @@ data class PromoverDecidirRequest(
     val prazo: String? = null,
     val duracaoMinutos: Int? = null,
 )
+
+// ---- Capacidade ----
+
+@Serializable
+enum class DiaSemana { SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO, DOMINGO }
+
+@Serializable
+enum class OrigemCapacidade { OVERRIDE, SEMANAL, VAZIO }
+
+@Serializable
+data class CapacidadeSemanal(
+    val id: String,
+    val diaSemana: DiaSemana,
+    val horas: Int,
+    val ativo: Boolean,
+)
+
+@Serializable
+data class CapacidadeResolvida(
+    val data: String,
+    val horas: Int?,
+    val origem: OrigemCapacidade,
+)
+
+@Serializable
+data class CriarCapacidadeSemanalItem(val diaSemana: DiaSemana, val horas: Int)
+
+@Serializable
+data class CriarCapacidadeSemanalRequest(val itens: List<CriarCapacidadeSemanalItem>)
+
+@Serializable
+data class AtualizarCapacidadeSemanalRequest(val horas: Int)

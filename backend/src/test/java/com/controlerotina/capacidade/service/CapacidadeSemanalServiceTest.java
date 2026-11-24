@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -130,5 +131,52 @@ class CapacidadeSemanalServiceTest {
 
         assertThatThrownBy(() -> service.buscarPorId(USUARIO, UUID.randomUUID()))
                 .isInstanceOf(CapacidadeSemanalNaoEncontradaException.class);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void deveCriarPadraoInicialDeSegundaASextaCom4HorasSemFimDeSemana() {
+        when(repository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.criarPadraoInicial(USUARIO);
+
+        ArgumentCaptor<List<CapacidadeSemanal>> captor = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(captor.capture());
+        List<CapacidadeSemanal> criadas = captor.getValue();
+        assertThat(criadas).extracting(CapacidadeSemanal::getDiaSemana).containsExactly(
+                DiaSemana.SEGUNDA, DiaSemana.TERCA, DiaSemana.QUARTA, DiaSemana.QUINTA, DiaSemana.SEXTA);
+        assertThat(criadas).allSatisfy(c -> {
+            assertThat(c.getHoras()).isEqualTo(4);
+            assertThat(c.isAtivo()).isTrue();
+            assertThat(c.getUsuarioId()).isEqualTo(USUARIO);
+        });
+        verify(propostaGeracaoService, never()).gerarSeDiaSemanaAprovado(any(), any());
+    }
+
+    @Test
+    void naoDeveDuplicarPadraoInicialQuandoChamadoDeNovo() {
+        for (DiaSemana dia : List.of(
+                DiaSemana.SEGUNDA, DiaSemana.TERCA, DiaSemana.QUARTA, DiaSemana.QUINTA, DiaSemana.SEXTA)) {
+            when(repository.existsByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO, dia)).thenReturn(true);
+        }
+
+        service.criarPadraoInicial(USUARIO);
+
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void padraoInicialDevePreservarDiaJaConfiguradoECriarSoOsQueFaltam() {
+        when(repository.existsByUsuarioIdAndDiaSemanaAndAtivoTrue(USUARIO, DiaSemana.SEGUNDA)).thenReturn(true);
+        when(repository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.criarPadraoInicial(USUARIO);
+
+        ArgumentCaptor<List<CapacidadeSemanal>> captor = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(captor.capture());
+        assertThat(captor.getValue()).extracting(CapacidadeSemanal::getDiaSemana).containsExactly(
+                DiaSemana.TERCA, DiaSemana.QUARTA, DiaSemana.QUINTA, DiaSemana.SEXTA);
+        verify(repository, never()).save(any());
     }
 }

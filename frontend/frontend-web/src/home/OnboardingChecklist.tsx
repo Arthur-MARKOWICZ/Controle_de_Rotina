@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { buscarMe } from '../auth/api/meApi'
 import { listarCapacidadesSemanais } from '../capacidade/api/capacidadeSemanalApi'
 import { listarTarefas } from '../tarefa/api/tarefaApi'
+import { capacidadeConfigurada } from './capacidadeInicial'
 import { dispensarOnboarding, onboardingFoiDispensado } from './onboardingStorage'
 
 export type PassosOnboarding = {
@@ -24,12 +25,6 @@ function StatusPasso({ ok, numero }: { ok: boolean; numero: number }) {
       {ok ? <CheckIcon weight="bold" /> : numero}
     </span>
   )
-}
-
-function capacidadeConfigurada(
-  lista: { horas: number; ativo: boolean }[],
-): boolean {
-  return lista.some((item) => item.ativo && item.horas > 0)
 }
 
 export function OnboardingChecklist({ temPlano, onGerarPlano }: Props) {

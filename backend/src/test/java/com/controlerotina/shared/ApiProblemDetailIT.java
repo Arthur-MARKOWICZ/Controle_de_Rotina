@@ -66,6 +66,9 @@ class ApiProblemDetailIT {
                 Map.class);
         assertThat(login.getStatusCode()).isEqualTo(OK);
         accessToken = login.getBody().get("accessToken").toString();
+        // Premissa destes testes: conta sem capacidade (o cadastro cria seg–sex 4h por padrão).
+        jdbcTemplate.update(
+                "delete from capacidade_semanal where usuario_id = (select id from usuario where email = ?)", email);
     }
 
     @Test

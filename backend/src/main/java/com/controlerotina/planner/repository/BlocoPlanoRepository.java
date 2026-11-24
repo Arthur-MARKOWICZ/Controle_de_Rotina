@@ -19,6 +19,8 @@ public interface BlocoPlanoRepository extends JpaRepository<BlocoPlano, UUID> {
 
     Optional<BlocoPlano> findByIdAndPlanoId(UUID id, UUID planoId);
 
+    boolean existsByPlanoId(UUID planoId);
+
     boolean existsByPlanoIdAndTarefaId(UUID planoId, UUID tarefaId);
 
     boolean existsByPlanoIdAndHabitoId(UUID planoId, UUID habitoId);

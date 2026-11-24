@@ -269,11 +269,28 @@ ui-ia-nav-tarefas-primeiro → tarefa-criar-so-titulo → ui-criar-tarefa-titulo
 
 ---
 
+## Pós-MVP — correção P0 da auditoria Impeccable (2026-11-24)
+
+Primeiro plano nascia vazio: conta nova com capacidade 0h → "0 blocos", conflito vermelho e "Aprovar 0 blocos" habilitado. Relatório: `.impeccable/audit/2026-11-24T14-03-45Z__project.md`.
+
+| Ordem | Plano | Status | Dependências | Por que nesta posição |
+|------:|-------|--------|--------------|------------------------|
+| 54 | [`capacidade-inicial-plano-vazio.md`](../plans/negocio/capacidade-inicial-plano-vazio.md) | feito | usuario, capacidade, planner | Capacidade padrão seg–sex 4h no cadastro + `409 Plano vazio` no aprovar |
+| 55 | [`ui-primeiro-plano-capacidade.md`](../plans/ui/ui-primeiro-plano-capacidade.md) | feito | 54 (B2 para F1); app mobile | Guarda de capacidade antes de gerar (web + mobile) e aprovar vazio desabilitado |
+
+```text
+capacidade-inicial-plano-vazio (B1, B2) → ui-primeiro-plano-capacidade (F1–F4)
+```
+
+---
+
 ## Próximo passo agora
 
 Fila MVP (domínio + UI #2–#13): **concluída**.  
 Pós-MVP endurecimento (#14–#19) e regras do planner (#21–#28): **concluída**.  
 Épico UI v2 (39–44): **concluído**.
+
+**Correção P0:** 54 e 55 **concluídos** (capacidade inicial + plano vazio, web e mobile).
 
 **Foco IA/UX (novo):** épico **tarefas primeiro** — começar por [`ui-ia-nav-tarefas-primeiro.md`](../plans/ui/ui-ia-nav-tarefas-primeiro.md) (ordem **50**), depois **51 → 52 → 53**.
 

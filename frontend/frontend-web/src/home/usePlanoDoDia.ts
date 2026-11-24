@@ -10,7 +10,13 @@ import {
   consultarCapacidadeResolvida,
   type CapacidadeResolvidaResponse,
 } from '../capacidade/api/capacidadeResolvidaApi'
-import type { DiaSemana } from '../capacidade/api/capacidadeSemanalApi'
+import {
+  atualizarCapacidadeSemanal,
+  criarCapacidadeSemanal,
+  listarCapacidadesSemanais,
+  type CapacidadeSemanalResponse,
+  type DiaSemana,
+} from '../capacidade/api/capacidadeSemanalApi'
 import {
   abortarExecucao,
   concluirExecucao,
@@ -52,6 +58,11 @@ import { listarReservas, type ReservaProjetoResponse } from '../projeto/api/rese
 import { listarTarefas, type TarefaResponse } from '../tarefa/api/tarefaApi'
 import { mensagensFeedbackXp } from '../xp/feedbackXp'
 import { useXpProgress } from '../xp/XpProgressContext'
+import {
+  alteracoesDiasUteis,
+  capacidadeConfigurada,
+  HORAS_PRESET_DIAS_UTEIS,
+} from './capacidadeInicial'
 import { diaSemanaDeDataIso, formatarExplicacaoReservas } from './explicacaoReservas'
 import { escolherBlocoMenorPrioridade } from './justificativa'
 import {
@@ -89,6 +100,13 @@ function mensagemErro(error: unknown, fallback: string): string {
     return error.message || fallback
   }
   return fallback
+}
+
+const TITULO_PLANO_VAZIO = 'Plano vazio'
+const MENSAGEM_CAPACIDADE_MUDOU = 'A capacidade mudou, tente de novo.'
+
+function ehErroPlanoVazio(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 409 && error.title === TITULO_PLANO_VAZIO
 }
 
 function snapshotDeBlocos(blocos: BlocoPlanoResponse[]): SnapshotBlocos {
@@ -144,11 +162,20 @@ export function usePlanoDoDia() {
   const [datasProposta, setDatasProposta] = useState<string[] | null>([])
   /** `undefined` enquanto a explicação de reservas não chegou. */
   const [explicacaoReservas, setExplicacaoReservas] = useState<string | null | undefined>()
+  const [capacidadeInicialAberta, setCapacidadeInicialAberta] = useState(false)
+  const [salvandoCapacidadeInicial, setSalvandoCapacidadeInicial] = useState(false)
+  const [erroCapacidadeInicial, setErroCapacidadeInicial] = useState<string | null>(null)
+  /** Erro de aprovação exibido inline no plano (ex.: `409 Plano vazio`). */
+  const [erroAprovar, setErroAprovar] = useState<string | null>(null)
 
   /** Id da última leitura/mutação do plano; respostas de ids antigos são descartadas. */
   const requisicaoPlano = useRef(0)
   const datasCarregadasDe = useRef<string | null>(null)
   const remocoesEmVoo = useRef(0)
+  /** Semana lida quando a guarda abriu o passo de capacidade. */
+  const semanaCapacidade = useRef<CapacidadeSemanalResponse[]>([])
+  /** Trava síncrona contra clique duplo no passo de capacidade. */
+  const gravandoCapacidadeInicial = useRef(false)
 
   const ehRascunho = plano?.status === 'RASCUNHO'
   const propostaPendente = Boolean(plano?.propostaPendente && plano.propostaId)
@@ -336,10 +363,40 @@ export function usePlanoDoDia() {
     setConflitoDismissed(false)
   }, [plano?.id, plano?.versao, plano?.mensagem, plano?.temConflito])
 
+  useEffect(() => {
+    setErroAprovar(null)
+  }, [plano?.id, plano?.versao, plano?.status])
+
+  /**
+   * "Sem capacidade configurada": resolvida do dia = 0 e nenhum dia do template com horas.
+   * O template só é lido quando o dia está zerado; se a leitura falhar, gera mesmo assim.
+   */
+  async function faltaCapacidade(): Promise<boolean> {
+    if ((capacidade?.horas ?? 0) > 0) {
+      return false
+    }
+    try {
+      const semana = await listarCapacidadesSemanais()
+      semanaCapacidade.current = semana
+      return !capacidadeConfigurada(semana)
+    } catch {
+      return false
+    }
+  }
+
   async function handleGerar() {
-    if (!podeGerar) {
+    if (!podeGerar || gerando) {
       return
     }
+    if (await faltaCapacidade()) {
+      setErroCapacidadeInicial(null)
+      setCapacidadeInicialAberta(true)
+      return
+    }
+    await gerarAgora()
+  }
+
+  async function gerarAgora() {
     const anterior = plano ? snapshotDeBlocos(plano.blocos) : null
     const atual = novaRequisicao()
     setGerando(true)
@@ -364,7 +421,7 @@ export function usePlanoDoDia() {
       datasCarregadasDe.current = null
       void carregarDatasProposta(gerado)
     } catch (error) {
-      erroComRetry(mensagemErro(error, 'Não foi possível gerar o plano.'), () => void handleGerar())
+      erroComRetry(mensagemErro(error, 'Não foi possível gerar o plano.'), () => void gerarAgora())
     } finally {
       setGerando(false)
     }
@@ -388,17 +445,80 @@ export function usePlanoDoDia() {
     }
   }
 
+  async function gravarOverrideHoje(data: string, horas: number) {
+    const existentes = await listarCapacidadesOverride({ dataDe: data, dataAte: data })
+    const ativo = existentes.find((item) => item.ativo && item.data === data)
+    if (ativo) {
+      await atualizarCapacidadeOverride(ativo.id, { horas })
+    } else {
+      await criarCapacidadeOverride({ data, horas })
+    }
+  }
+
+  /** Grava a capacidade escolhida no passo inicial e, no sucesso, gera o plano. */
+  async function salvarCapacidadeInicialEGerar(gravar: () => Promise<unknown>) {
+    if (gravandoCapacidadeInicial.current) {
+      return
+    }
+    gravandoCapacidadeInicial.current = true
+    setSalvandoCapacidadeInicial(true)
+    setErroCapacidadeInicial(null)
+    try {
+      await gravar()
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        semanaCapacidade.current = await listarCapacidadesSemanais().catch(
+          () => semanaCapacidade.current,
+        )
+        setErroCapacidadeInicial(MENSAGEM_CAPACIDADE_MUDOU)
+      } else {
+        setErroCapacidadeInicial(mensagemErro(error, 'Não foi possível salvar a capacidade.'))
+      }
+      return
+    } finally {
+      gravandoCapacidadeInicial.current = false
+      setSalvandoCapacidadeInicial(false)
+    }
+    setCapacidadeInicialAberta(false)
+    const data = dataSelecionada
+    const resolvidas = await consultarCapacidadeResolvida({ dataDe: data, dataAte: data }).catch(
+      () => null,
+    )
+    if (resolvidas) {
+      setCapacidade(capacidadeDoDia(resolvidas, data))
+    }
+    await gerarAgora()
+  }
+
+  async function handleUsarDiasUteis() {
+    await salvarCapacidadeInicialEGerar(async () => {
+      const { criar, atualizar } = alteracoesDiasUteis(semanaCapacidade.current)
+      await Promise.all([
+        criar.length > 0 ? criarCapacidadeSemanal(criar) : null,
+        ...atualizar.map((id) =>
+          atualizarCapacidadeSemanal(id, { horas: HORAS_PRESET_DIAS_UTEIS }),
+        ),
+      ])
+    })
+  }
+
+  async function handleCapacidadeSoHoje(horas: number) {
+    await salvarCapacidadeInicialEGerar(() => gravarOverrideHoje(dataHojeIso(), horas))
+  }
+
+  function fecharCapacidadeInicial() {
+    if (gravandoCapacidadeInicial.current) {
+      return
+    }
+    setCapacidadeInicialAberta(false)
+    setErroCapacidadeInicial(null)
+  }
+
   async function handleSalvarCapacidadeHoje(horas: number) {
     const data = dataHojeIso()
     setSalvandoCapacidadeHoje(true)
     try {
-      const existentes = await listarCapacidadesOverride({ dataDe: data, dataAte: data })
-      const ativo = existentes.find((item) => item.ativo && item.data === data)
-      if (ativo) {
-        await atualizarCapacidadeOverride(ativo.id, { horas })
-      } else {
-        await criarCapacidadeOverride({ data, horas })
-      }
+      await gravarOverrideHoje(data, horas)
       const atual = novaRequisicao()
       const [resolvidas, planoAtualizado] = await Promise.all([
         consultarCapacidadeResolvida({ dataDe: data, dataAte: data }),
@@ -496,14 +616,19 @@ export function usePlanoDoDia() {
   }
 
   async function handleAprovar() {
-    if (!plano || !ehRascunho || propostaPendente) {
+    if (!plano || !ehRascunho || propostaPendente || plano.blocos.length === 0) {
       return
     }
     const atual = novaRequisicao()
     setAprovando(true)
+    setErroAprovar(null)
     try {
       await aplicarPlanoAprovado(await aprovarPlano(plano.id), atual)
     } catch (error) {
+      if (ehErroPlanoVazio(error)) {
+        setErroAprovar(error.message || 'Não há blocos para aprovar.')
+        return
+      }
       erroComRetry(mensagemErro(error, 'Não foi possível aprovar o plano.'), () => void handleAprovar())
     } finally {
       setAprovando(false)
@@ -779,6 +904,13 @@ export function usePlanoDoDia() {
     dataSelecionada,
     datasProposta,
     explicacaoReservas,
+    capacidadeInicialAberta,
+    salvandoCapacidadeInicial,
+    erroCapacidadeInicial,
+    handleUsarDiasUteis,
+    handleCapacidadeSoHoje,
+    fecharCapacidadeInicial,
+    erroAprovar,
     ehRascunho,
     propostaPendente,
     podeGerar,
