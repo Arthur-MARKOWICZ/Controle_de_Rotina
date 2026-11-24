@@ -43,7 +43,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -344,6 +343,11 @@ private fun CapacidadeSheet(
             ) { Text("Salvar e gerar") }
             TextButton(onClick = onFechar, enabled = !salvando, modifier = Modifier.align(Alignment.End).padding(bottom = 16.dp)) {
                 Text("Agora não")
+            }
+        }
+    }
+}
+
 /** Estação da linha do plano: vazia = pendente, aro grosso = em andamento, cheia = concluída. */
 @Composable
 private fun Estacao(cor: Color, status: StatusExecucao, primeiro: Boolean, ultimo: Boolean, modifier: Modifier) {
