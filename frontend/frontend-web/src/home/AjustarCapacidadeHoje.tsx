@@ -1,3 +1,4 @@
+import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 
 type AjustarCapacidadeHojeProps = {
@@ -58,22 +59,22 @@ export function AjustarCapacidadeHoje({
           <div className="capacidade-stepper">
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
+              className="btn btn--ghost btn--icon"
               aria-label="Diminuir horas de hoje"
               disabled={horas <= 0 || salvando}
               onClick={() => setHoras((atual) => Math.max(0, atual - 1))}
             >
-              −
+              <MinusIcon aria-hidden />
             </button>
             <span aria-label="Horas de hoje">{horas}h</span>
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
+              className="btn btn--ghost btn--icon"
               aria-label="Aumentar horas de hoje"
               disabled={horas >= HORAS_MAX || salvando}
               onClick={() => setHoras((atual) => Math.min(HORAS_MAX, atual + 1))}
             >
-              +
+              <PlusIcon aria-hidden />
             </button>
           </div>
           <div className="ajustar-capacidade-hoje__acoes">

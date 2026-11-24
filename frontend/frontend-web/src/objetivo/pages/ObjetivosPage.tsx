@@ -23,6 +23,7 @@ import {
 } from '../acoesObjetivo'
 import { ObjetivoCard } from '../ObjetivoCard'
 import type { ObjetivoDrawerState, ObjetivosOutletContext } from '../ObjetivoDrawer'
+import { PageHeader } from '../../layout/PageHeader'
 
 const DRAWER_STATE: ObjetivoDrawerState = { daLista: true }
 
@@ -162,15 +163,15 @@ export function ObjetivosPage() {
   return (
     <main className="objetivos-page">
       {confirmDialog}
-      <header className="objetivos-header">
-        <div>
-          <h1>Objetivos</h1>
-          <p className="objetivos-subtitle">O que você quer alcançar. Mantenha à vista.</p>
-        </div>
-        <Link to={novoObjetivo} state={DRAWER_STATE} className="btn btn--primary">
-          Novo objetivo
-        </Link>
-      </header>
+      <PageHeader
+        title="Objetivos"
+        description="O que você quer alcançar. Mantenha à vista."
+        actions={
+          <Link to={novoObjetivo} state={DRAWER_STATE} className="btn btn--primary">
+            Novo objetivo
+          </Link>
+        }
+      />
 
       <div className="visao-chips" role="group" aria-label="Visão da lista">
         {VISOES.map((opcao) => (

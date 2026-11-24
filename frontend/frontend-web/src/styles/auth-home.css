@@ -324,9 +324,14 @@
 
 .onboarding-checklist__cabecalho {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
+}
+
+.onboarding-checklist__cabecalho .btn {
+  white-space: nowrap;
 }
 
 .onboarding-checklist__cabecalho h2 {

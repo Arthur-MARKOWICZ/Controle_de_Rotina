@@ -25,6 +25,7 @@ import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
 import { escreverTagIdsNaUrl, lerTagIdsDaUrl } from '../../tag/listaTagUrl'
 import { ordenarPorTagMatch } from '../../tag/tagMatch'
 import type { ProjetoDrawerState } from '../ProjetoDrawer'
+import { PageHeader } from '../../layout/PageHeader'
 
 const DRAWER_STATE: ProjetoDrawerState = { daLista: true }
 
@@ -276,22 +277,20 @@ export function ProjetosPage() {
   return (
     <main className="projetos-page">
       {confirmDialog}
-      <header className="projetos-header">
-        <div>
-          <h1>Projetos</h1>
-          <p className="projetos-subtitle">
-            Agrupe tarefas do mesmo esforço e reserve tempo na capacidade.
-          </p>
-        </div>
-        <div className="projetos-header-actions">
-          <Link to="/capacidade" className="btn btn--secondary">
-            Capacidade
-          </Link>
-          <Link to={novoProjeto} state={DRAWER_STATE} className="btn btn--primary">
-            Novo projeto
-          </Link>
-        </div>
-      </header>
+      <PageHeader
+        title="Projetos"
+        description="Agrupe tarefas do mesmo esforço e reserve tempo na capacidade."
+        actions={
+          <>
+            <Link to="/capacidade" className="btn btn--secondary">
+              Capacidade
+            </Link>
+            <Link to={novoProjeto} state={DRAWER_STATE} className="btn btn--primary">
+              Novo projeto
+            </Link>
+          </>
+        }
+      />
 
       <div className="visao-chips" role="group" aria-label="Visão da lista">
         {VISOES.map((visao) => (
