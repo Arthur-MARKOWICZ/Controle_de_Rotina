@@ -25,6 +25,7 @@ import type { HabitoDrawerState, HabitosOutletContext } from '../HabitoDrawer'
 import { TagFiltroPopover } from '../../tag/TagFiltroPopover'
 import { lerTagIdsDaUrl, escreverTagIdsNaUrl } from '../../tag/listaTagUrl'
 import { ordenarPorTagMatch } from '../../tag/tagMatch'
+import { PageHeader } from '../../layout/PageHeader'
 
 const DRAWER_STATE: HabitoDrawerState = { daLista: true }
 
@@ -291,19 +292,15 @@ export function HabitosPage() {
   return (
     <main className="habitos-page">
       {confirmDialog}
-      <header className="habitos-header">
-        <div>
-          <h1>Hábitos</h1>
-          <p className="habitos-subtitle">
-            Recorrências do dia a dia que disputam capacidade com as tarefas.
-          </p>
-        </div>
-        <div className="habitos-header-actions">
+      <PageHeader
+        title="Hábitos"
+        description="Recorrências do dia a dia que disputam capacidade com as tarefas."
+        actions={
           <Link to={novoHabito} state={DRAWER_STATE} className="btn btn--primary">
             Novo hábito
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <div className="visao-chips" role="group" aria-label="Visão da lista">
         {VISOES.map((item) => (

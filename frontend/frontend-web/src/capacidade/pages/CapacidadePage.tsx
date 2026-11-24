@@ -1,6 +1,8 @@
 import {
   CaretLeftIcon,
   CaretRightIcon,
+  MinusIcon,
+  PlusIcon,
   CopySimpleIcon,
   WarningCircleIcon,
   CalendarCheckIcon,
@@ -762,7 +764,7 @@ export function CapacidadePage() {
                     disabled={horas <= 0 || salvando}
                     onClick={() => ajustarHoras(valor, -HORAS_STEP)}
                   >
-                    −
+                    <MinusIcon aria-hidden />
                   </button>
                   <div className="capacidade-horas-input">
                     <input
@@ -787,7 +789,7 @@ export function CapacidadePage() {
                     disabled={horas >= HORAS_MAX || salvando}
                     onClick={() => ajustarHoras(valor, HORAS_STEP)}
                   >
-                    +
+                    <PlusIcon aria-hidden />
                   </button>
                 </div>
 
