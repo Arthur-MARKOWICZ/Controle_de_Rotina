@@ -13,8 +13,8 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/index.ts"],
       // Catraca (ver AGENTS.md — Testes): só sobe, nunca desce. Alvo: 70/60.
       thresholds: {
-        lines: 74,
-        branches: 86,
+        lines: 75,
+        branches: 87,
       },
     },
   },

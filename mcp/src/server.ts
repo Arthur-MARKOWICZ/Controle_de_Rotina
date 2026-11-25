@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ApiError,
   AuthRequiredError,
+  ContaExcluidaError,
   ControleRotinaApiClient,
   type Prioridade,
   type StatusTarefa,
@@ -36,6 +37,17 @@ function textResult(data: unknown) {
 }
 
 export function errorResult(error: unknown) {
+  if (error instanceof ContaExcluidaError) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({ code: "CONTA_EXCLUIDA", message: error.message }, null, 2),
+        },
+      ],
+      isError: true as const,
+    };
+  }
   if (error instanceof AuthRequiredError) {
     return {
       content: [

@@ -1,5 +1,10 @@
 import { ApiError } from '../api/authApi'
-import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStore'
+import {
+  clearAccessToken,
+  encerrarSessaoContaExcluida,
+  getAccessToken,
+  setAccessToken,
+} from './tokenStore'
 
 type AccessTokenResponse = { accessToken: string }
 
@@ -39,6 +44,24 @@ export async function readApiJson<T>(response: Response): Promise<T> {
     return JSON.parse(text) as T
   } catch {
     throw new ApiError(response.status, 'Resposta inválida da API (não é JSON).')
+  }
+}
+
+/** `title` do ProblemDetail que a API manda quando o JWT é válido mas a conta foi excluída. */
+export const TITULO_CONTA_EXCLUIDA = 'Conta excluída'
+
+/** `detail` do 401 de senha errada (form do Perfil): a sessão é válida, não há o que renovar. */
+const DETALHE_CREDENCIAIS_INVALIDAS = 'Credenciais inválidas.'
+
+type Problema401 = { title?: string; detail?: string }
+
+/** Lê o ProblemDetail de um 401 sem consumir o body original; corpo vazio/HTML/inválido → {}. */
+async function lerProblema401(response: Response): Promise<Problema401> {
+  try {
+    const body: unknown = JSON.parse(await response.clone().text())
+    return body && typeof body === 'object' ? (body as Problema401) : {}
+  } catch {
+    return {}
   }
 }
 
@@ -97,6 +120,15 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
   })
 
   if (response.status !== 401) {
+    return response
+  }
+
+  const problema = await lerProblema401(response)
+  if (problema.title === TITULO_CONTA_EXCLUIDA) {
+    encerrarSessaoContaExcluida()
+    return response
+  }
+  if (problema.detail === DETALHE_CREDENCIAIS_INVALIDAS) {
     return response
   }
 

@@ -13,6 +13,7 @@ import kotlin.coroutines.cancellation.CancellationException
 const val MSG_CREDENCIAIS = "E-mail ou senha inválidos"
 const val MSG_SEM_CONEXAO = "Não foi possível conectar. Verifique sua conexão e tente de novo."
 const val MSG_SESSAO_EXPIRADA = "Sua sessão expirou. Entre novamente."
+const val MSG_CONTA_EXCLUIDA = "Sua conta foi excluída."
 
 sealed interface EstadoApp {
     data object Verificando : EstadoApp
@@ -55,6 +56,26 @@ class SessaoViewModel(
                 _estado.value = EstadoApp.Login(MSG_SESSAO_EXPIRADA)
             }
         }
+        escopo.launch {
+            auth.contaExcluida.collect { encerrarPorContaExcluida() }
+        }
+    }
+
+    /**
+     * A conta não existe mais (excluída aqui ou em outro dispositivo): limpa o que é do usuário
+     * e volta ao login com o aviso. A sessão local já foi apagada pelo cliente HTTP ou pelo logout.
+     */
+    suspend fun encerrarPorContaExcluida() {
+        try {
+            auth.logout()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: ApiErro) {
+            // A sessão local some do mesmo jeito.
+        }
+        aoEncerrar()
+        _form.value = FormLogin()
+        _estado.value = EstadoApp.Login(MSG_CONTA_EXCLUIDA)
     }
 
     suspend fun iniciar() {

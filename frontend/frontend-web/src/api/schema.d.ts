@@ -526,6 +526,22 @@ export interface paths {
         get: operations["me"];
         put: operations["atualizar"];
         post?: never;
+        delete: operations["excluirConta"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportar"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1206,6 +1222,24 @@ export interface components {
             /** Format: int32 */
             ordem: number;
         };
+        BlocoPlanoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            duracaoMinutos: number;
+            /** Format: uuid */
+            habitoId: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            ordem: number;
+            /** Format: uuid */
+            planoId: string;
+            /** Format: uuid */
+            tarefaId: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         BlocoPlanoResponse: {
             /** Format: int32 */
             duracaoMinutos: number;
@@ -1290,6 +1324,19 @@ export interface components {
             porProjeto: components["schemas"]["RecorteProjetoCalibracaoResponse"][];
             porTag: components["schemas"]["RecorteTagCalibracaoResponse"][];
         };
+        CapacidadeOverrideExport: {
+            ativo: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            data: string;
+            /** Format: int32 */
+            horas: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         CapacidadeOverrideResponse: {
             ativo: boolean;
             /** Format: date-time */
@@ -1311,6 +1358,19 @@ export interface components {
             /** @enum {string} */
             origem: "OVERRIDE" | "SEMANAL" | "VAZIO";
         };
+        CapacidadeSemanalExport: {
+            ativo: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            diaSemana: "DOMINGO" | "QUARTA" | "QUINTA" | "SABADO" | "SEGUNDA" | "SEXTA" | "TERCA";
+            /** Format: int32 */
+            horas: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         CapacidadeSemanalResponse: {
             ativo: boolean;
             /** Format: date-time */
@@ -1327,6 +1387,20 @@ export interface components {
         ConcluirHabitoDiretoRequest: {
             /** Format: int32 */
             minutos?: number;
+        };
+        Conta: {
+            /** Format: date-time */
+            createdAt: string;
+            email: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            nivel: number;
+            nome: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int32 */
+            xpTotal: number;
         };
         CriarCapacidadeOverrideItemRequest: {
             /** Format: date */
@@ -1439,6 +1513,29 @@ export interface components {
             id: string;
             resolvida: boolean;
         };
+        ExcluirContaRequest: {
+            senhaAtual: string;
+        };
+        ExecucaoExport: {
+            /** Format: date-time */
+            abortadoEm: null | string;
+            /** Format: uuid */
+            blocoPlanoId: string;
+            /** Format: date-time */
+            concluidoEm: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            iniciadoEm: null | string;
+            /** Format: int32 */
+            minutosInformados: number | null;
+            /** @enum {string} */
+            status: "ABORTADO" | "CONCLUIDO" | "EM_ANDAMENTO" | "NAO_INICIADO";
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ExecucaoResponse: {
             /** Format: date-time */
             abortadoEm: null | string;
@@ -1458,6 +1555,29 @@ export interface components {
             itens: components["schemas"]["ItemExecucaoResponse"][];
             planoAprovado: components["schemas"]["PlanoAprovadoResumoResponse"] | null;
         };
+        ExportResponse: {
+            blocosPlano: components["schemas"]["BlocoPlanoExport"][];
+            capacidadeOverrides: components["schemas"]["CapacidadeOverrideExport"][];
+            capacidadeSemanal: components["schemas"]["CapacidadeSemanalExport"][];
+            conta: components["schemas"]["Conta"];
+            eventosXp: components["schemas"]["XpEventoExport"][];
+            execucoes: components["schemas"]["ExecucaoExport"][];
+            /** Format: date-time */
+            geradoEm: string;
+            habitos: components["schemas"]["HabitoExport"][];
+            itensDecidir: components["schemas"]["ItemDecidirExport"][];
+            objetivos: components["schemas"]["ObjetivoExport"][];
+            pendencias: components["schemas"]["PendenciaExport"][];
+            planos: components["schemas"]["PlanoExport"][];
+            projetos: components["schemas"]["ProjetoExport"][];
+            reservasProjeto: components["schemas"]["ReservaProjetoExport"][];
+            tags: components["schemas"]["TagExport"][];
+            tarefas: components["schemas"]["TarefaExport"][];
+            /** Format: int32 */
+            versao: number;
+            vinculosObjetivo: components["schemas"]["VinculoObjetivoExport"][];
+            vinculosTag: components["schemas"]["VinculoTagExport"][];
+        };
         HabitoDoDiaResponse: {
             cumprido: boolean;
             /** Format: int32 */
@@ -1472,6 +1592,31 @@ export interface components {
             /** Format: int32 */
             streakAtual: number;
             titulo: string;
+        };
+        HabitoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt: null | string;
+            descricao: null | string;
+            diasSemana: ("DOMINGO" | "QUARTA" | "QUINTA" | "SABADO" | "SEGUNDA" | "SEXTA" | "TERCA")[];
+            /** Format: int32 */
+            duracaoMinutos: number;
+            /** Format: time-local */
+            horarioPreferencial: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            melhorStreak: number;
+            /** Format: int32 */
+            ordem: number;
+            /** @enum {string} */
+            status: "ATIVO" | "PAUSADO";
+            /** Format: int32 */
+            streakAtual: number;
+            titulo: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         HabitoHistoricoDiaResponse: {
             /** Format: date */
@@ -1539,6 +1684,22 @@ export interface components {
             /** Format: uuid */
             blocoId: string;
         };
+        ItemDecidirExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidirAte: null | string;
+            descricao: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            projetoId: null | string;
+            /** Format: uuid */
+            tarefaId: null | string;
+            titulo: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ItemExecucaoResponse: {
             bloco: components["schemas"]["BlocoExecucaoResponse"];
             execucao: components["schemas"]["ExecucaoResponse"];
@@ -1578,6 +1739,24 @@ export interface components {
             /** Format: int32 */
             antesDoHistorico: number;
             pontos: components["schemas"]["PontoEvolucaoResponse"][];
+        };
+        ObjetivoExport: {
+            /** Format: date-time */
+            arquivadoEm: null | string;
+            /** Format: date-time */
+            concluidoEm: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            descricao: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            prazo: null | string;
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO" | "CONCLUIDO";
+            titulo: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         ObjetivoItemHabitoResponse: {
             /** Format: uuid */
@@ -1685,6 +1864,20 @@ export interface components {
             content: components["schemas"]["TarefaResponse"][];
             page: components["schemas"]["PageMetadata"];
         };
+        PendenciaExport: {
+            /** Format: uuid */
+            alvoId: string;
+            /** @enum {string} */
+            alvoTipo: "PROJETO" | "TAREFA";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            origemId: string;
+            /** @enum {string} */
+            origemTipo: "PROJETO" | "TAREFA";
+        };
         PeriodoCalendarioResponse: {
             /** Format: date */
             fim: string;
@@ -1703,6 +1896,27 @@ export interface components {
             data: string;
             /** Format: uuid */
             id: string;
+            /** Format: int32 */
+            versao: number;
+        };
+        PlanoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            data: string;
+            /** Format: date-time */
+            geradoEm: string;
+            /** Format: uuid */
+            id: string;
+            itensNaoAlocados: components["schemas"]["ItemNaoAlocadoResponse"][];
+            mensagem: null | string;
+            /** Format: uuid */
+            propostaId: null | string;
+            /** @enum {string} */
+            status: "APROVADO" | "DESCARTADO" | "HABITO_AVULSO" | "RASCUNHO" | "TAREFA_AVULSA";
+            temConflito: boolean;
+            /** Format: date-time */
+            updatedAt: string;
             /** Format: int32 */
             versao: number;
         };
@@ -1736,6 +1950,20 @@ export interface components {
             minutosAcumulados: number;
             /** Format: int32 */
             minutosNoDia: number;
+        };
+        ProjetoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            descricao: null | string;
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** Format: int32 */
+            ordem: number;
+            /** @enum {string} */
+            status: "ARQUIVADO" | "ATIVO";
+            /** Format: date-time */
+            updatedAt: string;
         };
         ProjetoResponse: {
             bloqueada: boolean;
@@ -1791,6 +2019,20 @@ export interface components {
         ReordenarRequest: {
             ids: string[];
         };
+        ReservaProjetoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            diaSemana: "DOMINGO" | "QUARTA" | "QUINTA" | "SABADO" | "SEGUNDA" | "SEXTA" | "TERCA";
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            minutosReservados: number;
+            /** Format: uuid */
+            projetoId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ReservaProjetoResponse: {
             /** Format: date-time */
             createdAt: string;
@@ -1823,6 +2065,16 @@ export interface components {
             /** @enum {string} */
             status: "ABORTADO" | "CONCLUIDO" | "EM_ANDAMENTO" | "NAO_INICIADO";
         };
+        TagExport: {
+            cor: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         TagResponse: {
             cor: string;
             /** Format: date-time */
@@ -1838,6 +2090,34 @@ export interface components {
             /** Format: uuid */
             id: string;
             nome: string;
+        };
+        TarefaExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt: null | string;
+            descricao: null | string;
+            /** Format: int32 */
+            duracaoMinutos: number;
+            /** Format: date-time */
+            finalizadaEm: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            ordem: number;
+            /** Format: uuid */
+            parentId: null | string;
+            /** Format: date-time */
+            prazo: null | string;
+            /** @enum {string} */
+            prioridade: "ALTA" | "BAIXA" | "MEDIA";
+            /** Format: uuid */
+            projetoId: null | string;
+            /** @enum {string} */
+            status: "ATRASADA" | "CANCELADA" | "EM_PROGRESSO" | "FINALIZADA" | "PENDENTE";
+            titulo: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         TarefaResponse: {
             bloqueada: boolean;
@@ -1909,11 +2189,39 @@ export interface components {
             /** Format: int32 */
             xpTotal: number;
         };
+        VinculoObjetivoExport: {
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            objetivoId: string;
+            /** @enum {string} */
+            tipo: "DECIDIR" | "HABITO" | "PROJETO" | "TAREFA";
+        };
+        VinculoTagExport: {
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            tagId: string;
+            /** @enum {string} */
+            tipo: "DECIDIR" | "HABITO" | "PROJETO" | "TAREFA";
+        };
         XpConclusaoResponse: {
             eventos: components["schemas"]["XpEventoResumoResponse"][];
             /** Format: int32 */
             ganhoNesteRequest: number;
             progresso: components["schemas"]["XpProgressoResponse"];
+        };
+        XpEventoExport: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            origemId: string;
+            /** Format: int32 */
+            quantidade: number;
+            /** @enum {string} */
+            tipo: "BLOCO_CONCLUIDO" | "TAREFA_FINALIZADA";
         };
         XpEventoResumoResponse: {
             /** Format: int32 */
@@ -2991,6 +3299,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UsuarioResponse"];
+                };
+            };
+        };
+    };
+    excluirConta: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExcluirContaRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExportResponse"];
                 };
             };
         };

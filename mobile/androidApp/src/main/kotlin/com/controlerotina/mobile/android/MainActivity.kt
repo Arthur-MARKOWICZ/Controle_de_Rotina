@@ -3,6 +3,7 @@ package com.controlerotina.mobile.android
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,12 @@ class MainActivity : ComponentActivity() {
         respostaPermissao = null
     }
 
+    private var destinoArquivo: CompletableDeferred<Uri?>? = null
+    private val escolherArquivo = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        destinoArquivo?.complete(uri)
+        destinoArquivo = null
+    }
+
     @SuppressLint("InlinedApi") // o solicitante só é chamado no Android 13+ (PermissaoAndroid.solicitar)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +39,12 @@ class MainActivity : ComponentActivity() {
             val resposta = CompletableDeferred<Boolean>()
             respostaPermissao = resposta
             pedirPermissao.launch(Manifest.permission.POST_NOTIFICATIONS)
+            resposta.await()
+        }
+        app.salvadorArquivo.escolherDestino = { nome, _ ->
+            val resposta = CompletableDeferred<Uri?>()
+            destinoArquivo = resposta
+            escolherArquivo.launch(nome)
             resposta.await()
         }
         // Na recriação (rotação) o intent é o mesmo: não reabre a aba da notificação.
@@ -54,6 +67,9 @@ class MainActivity : ComponentActivity() {
         respostaPermissao?.complete(false)
         respostaPermissao = null
         app.permissaoNotificacao.solicitante = null
+        destinoArquivo?.complete(null)
+        destinoArquivo = null
+        app.salvadorArquivo.escolherDestino = null
         super.onDestroy()
     }
 

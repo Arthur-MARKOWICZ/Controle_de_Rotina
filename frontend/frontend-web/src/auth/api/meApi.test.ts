@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from './authApi'
-import { atualizarMe, buscarMe } from './meApi'
+import { atualizarMe, buscarMe, excluirConta, exportarDados } from './meApi'
 import * as apiClient from '../session/apiClient'
 
 vi.mock('../session/apiClient', async (importOriginal) => {
@@ -153,5 +153,155 @@ describe('meApi', () => {
       new Response('não-é-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
     )
     await expect(buscarMe()).rejects.toThrow()
+  })
+
+  describe('exportarDados', () => {
+    it('devolve o blob e o nome do arquivo do Content-Disposition', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('{"versao":1}', {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Disposition': 'attachment; filename="controle-rotina-export-2026-11-24.json"',
+          },
+        }),
+      )
+
+      const { blob, nomeArquivo } = await exportarDados()
+
+      expect(apiClient.apiFetch).toHaveBeenCalledWith('/me/export')
+      expect(nomeArquivo).toBe('controle-rotina-export-2026-11-24.json')
+      expect(await blob.text()).toBe('{"versao":1}')
+    })
+
+    it('usa nome padrão quando não há Content-Disposition', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      )
+
+      const { nomeArquivo } = await exportarDados()
+
+      expect(nomeArquivo).toBe('controle-rotina-export.json')
+    })
+
+    it('rejeita 200 com HTML da SPA (proxy sem /me)', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('<!doctype html><div id="root"></div>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+
+      await expect(exportarDados()).rejects.toThrow(/HTML/)
+    })
+
+    it('propaga 401 com a mensagem do ProblemDetail', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Conta excluída', detail: 'Esta conta foi excluída.' }), {
+          status: 401,
+        }),
+      )
+
+      await expect(exportarDados()).rejects.toMatchObject({
+        status: 401,
+        title: 'Conta excluída',
+        message: 'Esta conta foi excluída.',
+      })
+    })
+
+    it('propaga 500 com mensagem de fallback quando o corpo é vazio', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response('', { status: 500 }))
+
+      await expect(exportarDados()).rejects.toBeInstanceOf(ApiError)
+    })
+
+    it('propaga falha de rede/timeout', async () => {
+      vi.mocked(apiClient.apiFetch).mockRejectedValue(new TypeError('Failed to fetch'))
+
+      await expect(exportarDados()).rejects.toThrow('Failed to fetch')
+    })
+  })
+
+  describe('excluirConta', () => {
+    it('envia DELETE /me com a senha atual e resolve em 204', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response(null, { status: 204 }))
+
+      await excluirConta('Senha@123')
+
+      expect(apiClient.apiFetch).toHaveBeenCalledWith('/me', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senhaAtual: 'Senha@123' }),
+      })
+    })
+
+    it('propaga 401 de senha errada', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Não autorizado', detail: 'Credenciais inválidas.' }), {
+          status: 401,
+        }),
+      )
+
+      await expect(excluirConta('errada')).rejects.toMatchObject({
+        status: 401,
+        message: 'Credenciais inválidas.',
+      })
+    })
+
+    it('propaga 400 de validação', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'Dados inválidos',
+            errors: [{ property: 'senhaAtual', message: 'must not be blank' }],
+          }),
+          { status: 400 },
+        ),
+      )
+
+      await expect(excluirConta('')).rejects.toMatchObject({ status: 400, title: 'Dados inválidos' })
+    })
+
+    it('propaga 404', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response('', { status: 404 }))
+
+      await expect(excluirConta('Senha@123')).rejects.toMatchObject({ status: 404 })
+    })
+
+    it('propaga 409', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Conflito', detail: 'Conflito.' }), { status: 409 }),
+      )
+
+      await expect(excluirConta('Senha@123')).rejects.toMatchObject({ status: 409 })
+    })
+
+    it('propaga 500 de integridade', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response(
+          JSON.stringify({ title: 'Erro de integridade', detail: 'Não foi possível concluir a operação.' }),
+          { status: 500 },
+        ),
+      )
+
+      await expect(excluirConta('Senha@123')).rejects.toMatchObject({
+        status: 500,
+        title: 'Erro de integridade',
+      })
+    })
+
+    it('rejeita HTML do proxy', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(
+        new Response('<!doctype html><html></html>', { status: 502 }),
+      )
+
+      await expect(excluirConta('Senha@123')).rejects.toThrow(/gateway/i)
+    })
+
+    it('rejeita JSON inválido', async () => {
+      vi.mocked(apiClient.apiFetch).mockResolvedValue(new Response('{oops', { status: 500 }))
+
+      await expect(excluirConta('Senha@123')).rejects.toThrow(/não é JSON/)
+    })
   })
 })

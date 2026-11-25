@@ -18,9 +18,11 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.DeserializationStrategy
@@ -36,7 +38,16 @@ sealed class ApiErro(mensagem: String, causa: Throwable? = null) : Exception(men
 
     /** Nem o access nem o refresh valem mais: é preciso entrar de novo. */
     class SessaoExpirada : ApiErro("Sessão expirada")
+
+    /** A conta foi excluída (em outro dispositivo ou neste): a sessão local já foi apagada. */
+    class ContaExcluida : ApiErro("Conta excluída")
 }
+
+/** `title` do ProblemDetail que a API manda quando o JWT é válido mas a conta não existe mais. */
+const val TITULO_CONTA_EXCLUIDA = "Conta excluída"
+
+/** `detail` do 401 de senha errada (ex.: excluir conta): a sessão continua válida, não há o que renovar. */
+private const val DETALHE_CREDENCIAIS_INVALIDAS = "Credenciais inválidas."
 
 val jsonApi: Json = Json {
     ignoreUnknownKeys = true
@@ -47,6 +58,9 @@ val jsonApi: Json = Json {
 /** Operações de sessão que a tela de login e o shell usam (fakes nos testes). */
 interface Autenticador {
     val sessaoExpirada: SharedFlow<Unit>
+
+    /** Emite quando uma chamada descobre que a conta foi excluída (401 "Conta excluída"). */
+    val contaExcluida: Flow<Unit> get() = emptyFlow()
     suspend fun temSessaoGuardada(): Boolean
     suspend fun login(email: String, senha: String)
     suspend fun restaurar(): Boolean
@@ -78,6 +92,9 @@ class ApiHttp(
 
     /** Emite quando a sessão acaba durante o uso e o app precisa voltar ao login. */
     override val sessaoExpirada: SharedFlow<Unit> = _sessaoExpirada.asSharedFlow()
+
+    private val _contaExcluida = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val contaExcluida: SharedFlow<Unit> = _contaExcluida.asSharedFlow()
 
     override suspend fun temSessaoGuardada(): Boolean = store.ler() != null
 
@@ -132,6 +149,10 @@ class ApiHttp(
         autenticada(metodo, caminho, query, corpo)
     }
 
+    /** Chamada autenticada que devolve o corpo cru (ex.: export JSON para salvar em arquivo). */
+    suspend fun baixar(caminho: String): ByteArray =
+        autenticada(HttpMethod.Get, caminho, emptyMap(), null).bodyAsText().encodeToByteArray()
+
     /** Como [requisitar], mas devolve `null` em 404 (ex.: dia sem plano). */
     suspend fun <T> requisitarOuNulo(
         metodo: HttpMethod,
@@ -153,12 +174,24 @@ class ApiHttp(
         val tokenUsado = access
         var resposta = executar(metodo, caminho, query, corpo, bearer = tokenUsado)
         if (resposta.status == HttpStatusCode.Unauthorized) {
+            val problema = lerProblema(resposta)
+            if (problema?.title == TITULO_CONTA_EXCLUIDA) {
+                encerrarPorContaExcluida()
+                throw ApiErro.ContaExcluida()
+            }
+            if (problema?.detail == DETALHE_CREDENCIAIS_INVALIDAS) {
+                throw ApiErro.Http(resposta.status.value, problema)
+            }
             if (!renovar(tokenQueFalhou = tokenUsado, forcar = false)) {
                 sessaoTerminou()
                 throw ApiErro.SessaoExpirada()
             }
             resposta = executar(metodo, caminho, query, corpo, bearer = access)
             if (resposta.status == HttpStatusCode.Unauthorized) {
+                if (lerProblema(resposta)?.title == TITULO_CONTA_EXCLUIDA) {
+                    encerrarPorContaExcluida()
+                    throw ApiErro.ContaExcluida()
+                }
                 mutexRenovacao.withLock {
                     access = null
                     store.limpar()
@@ -202,6 +235,19 @@ class ApiHttp(
     private fun sessaoTerminou() {
         _sessaoExpirada.tryEmit(Unit)
     }
+
+    private suspend fun encerrarPorContaExcluida() {
+        mutexRenovacao.withLock {
+            access = null
+            store.limpar()
+        }
+        _contaExcluida.tryEmit(Unit)
+    }
+
+    /** ProblemDetail do corpo; vazio, HTML ou JSON inválido → `null`. O corpo continua legível. */
+    private suspend fun lerProblema(resposta: HttpResponse): ProblemDetail? = runCatching {
+        jsonApi.decodeFromString(ProblemDetail.serializer(), resposta.bodyAsText())
+    }.getOrNull()
 
     private suspend fun executar(
         metodo: HttpMethod,
@@ -247,10 +293,6 @@ class ApiHttp(
         }
     }
 
-    private suspend fun erroHttp(resposta: HttpResponse): ApiErro.Http {
-        val problema = runCatching {
-            jsonApi.decodeFromString(ProblemDetail.serializer(), resposta.bodyAsText())
-        }.getOrNull()
-        return ApiErro.Http(resposta.status.value, problema)
-    }
+    private suspend fun erroHttp(resposta: HttpResponse): ApiErro.Http =
+        ApiErro.Http(resposta.status.value, lerProblema(resposta))
 }

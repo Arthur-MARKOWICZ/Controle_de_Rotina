@@ -169,4 +169,45 @@ class SessaoViewModelTest {
         assertEquals(0, autenticacoes)
         assertEquals(EstadoApp.SemConexaoNoBoot, vm.estado.value)
     }
+
+    @Test
+    fun contaExcluidaEmOutroDispositivoVoltaAoLoginComAvisoEApagaDados() = runTest {
+        auth.guardada = true
+        var limpezas = 0
+        val vm = SessaoViewModel(auth, backgroundScope) { limpezas++ }
+        vm.iniciar()
+        runCurrent()
+
+        auth.contaExcluida.emit(Unit)
+        runCurrent()
+
+        assertEquals(EstadoApp.Login(MSG_CONTA_EXCLUIDA), vm.estado.value)
+        assertEquals(1, limpezas)
+        assertEquals(1, auth.logouts)
+    }
+
+    @Test
+    fun encerrarPorContaExcluidaSemRedeAindaVoltaAoLogin() = runTest {
+        auth.guardada = true
+        auth.logoutFalha = ApiErro.Rede(RuntimeException())
+        var limpezas = 0
+        val vm = SessaoViewModel(auth, backgroundScope) { limpezas++ }
+        vm.iniciar()
+
+        vm.encerrarPorContaExcluida()
+
+        assertEquals(EstadoApp.Login(MSG_CONTA_EXCLUIDA), vm.estado.value)
+        assertEquals(1, limpezas)
+    }
+
+    @Test
+    fun encerrarPorContaExcluidaLimpaFormularioDeLogin() = runTest {
+        val vm = SessaoViewModel(auth, backgroundScope)
+        vm.alterarEmail("x@y.z")
+        vm.alterarSenha("s")
+
+        vm.encerrarPorContaExcluida()
+
+        assertEquals(FormLogin(), vm.form.value)
+    }
 }

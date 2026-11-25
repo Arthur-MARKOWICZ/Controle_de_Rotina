@@ -9,6 +9,9 @@ import kotlinx.serialization.Serializable
 data class LoginRequest(val email: String, val senha: String)
 
 @Serializable
+data class ExcluirContaRequest(val senhaAtual: String)
+
+@Serializable
 data class AccessTokenResponse(val accessToken: String)
 
 @Serializable

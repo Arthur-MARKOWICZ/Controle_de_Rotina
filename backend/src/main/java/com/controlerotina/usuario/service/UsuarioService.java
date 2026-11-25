@@ -14,6 +14,7 @@ import com.controlerotina.shared.exception.CredenciaisInvalidasException;
 import com.controlerotina.shared.exception.EmailJaCadastradoException;
 import com.controlerotina.usuario.dto.AtualizarMeRequest;
 import com.controlerotina.usuario.dto.CadastroUsuarioRequest;
+import com.controlerotina.usuario.dto.ExcluirContaRequest;
 import com.controlerotina.usuario.dto.UsuarioResponse;
 import com.controlerotina.usuario.entity.Usuario;
 import com.controlerotina.usuario.repository.UsuarioRepository;
@@ -105,6 +106,23 @@ public class UsuarioService {
             throw ex;
         }
         return UsuarioResponse.from(usuario);
+    }
+
+    /**
+     * Apaga a conta e tudo que pertence a ela (cascata do banco, V29) depois de conferir a senha.
+     * Senha errada, ausente ou conta que já sumiu: {@link CredenciaisInvalidasException}, sem apagar nada.
+     */
+    @Transactional
+    public void excluirConta(UUID usuarioId, ExcluirContaRequest request) {
+        Usuario usuario = buscarPorId(usuarioId);
+        String senhaAtual = request.senhaAtual();
+        if (senhaAtual == null || senhaAtual.isBlank()
+                || !passwordEncoder.matches(senhaAtual, usuario.getSenhaHash())) {
+            throw new CredenciaisInvalidasException();
+        }
+        if (usuarioRepository.excluirPorId(usuarioId) == 0) {
+            throw new CredenciaisInvalidasException();
+        }
     }
 
     private Usuario buscarPorId(UUID usuarioId) {

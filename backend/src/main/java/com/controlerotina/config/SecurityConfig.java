@@ -65,8 +65,14 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
-                            problem.setTitle("Não autorizado");
-                            problem.setDetail("Não autenticado.");
+                            if (Boolean.TRUE.equals(request.getAttribute(
+                                    JwtAuthenticationFilter.ATRIBUTO_CONTA_EXCLUIDA))) {
+                                problem.setTitle(JwtAuthenticationFilter.TITULO_CONTA_EXCLUIDA);
+                                problem.setDetail(JwtAuthenticationFilter.DETALHE_CONTA_EXCLUIDA);
+                            } else {
+                                problem.setTitle("Não autorizado");
+                                problem.setDetail("Não autenticado.");
+                            }
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                             response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);

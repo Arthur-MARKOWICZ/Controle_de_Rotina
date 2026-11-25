@@ -8,6 +8,12 @@ import kotlinx.serialization.json.JsonObject
 interface RotinaApi {
     suspend fun me(): MeResponse
 
+    /** `GET /me/export`: todos os dados do titular em JSON (LGPD). */
+    suspend fun exportarDados(): ByteArray
+
+    /** `DELETE /me`: exclui a conta e tudo dela. Irreversível. */
+    suspend fun excluirConta(senhaAtual: String)
+
     suspend fun plano(data: String): Plano?
     suspend fun gerarPlano(data: String): Plano
     suspend fun aprovarPlano(id: String): Plano
@@ -58,6 +64,14 @@ val STATUS_ABERTOS = listOf(StatusTarefa.PENDENTE, StatusTarefa.EM_PROGRESSO, St
 class KtorRotinaApi(private val http: ApiHttp) : RotinaApi {
 
     override suspend fun me() = http.requisitar(HttpMethod.Get, "/me", MeResponse.serializer())
+
+    override suspend fun exportarDados(): ByteArray = http.baixar("/me/export")
+
+    override suspend fun excluirConta(senhaAtual: String) = http.enviar(
+        HttpMethod.Delete,
+        "/me",
+        corpo = jsonApi.encodeToString(ExcluirContaRequest.serializer(), ExcluirContaRequest(senhaAtual)),
+    )
 
     override suspend fun plano(data: String) =
         http.requisitarOuNulo(HttpMethod.Get, "/planos", Plano.serializer(), mapOf("data" to data))

@@ -3,6 +3,8 @@ package com.controlerotina.mobile
 import com.controlerotina.mobile.api.ApiHttp
 import com.controlerotina.mobile.api.KtorRotinaApi
 import com.controlerotina.mobile.api.RotinaApi
+import com.controlerotina.mobile.arquivo.SalvadorArquivo
+import com.controlerotina.mobile.arquivo.SemSalvadorArquivo
 import com.controlerotina.mobile.dominio.hojeIso
 import com.controlerotina.mobile.estado.DecidirDetalheViewModel
 import com.controlerotina.mobile.estado.DecidirViewModel
@@ -10,6 +12,7 @@ import com.controlerotina.mobile.estado.EditarTarefaViewModel
 import com.controlerotina.mobile.estado.HabitosViewModel
 import com.controlerotina.mobile.estado.Navegacao
 import com.controlerotina.mobile.estado.OpcoesProjeto
+import com.controlerotina.mobile.estado.PerfilViewModel
 import com.controlerotina.mobile.estado.ProjetoDetalheViewModel
 import com.controlerotina.mobile.estado.ProjetosViewModel
 import com.controlerotina.mobile.estado.HojeViewModel
@@ -47,6 +50,8 @@ class AppDependencias(
     private val notificador: Notificador = SemNotificacao,
     private val agendador: AgendadorLembretes = SemNotificacao,
     permissao: PermissaoNotificacao = SemNotificacao,
+    /** Seletor de arquivo da plataforma, para o export LGPD. */
+    salvadorArquivo: SalvadorArquivo = SemSalvadorArquivo,
     /** Relógio e fuso dos lembretes; os testes passam valores fixos. */
     clock: Clock = Clock.System,
     fuso: () -> TimeZone = { TimeZone.currentSystemDefault() },
@@ -101,6 +106,14 @@ class AppDependencias(
         aoEncerrar = ::encerrarSessaoLocal,
     )
 
+    val perfilVm = PerfilViewModel(
+        api,
+        salvadorArquivo,
+        hoje,
+        escopo,
+        aoExcluirConta = { sessao.encerrarPorContaExcluida() },
+    )
+
     private suspend fun encerrarSessaoLocal() {
         agendador.cancelarTodos()
         notificador.limparTodas()
@@ -111,6 +124,7 @@ class AppDependencias(
         projetosVm.limpar()
         decidirVm.limpar()
         opcoesProjeto.limpar()
+        perfilVm.limpar()
         navegacao.limpar()
     }
 

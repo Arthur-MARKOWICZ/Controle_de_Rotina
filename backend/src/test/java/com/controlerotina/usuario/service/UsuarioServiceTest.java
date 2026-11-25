@@ -3,6 +3,7 @@ package com.controlerotina.usuario.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +27,7 @@ import com.controlerotina.shared.exception.CredenciaisInvalidasException;
 import com.controlerotina.shared.exception.EmailJaCadastradoException;
 import com.controlerotina.usuario.dto.AtualizarMeRequest;
 import com.controlerotina.usuario.dto.CadastroUsuarioRequest;
+import com.controlerotina.usuario.dto.ExcluirContaRequest;
 import com.controlerotina.usuario.entity.Usuario;
 import com.controlerotina.usuario.repository.UsuarioRepository;
 
@@ -172,5 +174,83 @@ class UsuarioServiceTest {
                 new CadastroUsuarioRequest("Ana", "ana@email.com", "Senha@123")))
                 .isInstanceOf(EmailJaCadastradoException.class);
         verify(capacidadeSemanalService, never()).criarPadraoInicial(any());
+    }
+
+    private static final UUID ID_EXCLUSAO = UUID.fromString("44444444-4444-4444-4444-444444444444");
+
+    private Usuario usuarioParaExcluir() {
+        Usuario existente = new Usuario(ID_EXCLUSAO, "ana@email.com", "hash-atual", "Ana", AGORA, AGORA);
+        when(usuarioRepository.findById(ID_EXCLUSAO)).thenReturn(Optional.of(existente));
+        return existente;
+    }
+
+    @Test
+    void excluirContaDeveApagarQuandoSenhaCorreta() {
+        usuarioParaExcluir();
+        when(passwordEncoder.matches("Senha@123", "hash-atual")).thenReturn(true);
+        when(usuarioRepository.excluirPorId(ID_EXCLUSAO)).thenReturn(1);
+
+        usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("Senha@123"));
+
+        verify(usuarioRepository).excluirPorId(ID_EXCLUSAO);
+    }
+
+    @Test
+    void excluirContaComSenhaErradaNaoDeveApagarNada() {
+        usuarioParaExcluir();
+        when(passwordEncoder.matches("errada", "hash-atual")).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("errada")))
+                .isInstanceOf(CredenciaisInvalidasException.class);
+        verify(usuarioRepository, never()).excluirPorId(any());
+    }
+
+    @Test
+    void excluirContaComSenhaEmBrancoNaoDeveConsultarHashNemApagar() {
+        usuarioParaExcluir();
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("  ")))
+                .isInstanceOf(CredenciaisInvalidasException.class);
+        verify(passwordEncoder, never()).matches(any(), anyString());
+        verify(usuarioRepository, never()).excluirPorId(any());
+    }
+
+    @Test
+    void excluirContaComSenhaNulaNaoDeveApagar() {
+        usuarioParaExcluir();
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest(null)))
+                .isInstanceOf(CredenciaisInvalidasException.class);
+        verify(usuarioRepository, never()).excluirPorId(any());
+    }
+
+    @Test
+    void excluirContaDeUsuarioInexistenteDeveFalharSemApagar() {
+        when(usuarioRepository.findById(ID_EXCLUSAO)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("Senha@123")))
+                .isInstanceOf(CredenciaisInvalidasException.class);
+        verify(usuarioRepository, never()).excluirPorId(any());
+    }
+
+    @Test
+    void excluirContaJaApagadaPorChamadaConcorrenteDeveFalhar() {
+        usuarioParaExcluir();
+        when(passwordEncoder.matches("Senha@123", "hash-atual")).thenReturn(true);
+        when(usuarioRepository.excluirPorId(ID_EXCLUSAO)).thenReturn(0);
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("Senha@123")))
+                .isInstanceOf(CredenciaisInvalidasException.class);
+    }
+
+    @Test
+    void excluirContaDevePropagarFalhaDoBancoSemEngolir() {
+        usuarioParaExcluir();
+        when(passwordEncoder.matches("Senha@123", "hash-atual")).thenReturn(true);
+        when(usuarioRepository.excluirPorId(ID_EXCLUSAO))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("fk"));
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(ID_EXCLUSAO, new ExcluirContaRequest("Senha@123")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 }
