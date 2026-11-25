@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { InlineAlert } from '../../feedback/InlineAlert'
@@ -8,6 +8,7 @@ import { CampoSenha } from '../components/CampoSenha'
 import { CampoTexto } from '../components/CampoTexto'
 import { focarPrimeiroInvalido, temErro } from '../components/focarPrimeiroInvalido'
 import { useAuth } from '../session/AuthContext'
+import { limparAvisoContaExcluida, temAvisoContaExcluida } from '../session/tokenStore'
 import { isEmailValido } from '../validation/email'
 
 type ErrosLogin = { email?: string; senha?: string }
@@ -29,6 +30,11 @@ export function LoginPage() {
   const [enviando, setEnviando] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const senhaRef = useRef<HTMLInputElement>(null)
+  const [contaExcluida] = useState(temAvisoContaExcluida)
+
+  useEffect(() => {
+    limparAvisoContaExcluida()
+  }, [])
 
   if (isAuthenticated) {
     return <Navigate to="/tarefas" replace />
@@ -83,6 +89,8 @@ export function LoginPage() {
       }
     >
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        {contaExcluida ? <InlineAlert tone="info">Sua conta foi excluída.</InlineAlert> : null}
+
         <CampoTexto
           ref={emailRef}
           id="email"

@@ -1,6 +1,7 @@
 package com.controlerotina.auth.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +25,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.controlerotina.auth.service.AccessTokenRevogacaoService;
+import com.controlerotina.usuario.repository.UsuarioRepository;
 
 import jakarta.servlet.FilterChain;
 
@@ -39,13 +41,16 @@ class JwtAuthenticationFilterTest {
     @Mock
     AccessTokenRevogacaoService accessTokenRevogacaoService;
 
+    @Mock
+    UsuarioRepository usuarioRepository;
+
     private JwtAuthenticationFilter filter;
     private AtomicInteger chainCalls;
     private FilterChain countingChain;
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(jwtService, accessTokenRevogacaoService);
+        filter = new JwtAuthenticationFilter(jwtService, accessTokenRevogacaoService, usuarioRepository);
         chainCalls = new AtomicInteger();
         countingChain = (request, response) -> chainCalls.incrementAndGet();
         SecurityContextHolder.clearContext();
@@ -60,9 +65,12 @@ class JwtAuthenticationFilterTest {
     void deveAutenticarQuandoTokenValido() throws Exception {
         when(jwtService.extrairClaims("jwt-ok")).thenReturn(Optional.of(claims()));
         when(accessTokenRevogacaoService.estaRevogado("jti-1")).thenReturn(false);
+        when(usuarioRepository.existsById(USUARIO_ID)).thenReturn(true);
+        MockHttpServletRequest request = comBearer("jwt-ok");
 
-        filter.doFilter(comBearer("jwt-ok"), new MockHttpServletResponse(), countingChain);
+        filter.doFilter(request, new MockHttpServletResponse(), countingChain);
 
+        assertThat(request.getAttribute(JwtAuthenticationFilter.ATRIBUTO_CONTA_EXCLUIDA)).isNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isEqualTo(USUARIO_ID);
         assertThat(chainCalls.get()).isEqualTo(1);
@@ -74,6 +82,7 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(jwtService, never()).extrairClaims(anyString());
+        verify(usuarioRepository, never()).existsById(any());
         assertThat(chainCalls.get()).isEqualTo(1);
     }
 
@@ -145,6 +154,43 @@ class JwtAuthenticationFilterTest {
                 .isEqualTo("ja-autenticado");
         verify(jwtService, never()).extrairClaims(anyString());
         assertThat(chainCalls.get()).isEqualTo(1);
+    }
+
+    @Test
+    void naoDeveAutenticarEDeveMarcarContaExcluidaQuandoUsuarioNaoExisteMais() throws Exception {
+        when(jwtService.extrairClaims("jwt-orfao")).thenReturn(Optional.of(claims()));
+        when(accessTokenRevogacaoService.estaRevogado("jti-1")).thenReturn(false);
+        when(usuarioRepository.existsById(USUARIO_ID)).thenReturn(false);
+        MockHttpServletRequest request = comBearer("jwt-orfao");
+
+        filter.doFilter(request, new MockHttpServletResponse(), countingChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(JwtAuthenticationFilter.ATRIBUTO_CONTA_EXCLUIDA)).isEqualTo(Boolean.TRUE);
+        assertThat(chainCalls.get()).isEqualTo(1);
+    }
+
+    @Test
+    void tokenRevogadoNaoDeveConsultarUsuarioNemMarcarContaExcluida() throws Exception {
+        when(jwtService.extrairClaims("jwt-revogado")).thenReturn(Optional.of(claims()));
+        when(accessTokenRevogacaoService.estaRevogado("jti-1")).thenReturn(true);
+        MockHttpServletRequest request = comBearer("jwt-revogado");
+
+        filter.doFilter(request, new MockHttpServletResponse(), countingChain);
+
+        verify(usuarioRepository, never()).existsById(any());
+        assertThat(request.getAttribute(JwtAuthenticationFilter.ATRIBUTO_CONTA_EXCLUIDA)).isNull();
+    }
+
+    @Test
+    void tokenExpiradoNaoDeveMarcarContaExcluida() throws Exception {
+        when(jwtService.extrairClaims("jwt-expirado")).thenReturn(Optional.empty());
+        MockHttpServletRequest request = comBearer("jwt-expirado");
+
+        filter.doFilter(request, new MockHttpServletResponse(), countingChain);
+
+        verify(usuarioRepository, never()).existsById(any());
+        assertThat(request.getAttribute(JwtAuthenticationFilter.ATRIBUTO_CONTA_EXCLUIDA)).isNull();
     }
 
     private static JwtService.AccessClaims claims() {

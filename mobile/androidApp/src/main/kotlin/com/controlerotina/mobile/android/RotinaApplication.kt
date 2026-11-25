@@ -8,6 +8,9 @@ class RotinaApplication : Application() {
     /** Preenchida pela [MainActivity] enquanto ela existe (diálogo de permissão). */
     val permissaoNotificacao: PermissaoAndroid by lazy { PermissaoAndroid(this) }
 
+    /** Preenchido pela [MainActivity] (seletor de arquivo do export LGPD). */
+    val salvadorArquivo: SalvadorArquivoAndroid by lazy { SalvadorArquivoAndroid(this) }
+
     /** Grafo único do processo: view-models sobrevivem à rotação de tela e o worker de lembrete reusa a sessão. */
     val deps: AppDependencias by lazy {
         AppDependencias(
@@ -18,6 +21,7 @@ class RotinaApplication : Application() {
             notificador = NotificadorAndroid(this),
             agendador = AgendadorWorkManager(this),
             permissao = permissaoNotificacao,
+            salvadorArquivo = salvadorArquivo,
         )
     }
 }

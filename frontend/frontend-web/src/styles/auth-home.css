@@ -205,6 +205,36 @@
   font-size: var(--text-sm);
 }
 
+/* Seus dados: export e área de perigo (exclusão de conta). */
+.perfil-card--dados {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.perfil-card--dados .perfil-card__descricao {
+  margin-bottom: var(--space-2);
+}
+
+.perfil-perigo {
+  align-self: stretch;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line));
+}
+
+.perfil-perigo__titulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.excluir-conta-dialog .confirm-dialog__message p {
+  margin: 0 0 var(--space-2);
+}
+
 .perfil-xp {
   display: grid;
   gap: var(--space-3);

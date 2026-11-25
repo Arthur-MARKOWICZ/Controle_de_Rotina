@@ -47,6 +47,32 @@ export class AuthRequiredError extends Error {
   }
 }
 
+/** `title` do ProblemDetail que a API manda quando o JWT é válido mas a conta foi excluída. */
+export const TITULO_CONTA_EXCLUIDA = "Conta excluída";
+
+/** A conta foi excluída (pelo app). A sessão local do MCP já foi apagada; não há o que renovar. */
+export class ContaExcluidaError extends Error {
+  constructor(
+    message = "A conta deste MCP foi excluída. A sessão local foi apagada; para usar o MCP, entre com outra conta.",
+  ) {
+    super(message);
+    this.name = "ContaExcluidaError";
+  }
+}
+
+function ehContaExcluida(text: string): boolean {
+  try {
+    const body: unknown = JSON.parse(text);
+    return (
+      typeof body === "object" &&
+      body !== null &&
+      (body as { title?: unknown }).title === TITULO_CONTA_EXCLUIDA
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Cliente HTTP mínimo da API do controle de rotina (paths na raiz: /auth, /tarefas, …).
  * Sessão estilo mobile: access + refresh local; refresh em 401.
@@ -343,12 +369,17 @@ export class ControleRotinaApiClient {
       headers,
     });
 
+    const text = await response.text();
+    if (response.status === 401 && ehContaExcluida(text)) {
+      this.sessionStore.clear();
+      throw new ContaExcluidaError();
+    }
+
     if (response.status === 401 && allowRefresh) {
       await this.refreshSession();
       return this.requestJson(path, init, false);
     }
 
-    const text = await response.text();
     if (!response.ok) {
       if (response.status === 401) {
         this.sessionStore.clear();

@@ -67,6 +67,11 @@ public class AuthService {
     @Transactional
     public void logout(String refreshTokenBruto, String accessTokenBruto) {
         refreshTokenService.revogar(refreshTokenBruto);
+        revogarAccessToken(accessTokenBruto);
+    }
+
+    /** Revoga o access token até ele expirar. Token ausente ou inválido: não faz nada. */
+    public void revogarAccessToken(String accessTokenBruto) {
         if (accessTokenBruto == null || accessTokenBruto.isBlank()) {
             return;
         }

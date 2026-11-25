@@ -102,6 +102,11 @@ class FakeRotinaApi : RotinaApi {
 
     override suspend fun me(): MeResponse = MeResponse("x@y.z").also { registrar("me") }
 
+    var conteudoExport: ByteArray = """{"versao":1}""".encodeToByteArray()
+
+    override suspend fun exportarDados(): ByteArray { registrar("exportar"); return conteudoExport }
+    override suspend fun excluirConta(senhaAtual: String) { registrar("excluirConta:$senhaAtual") }
+
     override suspend fun plano(data: String): Plano? { registrar("plano:$data"); return planoAtual }
     override suspend fun gerarPlano(data: String): Plano { registrar("gerar:$data"); planoAtual = gerado; return gerado }
     override suspend fun aprovarPlano(id: String): Plano {
@@ -293,6 +298,7 @@ class FakeRotinaApi : RotinaApi {
 
 class FakeAutenticador : Autenticador {
     override val sessaoExpirada = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val contaExcluida = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     var guardada = false
     var restaura: () -> Boolean = { true }
     var loginFalha: Throwable? = null

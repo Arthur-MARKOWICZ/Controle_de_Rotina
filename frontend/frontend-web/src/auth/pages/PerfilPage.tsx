@@ -1,5 +1,5 @@
-import { LightningIcon, SignOutIcon } from '@phosphor-icons/react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { DownloadSimpleIcon, LightningIcon, SignOutIcon, TrashIcon } from '@phosphor-icons/react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { InlineAlert } from '../../feedback/InlineAlert'
 import { Skeleton } from '../../feedback/Skeleton'
@@ -7,9 +7,11 @@ import { PageHeader } from '../../layout/PageHeader'
 import { ThemePreferenceField } from '../../theme/ThemePreferenceField'
 import type { XpProgresso } from '../../xp/types'
 import { ApiError, type UsuarioResponse } from '../api/authApi'
-import { atualizarMe, buscarMe } from '../api/meApi'
+import { atualizarMe, buscarMe, excluirConta, exportarDados } from '../api/meApi'
 import { CampoSenha } from '../components/CampoSenha'
+import { ExcluirContaDialog } from '../components/ExcluirContaDialog'
 import { useAuth } from '../session/AuthContext'
+import { encerrarSessaoContaExcluida } from '../session/tokenStore'
 import { isEmailValido } from '../validation/email'
 import { isSenhaForte } from '../validation/senhaForte'
 
@@ -65,6 +67,117 @@ function ProgressoXp({ progresso }: { progresso: XpProgresso }) {
           </div>
         </dl>
       </div>
+    </section>
+  )
+}
+
+/** Dispara o download de um Blob no navegador. */
+function baixarArquivo(blob: Blob, nomeArquivo: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = nomeArquivo
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+/** Exportar dados e excluir conta (LGPD). */
+function SeusDados() {
+  const exportandoRef = useRef(false)
+  const [exportando, setExportando] = useState(false)
+  const [erroExport, setErroExport] = useState<string | null>(null)
+  const [dialogAberto, setDialogAberto] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erroSenha, setErroSenha] = useState<string | null>(null)
+  const [erroExclusao, setErroExclusao] = useState<string | null>(null)
+
+  async function exportar() {
+    if (exportandoRef.current) {
+      return
+    }
+    exportandoRef.current = true
+    setExportando(true)
+    setErroExport(null)
+    try {
+      const { blob, nomeArquivo } = await exportarDados()
+      baixarArquivo(blob, nomeArquivo)
+    } catch (error) {
+      setErroExport(
+        error instanceof ApiError && error.message
+          ? error.message
+          : 'Não foi possível exportar seus dados. Tente novamente.',
+      )
+    } finally {
+      exportandoRef.current = false
+      setExportando(false)
+    }
+  }
+
+  const fecharDialog = useCallback(() => {
+    setDialogAberto(false)
+    setErroSenha(null)
+    setErroExclusao(null)
+  }, [])
+
+  async function confirmarExclusao(senhaAtual: string) {
+    setExcluindo(true)
+    setErroSenha(null)
+    setErroExclusao(null)
+    try {
+      await excluirConta(senhaAtual)
+      encerrarSessaoContaExcluida()
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setErroSenha('Senha atual incorreta.')
+      } else {
+        setErroExclusao('Não foi possível excluir a conta. Tente novamente.')
+      }
+      setExcluindo(false)
+    }
+  }
+
+  return (
+    <section className="card perfil-card perfil-card--dados" aria-labelledby="perfil-dados-titulo">
+      <h2 id="perfil-dados-titulo" className="perfil-card__titulo">
+        Seus dados
+      </h2>
+      <p className="perfil-card__descricao">
+        Baixe uma cópia de tudo que você registrou, em JSON.
+      </p>
+      <button
+        type="button"
+        className="btn btn--secondary"
+        onClick={() => void exportar()}
+        disabled={exportando}
+        aria-busy={exportando}
+      >
+        <DownloadSimpleIcon aria-hidden />
+        {exportando ? 'Exportando…' : 'Exportar meus dados'}
+      </button>
+      {erroExport ? <InlineAlert>{erroExport}</InlineAlert> : null}
+
+      <div className="perfil-perigo">
+        <h3 className="perfil-perigo__titulo">Excluir conta</h3>
+        <p className="perfil-card__descricao">
+          Apaga a conta e todos os dados para sempre. Não dá para desfazer.
+        </p>
+        <button type="button" className="btn btn--ghost btn--danger" onClick={() => setDialogAberto(true)}>
+          <TrashIcon aria-hidden />
+          Excluir conta
+        </button>
+      </div>
+
+      <ExcluirContaDialog
+        open={dialogAberto}
+        ocupado={excluindo}
+        erroSenha={erroSenha}
+        erroGeral={erroExclusao}
+        onConfirm={(senha) => void confirmarExclusao(senha)}
+        onExportar={() => void exportar()}
+        onClose={fecharDialog}
+      />
     </section>
   )
 }
@@ -282,6 +395,8 @@ export function PerfilPage() {
             <section className="card perfil-card perfil-card--aparencia">
               <ThemePreferenceField />
             </section>
+
+            <SeusDados />
           </div>
         </div>
       )}

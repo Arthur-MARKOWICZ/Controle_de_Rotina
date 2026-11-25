@@ -5,7 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as authApi from '../api/authApi'
 import { AuthProvider } from '../session/AuthContext'
-import { clearAccessToken, getAccessToken } from '../session/tokenStore'
+import {
+  clearAccessToken,
+  encerrarSessaoContaExcluida,
+  getAccessToken,
+  limparAvisoContaExcluida,
+  temAvisoContaExcluida,
+} from '../session/tokenStore'
 import { LoginPage } from './LoginPage'
 
 vi.mock('../api/authApi', () => ({
@@ -138,5 +144,36 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(getAccessToken()).toBeNull()
     expect(screen.queryByText('Home autenticada')).not.toBeInTheDocument()
+  })
+
+  describe('aviso de conta excluída', () => {
+    beforeEach(() => {
+      limparAvisoContaExcluida()
+    })
+
+    it('mostra "Sua conta foi excluída." quando a sessão caiu por conta excluída', () => {
+      encerrarSessaoContaExcluida()
+
+      renderLogin()
+
+      expect(screen.getByRole('status')).toHaveTextContent('Sua conta foi excluída.')
+    })
+
+    it('o aviso aparece uma vez só: some depois de lido', () => {
+      encerrarSessaoContaExcluida()
+      const primeira = renderLogin()
+      primeira.unmount()
+
+      renderLogin()
+
+      expect(temAvisoContaExcluida()).toBe(false)
+      expect(screen.queryByText('Sua conta foi excluída.')).not.toBeInTheDocument()
+    })
+
+    it('login comum não mostra o aviso', () => {
+      renderLogin()
+
+      expect(screen.queryByText('Sua conta foi excluída.')).not.toBeInTheDocument()
+    })
   })
 })
